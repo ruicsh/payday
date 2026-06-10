@@ -11,7 +11,7 @@ from payday.models import EmployeeNIResult, EmployerNIResult
 
 def calc_employee_ni(salary: int) -> EmployeeNIResult:
     """Employee Class 1 NI, Category A (2026/27).
-    # Source: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
+    Source: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
 
     - 0% on earnings up to £12,570
     - 8% on £12,571 to £50,270
@@ -43,7 +43,7 @@ def calc_employee_ni(salary: int) -> EmployeeNIResult:
 
 def calc_employer_ni(gross_salary: int) -> EmployerNIResult:
     """Employer NI on gross salary (2026/27).
-    # Source: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
+    Source: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
 
     - 0% on earnings up to £5,000
     - 15% on earnings above £5,000

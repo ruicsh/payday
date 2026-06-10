@@ -7,8 +7,8 @@ class PAYECalculator:
     @staticmethod
     def calculate(salary: int) -> SalaryBreakdown:
         """PAYE: Gross → IT + EE NI → take-home (monthly).
-        # Income Tax: https://www.gov.uk/income-tax-rates
-        # Employee NI: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
+        Income Tax: https://www.gov.uk/income-tax-rates
+        Employee NI: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
         """
         pa, tapered = calc_personal_allowance(salary)  # https://www.gov.uk/income-tax-rates
         it_result = calc_income_tax(salary, pa)  # https://www.gov.uk/income-tax-rates

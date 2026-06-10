@@ -10,8 +10,8 @@ class InsideIR35Calculator:
         day_rate: int, working_days: int, umbrella_margin_weekly: int = 25
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI → 20-day.
-        # IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
-        # Umbrella company guidance: https://www.gov.uk/guidance/working-through-an-umbrella-company
+        IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
+        Umbrella company guidance: https://www.gov.uk/guidance/working-through-an-umbrella-company
         """
         annual_assignment = day_rate * working_days
 

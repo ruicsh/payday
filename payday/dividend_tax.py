@@ -20,8 +20,8 @@ _HIGHER_BAND_WIDTH = HIGHER_RATE_BAND_LIMIT - BASIC_RATE_BAND_LIMIT  # 74,870
 
 def calc_dividend_tax(dividends: int, salary: int) -> DividendTaxResult:
     """Tax on dividends, stacked on top of salary.
-    # Source: https://www.gov.uk/tax-on-dividends
-    # Source: https://www.gov.uk/income-tax-rates  (band limits used for stacking)
+    Source: https://www.gov.uk/tax-on-dividends
+    Source: https://www.gov.uk/income-tax-rates (band limits used for stacking)
 
     - £500 dividend allowance at 0% (separate from Personal Allowance)
     - Basic rate: 10.75% (taxable income £0–£37,700)

@@ -15,13 +15,11 @@ def calc_corporation_tax(profit: int) -> CorporationTaxResult:
     HMRC Manual: CTM03925 (Marginal Relief formula)
 
     The calculation follows CTA10/S18B formula: (F x (U - A)) x (N / A)
-    where:
-    - F = standard marginal relief fraction (3/200)
-    - U = upper limit (£250,000)
-    - A = augmented profits
-    - N = taxable total profits
+    where F is the relief fraction (3/200), U is the upper limit (£250,000),
+    A is augmented profits, and N is taxable total profits.
 
     Note: This implementation assumes N = A (no exempt distributions).
+    The formula then simplifies to: (Profit x 25%) - (3/200 x (250,000 - Profit)).
 
     - 19% if profit ≤ £50,000 (Small Profits Rate)
     - 25% - relief if £50,000 < profit ≤ £250,000 (Marginal Relief)
