@@ -13,6 +13,7 @@ from payday.models import IncomeTaxResult
 
 def calc_personal_allowance(salary: int) -> tuple[int, bool]:
     """Return (personal_allowance, tapered_flag).
+    # Source: https://www.gov.uk/income-tax-rates
 
     Standard allowance £12,570. Reduces by £1 per £2 over £100,000.
     Zero at £125,140 or above.
@@ -34,6 +35,7 @@ def calc_personal_allowance(salary: int) -> tuple[int, bool]:
 
 def calc_income_tax(salary: int, personal_allowance: int) -> IncomeTaxResult:
     """Compute full IncomeTaxResult for a given salary and PA.
+    # Source: https://www.gov.uk/income-tax-rates
 
     Bands (2026/27):
       - 0%: £0 to personal_allowance

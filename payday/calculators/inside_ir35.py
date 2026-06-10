@@ -9,7 +9,10 @@ class InsideIR35Calculator:
     def calculate(
         day_rate: int, working_days: int, umbrella_margin_weekly: int = 25
     ) -> SalaryBreakdown:
-        """Inside IR35: Assignment → Er costs → gross → IT + EE NI → 20-day."""
+        """Inside IR35: Assignment → Er costs → gross → IT + EE NI → 20-day.
+        # IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
+        # Umbrella company guidance: https://www.gov.uk/guidance/working-through-an-umbrella-company
+        """
         annual_assignment = day_rate * working_days
 
         # Calculate annual margin
@@ -20,14 +23,16 @@ class InsideIR35Calculator:
         budget = annual_assignment - annual_margin
 
         # Solve for gross salary
+        # Employer NI 15% above £5k ST: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
+        # Apprenticeship Levy 0.5%: https://www.gov.uk/guidance/pay-apprenticeship-levy
         gross = InsideIR35Calculator.solve_gross_salary(budget)
 
-        er_ni_result = calc_employer_ni(gross)
-        levy = round(gross * APPRENTICESHIP_LEVY_RATE)
+        er_ni_result = calc_employer_ni(gross)  # https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
+        levy = round(gross * APPRENTICESHIP_LEVY_RATE)  # https://www.gov.uk/guidance/pay-apprenticeship-levy
 
-        pa, _ = calc_personal_allowance(gross)
-        it_result = calc_income_tax(gross, pa)
-        ee_ni_result = calc_employee_ni(gross)
+        pa, _ = calc_personal_allowance(gross)  # https://www.gov.uk/income-tax-rates
+        it_result = calc_income_tax(gross, pa)  # https://www.gov.uk/income-tax-rates
+        ee_ni_result = calc_employee_ni(gross)  # https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
 
         annual_take_home = gross - it_result.total_tax - ee_ni_result.total_ni
         take_home_20_day = round(annual_take_home / working_days * 20)
@@ -35,11 +40,11 @@ class InsideIR35Calculator:
         steps = [
             StepLine("Assignment Rate", annual_assignment),
             StepLine("Umbrella Margin", -annual_margin, indent=1),
-            StepLine("Employer NI (15%)", -er_ni_result.total_er_ni, indent=1),
-            StepLine("Apprenticeship Levy", -levy, indent=1),
+            StepLine("Employer NI (15%)", -er_ni_result.total_er_ni, indent=1),  # https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
+            StepLine("Apprenticeship Levy", -levy, indent=1),  # https://www.gov.uk/guidance/pay-apprenticeship-levy
             StepLine("Gross Salary", gross, is_subtotal=True),
-            StepLine("Income Tax", -it_result.total_tax, indent=1),
-            StepLine("Employee NI", -ee_ni_result.total_ni, indent=1),
+            StepLine("Income Tax", -it_result.total_tax, indent=1),  # https://www.gov.uk/income-tax-rates
+            StepLine("Employee NI", -ee_ni_result.total_ni, indent=1),  # https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
         ]
@@ -62,6 +67,8 @@ class InsideIR35Calculator:
     @staticmethod
     def solve_gross_salary(budget: int) -> int:
         """Closed-form solution for umbrella gross salary.
+        Source: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027 (ER NI 15%, ST £5,000)
+        Source: https://www.gov.uk/guidance/pay-apprenticeship-levy (Levy 0.5%)
 
         Budget = Gross + Employer NI + Apprenticeship Levy
         Employer NI = (Gross - 5000) * 0.15  (if Gross > 5000)
