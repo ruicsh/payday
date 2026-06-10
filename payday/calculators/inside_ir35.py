@@ -30,12 +30,14 @@ class InsideIR35Calculator:
         er_ni_result = calc_employer_ni(gross)  # https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
         levy = round(gross * APPRENTICESHIP_LEVY_RATE)  # https://www.gov.uk/guidance/pay-apprenticeship-levy
 
-        pa, _ = calc_personal_allowance(gross)  # https://www.gov.uk/income-tax-rates
+        pa, tapered = calc_personal_allowance(gross)  # https://www.gov.uk/income-tax-rates
         it_result = calc_income_tax(gross, pa)  # https://www.gov.uk/income-tax-rates
         ee_ni_result = calc_employee_ni(gross)  # https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
 
         annual_take_home = gross - it_result.total_tax - ee_ni_result.total_ni
         take_home_20_day = round(annual_take_home / working_days * 20)
+
+        pa_label = "Personal Allowance" + (" (tapered)" if tapered else "")
 
         steps = [
             StepLine("Assignment Rate", annual_assignment),
@@ -43,6 +45,8 @@ class InsideIR35Calculator:
             StepLine("Employer NI (15%)", -er_ni_result.total_er_ni, indent=1),  # https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
             StepLine("Apprenticeship Levy", -levy, indent=1),  # https://www.gov.uk/guidance/pay-apprenticeship-levy
             StepLine("Gross Salary", gross, is_subtotal=True),
+            StepLine(pa_label, -pa, indent=1),  # https://www.gov.uk/income-tax-rates
+            StepLine("Taxable Income", it_result.taxable_income, indent=1),
             StepLine("Income Tax", -it_result.total_tax, indent=1),  # https://www.gov.uk/income-tax-rates
             StepLine("Employee NI", -ee_ni_result.total_ni, indent=1),  # https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
