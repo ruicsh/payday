@@ -62,7 +62,7 @@ Or directly:
 python3 -m unittest discover -v -s payday/tests
 ```
 
-All 54 tests pass.
+All 66 tests pass.
 
 ---
 
