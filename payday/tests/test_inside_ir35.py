@@ -18,9 +18,22 @@ class TestInsideIR35Calculator(unittest.TestCase):
 
     def test_solve_gross_salary_above_threshold(self):
         # Budget 118800 = 500*240 - 25*48
-        # gross = (118800 + 750) / 1.155 = 119550 / 1.155 = 103506.49 -> 103506
+        # Budget > 58633 (Case C→D boundary), so Case D applies:
+        # gross = (118800 - 570.90) / 1.155 = 102362.8 -> 102363
         gross = InsideIR35Calculator.solve_gross_salary(118800)
-        self.assertEqual(gross, 103506)
+        self.assertEqual(gross, 102363)
+
+    def test_solve_gross_salary_pension_band(self):
+        # Budget 30000 (Case C: 10800 < B <= 58633)
+        # gross = (30000 + 937.20) / 1.185 = 30937.20 / 1.185 = 26107.34 -> 26107
+        gross = InsideIR35Calculator.solve_gross_salary(30000)
+        self.assertEqual(gross, 26107)
+
+    def test_solve_gross_salary_no_pension_band(self):
+        # Budget 8000 (Case B: 5025 < B <= 10800)
+        # gross = (8000 + 750) / 1.155 = 8750 / 1.155 = 7575.75 -> 7576
+        gross = InsideIR35Calculator.solve_gross_salary(8000)
+        self.assertEqual(gross, 7576)
 
     def test_solve_gross_salary_small(self):
         gross = InsideIR35Calculator.solve_gross_salary(0)
@@ -42,13 +55,13 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertEqual(self._find_step(breakdown, "Umbrella Margin").amount, -1200)
 
         # Budget = 120000 - 1200 = 118800
-        # Gross = (118800 + 750) / 1.155 = 103506
-        self.assertEqual(self._find_step(breakdown, "Gross Salary").amount, 103506)
+        # Gross = (118800 - 570.90) / 1.155 = 102363
+        self.assertEqual(self._find_step(breakdown, "Gross Salary").amount, 102363)
 
         # New steps: PA and Taxable Income
-        # PA for 103506: 12570 - (103506-100000)/2 = 12570 - 1753 = 10817
-        self.assertEqual(self._find_step(breakdown, "Personal Allowance (tapered)").amount, -10817)
-        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 103506 - 10817)
+        # PA for 102363: 12570 - int((102363-100000)/2) = 12570 - 1181 = 11389
+        self.assertEqual(self._find_step(breakdown, "Personal Allowance (tapered)").amount, -11389)
+        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 102363 - 11389)
 
         # Verify take-home and sub-results are present
         self.assertGreater(breakdown.annual_take_home, 0)
@@ -61,30 +74,30 @@ class TestInsideIR35Calculator(unittest.TestCase):
         # £1000/day, 240 days = 240,000 assignment
         # margin = 1200
         # budget = 238800
-        # gross = (238800 + 750) / 1.155 = 207403
+        # gross = (238800 - 570.90) / 1.155 = 206259
         # PA should be 0 (tapered)
         breakdown = InsideIR35Calculator.calculate(1000, 240, 25)
         
         self.assertEqual(self._find_step(breakdown, "Personal Allowance (tapered)").amount, 0)
-        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 207403)
+        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 206259)
 
     def test_non_tapered_personal_allowance_low_rate(self):
         # £300/day, 240 days = 72,000 assignment
         # margin = 1200
         # budget = 70800
-        # gross = (70800 + 750) / 1.155 = 61948
+        # gross = (70800 - 570.90) / 1.155 = 60804
         # PA should be 12570 (not tapered)
         breakdown = InsideIR35Calculator.calculate(300, 240, 25)
         
         self.assertEqual(self._find_step(breakdown, "Personal Allowance").amount, -12570)
-        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 61948 - 12570)
+        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 60804 - 12570)
 
     def test_20_day_pro_rata(self):
         breakdown = InsideIR35Calculator.calculate(600, 200, 25)
         # annual = 600 * 200 = 120000
         # margin = 25 * (200/5) = 25 * 40 = 1000
         # budget = 120000 - 1000 = 119000
-        # gross = (119000 + 750) / 1.155 = 119750 / 1.155 = 103679.65 -> 103680
+        # Case D applies: gross = (119000 - 570.90) / 1.155
         # display = round(annual_take_home / 200 * 20)
         expected_display = round(breakdown.annual_take_home / 200 * 20)
         self.assertEqual(breakdown.display_take_home, expected_display)
@@ -96,7 +109,7 @@ class TestInsideIR35Calculator(unittest.TestCase):
             self.assertGreater(breakdown.annual_take_home, 0)
             self.assertGreater(breakdown.display_take_home, 0)
             # Take-home should be less than gross
-            gross = breakdown.steps[4].amount
+            gross = self._find_step(breakdown, "Gross Salary").amount
             self.assertLess(breakdown.annual_take_home, gross)
 
 

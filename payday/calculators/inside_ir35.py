@@ -1,6 +1,11 @@
-from payday.constants import APPRENTICESHIP_LEVY_RATE
+from payday.constants import (
+    APPRENTICESHIP_LEVY_RATE,
+    NI_EMPLOYER_RATE,
+    PENSION_EMPLOYER_RATE,
+)
 from payday.income_tax import calc_personal_allowance, calc_income_tax
 from payday.national_insurance import calc_employee_ni, calc_employer_ni
+from payday.pension import calc_pension
 from payday.models import SalaryBreakdown, StepLine
 
 
@@ -9,7 +14,7 @@ class InsideIR35Calculator:
     def calculate(
         day_rate: int, working_days: int, umbrella_margin_weekly: int = 25
     ) -> SalaryBreakdown:
-        """Inside IR35: Assignment → Er costs → gross → IT + EE NI → 20-day.
+        """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
         Umbrella company guidance: https://www.gov.uk/guidance/working-through-an-umbrella-company
         """
@@ -22,19 +27,20 @@ class InsideIR35Calculator:
 
         budget = annual_assignment - annual_margin
 
-        # Solve for gross salary
-        # Employer NI 15% above £5k ST: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
-        # Apprenticeship Levy 0.5%: https://www.gov.uk/guidance/pay-apprenticeship-levy
+        # Solve for gross salary including Er NI, Levy, and Er Pension
         gross = InsideIR35Calculator.solve_gross_salary(budget)
 
-        er_ni_result = calc_employer_ni(gross)  # https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
-        levy = round(gross * APPRENTICESHIP_LEVY_RATE)  # https://www.gov.uk/guidance/pay-apprenticeship-levy
+        er_ni_result = calc_employer_ni(gross)
+        levy = round(gross * APPRENTICESHIP_LEVY_RATE)
+        pension_result = calc_pension(gross)
 
-        pa, tapered = calc_personal_allowance(gross)  # https://www.gov.uk/income-tax-rates
-        it_result = calc_income_tax(gross, pa)  # https://www.gov.uk/income-tax-rates
-        ee_ni_result = calc_employee_ni(gross)  # https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
+        pa, tapered = calc_personal_allowance(gross)
+        it_result = calc_income_tax(gross, pa)
+        ee_ni_result = calc_employee_ni(gross)
 
-        annual_take_home = gross - it_result.total_tax - ee_ni_result.total_ni
+        annual_take_home = (
+            gross - it_result.total_tax - ee_ni_result.total_ni - pension_result.employee_contribution
+        )
         take_home_20_day = round(annual_take_home / working_days * 20)
 
         pa_label = "Personal Allowance" + (" (tapered)" if tapered else "")
@@ -42,13 +48,25 @@ class InsideIR35Calculator:
         steps = [
             StepLine("Assignment Rate", annual_assignment),
             StepLine("Umbrella Margin", -annual_margin, indent=1),
-            StepLine("Employer NI (15%)", -er_ni_result.total_er_ni, indent=1),  # https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
-            StepLine("Apprenticeship Levy", -levy, indent=1),  # https://www.gov.uk/guidance/pay-apprenticeship-levy
+            StepLine(
+                f"Employer NI ({int(NI_EMPLOYER_RATE*100)}%)", -er_ni_result.total_er_ni, indent=1
+            ),
+            StepLine(
+                f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE*100}%)", -levy, indent=1
+            ),
+            StepLine(
+                f"Employer Pension ({int(PENSION_EMPLOYER_RATE*100)}%)",
+                -pension_result.employer_contribution,
+                indent=1,
+            ),
             StepLine("Gross Salary", gross, is_subtotal=True),
-            StepLine(pa_label, -pa, indent=1),  # https://www.gov.uk/income-tax-rates
+            StepLine(pa_label, -pa, indent=1),
             StepLine("Taxable Income", it_result.taxable_income, indent=1),
-            StepLine("Income Tax", -it_result.total_tax, indent=1),  # https://www.gov.uk/income-tax-rates
-            StepLine("Employee NI", -ee_ni_result.total_ni, indent=1),  # https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
+            StepLine("Income Tax", -it_result.total_tax, indent=1),
+            StepLine("Employee NI", -ee_ni_result.total_ni, indent=1),
+            StepLine(
+                "Pension Contribution", -pension_result.employee_contribution, indent=1
+            ),
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
         ]
@@ -66,32 +84,39 @@ class InsideIR35Calculator:
             income_tax=it_result,
             employee_ni=ee_ni_result,
             employer_ni=er_ni_result,
+            pension=pension_result,
         )
 
     @staticmethod
     def solve_gross_salary(budget: int) -> int:
-        """Closed-form solution for umbrella gross salary.
-        Source: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027 (ER NI 15%, ST £5,000)
-        Source: https://www.gov.uk/guidance/pay-apprenticeship-levy (Levy 0.5%)
+        """Closed-form solution for umbrella gross salary including pension.
+        Budget = Gross + Er NI + Levy + Er Pension
 
-        Budget = Gross + Employer NI + Apprenticeship Levy
-        Employer NI = (Gross - 5000) * 0.15  (if Gross > 5000)
-        Levy = Gross * 0.005
+        Case A: Gross <= 5000 (No Er NI, No Er Pension)
+        Budget = Gross + Gross * 0.005 = 1.005 * Gross
+        Limit: Budget <= 5000 * 1.005 = 5025
 
-        If Gross > 5000:
-        Budget = Gross + (Gross - 5000) * 0.15 + Gross * 0.005
-        Budget = Gross + 0.15 * Gross - 750 + 0.005 * Gross
-        Budget = Gross * (1 + 0.15 + 0.005) - 750
-        Budget = Gross * 1.155 - 750
-        Gross = (Budget + 750) / 1.155
+        Case B: 5000 < Gross <= 10000 (Er NI, No Er Pension)
+        Budget = Gross + 0.15*(Gross - 5000) + 0.005*Gross = 1.155*Gross - 750
+        Limit: Budget <= 1.155*10000 - 750 = 10800
 
-        If Gross <= 5000:
-        Budget = Gross + Gross * 0.005 = Gross * 1.005
-        Gross = Budget / 1.005
+        Case C: 10000 < Gross <= 50270 (Er NI, Er Pension 3% of qualifying)
+        Budget = Gross + 0.15*(Gross - 5000) + 0.005*Gross + 0.03*(Gross - 6240)
+        Budget = 1.155*Gross - 750 + 0.03*Gross - 187.20 = 1.185*Gross - 937.20
+        Limit: Budget <= 1.185*50270 - 937.20 = 58632.75
+
+        Case D: Gross > 50270 (Er NI, Er Pension capped)
+        Budget = Gross + 0.15*(Gross - 5000) + 0.005*Gross + 0.03*(50270 - 6240)
+        Budget = 1.155*Gross - 750 + 1320.90 = 1.155*Gross + 570.90
         """
-        # Threshold for budget where Gross would be 5000:
-        # Budget = 5000 * 1.005 = 5025
+        # Thresholds in terms of Budget
         if budget <= 5025:
             return round(budget / 1.005)
 
-        return round((budget + 750) / 1.155)
+        if budget <= 10800:
+            return round((budget + 750) / 1.155)
+
+        if budget <= 58633:
+            return round((budget + 937.20) / 1.185)
+
+        return round((budget - 570.90) / 1.155)

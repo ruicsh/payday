@@ -55,6 +55,14 @@ class DividendTaxResult:
 
 
 @dataclass
+class PensionResult:
+    eligible: bool
+    qualifying_earnings: int
+    employee_contribution: int
+    employer_contribution: int
+
+
+@dataclass
 class StepLine:
     label: str
     amount: int
@@ -74,3 +82,4 @@ class SalaryBreakdown:
     employer_ni: Optional[EmployerNIResult] = None
     corporation_tax: Optional[CorporationTaxResult] = None
     dividend_tax: Optional[DividendTaxResult] = None
+    pension: Optional[PensionResult] = None

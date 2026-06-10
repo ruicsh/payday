@@ -38,3 +38,11 @@ DIVIDEND_ALLOWANCE: int = 500
 DIVIDEND_BASIC_RATE: float = 0.1075
 DIVIDEND_HIGHER_RATE: float = 0.3575
 DIVIDEND_ADDITIONAL_RATE: float = 0.3935
+
+# Pension (Auto-Enrolment)
+# Source: https://www.gov.uk/workplace-pensions/what-you-your-employer-and-the-government-pay
+PENSION_TRIGGER: int = 10_000
+PENSION_QUALIFYING_LOWER_LIMIT: int = 6_240
+PENSION_QUALIFYING_UPPER_LIMIT: int = 50_270
+PENSION_EMPLOYEE_RATE: float = 0.05
+PENSION_EMPLOYER_RATE: float = 0.03

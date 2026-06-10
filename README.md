@@ -13,7 +13,7 @@ Run it via `make run` or `python3 -m payday`.
 For permanent employees on a fixed annual salary.
 
 - **Input:** annual gross salary
-- **Deductions:** Income Tax (Personal Allowance £12,570, 20%/40%/45% bands), Employee NI (0%/8%/2%)
+- **Deductions:** Income Tax (Personal Allowance £12,570, 20%/40%/45% bands), Employee NI (0%/8%/2%), Auto-enrolment Pension (5% on qualifying earnings)
 - **Output:** annual and monthly take-home pay
 
 ### 2. Inside IR35 (Umbrella Company)
@@ -21,7 +21,7 @@ For permanent employees on a fixed annual salary.
 For contractors working through an umbrella company. The umbrella sits between the agency and the contractor, handling tax deductions.
 
 - **Inputs:** day rate, working days per year, umbrella weekly margin
-- **Flow:** assignment rate → minus margin → minus Employer NI (15% above £5,000 Secondary Threshold) → minus Apprenticeship Levy (0.5%) → gross salary → minus Income Tax → minus Employee NI
+- **Flow:** assignment rate → minus margin → minus Employer NI (15% above £5,000 Secondary Threshold) → minus Apprenticeship Levy (0.5%) → minus Employer Pension (3% on qualifying earnings) → gross salary → minus Income Tax → minus Employee NI → minus Employee Pension
 - **Output:** annual and 20-day take-home pay (a common comparison metric for contractors)
 
 ### 3. Outside IR35 (Limited Company)
