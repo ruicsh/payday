@@ -9,7 +9,7 @@ class OutsideIR35Calculator:
     @staticmethod
     def calculate(day_rate: int, working_days: int) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → 20-day.
-        # IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
+        IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
         """
         revenue = day_rate * working_days
 
@@ -24,9 +24,9 @@ class OutsideIR35Calculator:
         ct_result = calc_corporation_tax(profit)  # https://www.gov.uk/corporation-tax-rates
 
         post_tax_profit = profit - ct_result.total_ct
-
-        # Assume all distributed as dividends
-        dividends = post_tax_profit
+        
+        # Assume all distributed as dividends (clamped to zero if loss-making)
+        dividends = max(0, post_tax_profit)
         div_tax_result = calc_dividend_tax(dividends, salary)  # https://www.gov.uk/tax-on-dividends
 
         # Take-home = Salary + (Dividends - Dividend Tax)
