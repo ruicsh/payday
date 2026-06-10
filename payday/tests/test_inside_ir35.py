@@ -60,8 +60,12 @@ class TestInsideIR35Calculator(unittest.TestCase):
 
         # New steps: PA and Taxable Income
         # PA for 102363: 12570 - int((102363-100000)/2) = 12570 - 1181 = 11389
-        self.assertEqual(self._find_step(breakdown, "Personal Allowance (tapered)").amount, -11389)
-        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 102363 - 11389)
+        self.assertEqual(
+            self._find_step(breakdown, "Personal Allowance (tapered)").amount, -11389
+        )
+        self.assertEqual(
+            self._find_step(breakdown, "Taxable Income").amount, 102363 - 11389
+        )
 
         # Verify take-home and sub-results are present
         self.assertGreater(breakdown.annual_take_home, 0)
@@ -77,8 +81,10 @@ class TestInsideIR35Calculator(unittest.TestCase):
         # gross = (238800 - 570.90) / 1.155 = 206259
         # PA should be 0 (tapered)
         breakdown = InsideIR35Calculator.calculate(1000, 240, 25)
-        
-        self.assertEqual(self._find_step(breakdown, "Personal Allowance (tapered)").amount, 0)
+
+        self.assertEqual(
+            self._find_step(breakdown, "Personal Allowance (tapered)").amount, 0
+        )
         self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 206259)
 
     def test_non_tapered_personal_allowance_low_rate(self):
@@ -88,9 +94,13 @@ class TestInsideIR35Calculator(unittest.TestCase):
         # gross = (70800 - 570.90) / 1.155 = 60804
         # PA should be 12570 (not tapered)
         breakdown = InsideIR35Calculator.calculate(300, 240, 25)
-        
-        self.assertEqual(self._find_step(breakdown, "Personal Allowance").amount, -12570)
-        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 60804 - 12570)
+
+        self.assertEqual(
+            self._find_step(breakdown, "Personal Allowance").amount, -12570
+        )
+        self.assertEqual(
+            self._find_step(breakdown, "Taxable Income").amount, 60804 - 12570
+        )
 
     def test_20_day_pro_rata(self):
         breakdown = InsideIR35Calculator.calculate(600, 200, 25)

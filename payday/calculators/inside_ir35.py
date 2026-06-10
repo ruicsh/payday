@@ -39,7 +39,10 @@ class InsideIR35Calculator:
         ee_ni_result = calc_employee_ni(gross)
 
         annual_take_home = (
-            gross - it_result.total_tax - ee_ni_result.total_ni - pension_result.employee_contribution
+            gross
+            - it_result.total_tax
+            - ee_ni_result.total_ni
+            - pension_result.employee_contribution
         )
         take_home_20_day = round(annual_take_home / working_days * 20)
 
@@ -49,13 +52,17 @@ class InsideIR35Calculator:
             StepLine("Assignment Rate", annual_assignment),
             StepLine("Umbrella Margin", -annual_margin, indent=1),
             StepLine(
-                f"Employer NI ({int(NI_EMPLOYER_RATE*100)}%)", -er_ni_result.total_er_ni, indent=1
+                f"Employer NI ({int(NI_EMPLOYER_RATE * 100)}%)",
+                -er_ni_result.total_er_ni,
+                indent=1,
             ),
             StepLine(
-                f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE*100}%)", -levy, indent=1
+                f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE * 100}%)",
+                -levy,
+                indent=1,
             ),
             StepLine(
-                f"Employer Pension ({int(PENSION_EMPLOYER_RATE*100)}%)",
+                f"Employer Pension ({int(PENSION_EMPLOYER_RATE * 100)}%)",
                 -pension_result.employer_contribution,
                 indent=1,
             ),

@@ -34,7 +34,9 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         self.assertEqual(self._find_step(breakdown, "Corporation Tax").amount, -24418)
 
         # Distributable profit = 106294 - 24418 = 81876
-        self.assertEqual(self._find_step(breakdown, "Distributable Profit").amount, 81876)
+        self.assertEqual(
+            self._find_step(breakdown, "Distributable Profit").amount, 81876
+        )
 
         # Take-home should be positive and reasonable
         self.assertGreater(breakdown.annual_take_home, 0)

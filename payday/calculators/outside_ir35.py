@@ -21,13 +21,17 @@ class OutsideIR35Calculator:
         er_ni_result = calc_employer_ni(salary)
 
         profit = revenue - salary - er_ni_result.total_er_ni
-        ct_result = calc_corporation_tax(profit)  # https://www.gov.uk/corporation-tax-rates
+        ct_result = calc_corporation_tax(
+            profit
+        )  # https://www.gov.uk/corporation-tax-rates
 
         post_tax_profit = profit - ct_result.total_ct
-        
+
         # Assume all distributed as dividends (clamped to zero if loss-making)
         dividends = max(0, post_tax_profit)
-        div_tax_result = calc_dividend_tax(dividends, salary)  # https://www.gov.uk/tax-on-dividends
+        div_tax_result = calc_dividend_tax(
+            dividends, salary
+        )  # https://www.gov.uk/tax-on-dividends
 
         # Take-home = Salary + (Dividends - Dividend Tax)
         # Note: at £12,570 salary, Income Tax and EE NI are both zero.
@@ -38,12 +42,20 @@ class OutsideIR35Calculator:
 
         steps = [
             StepLine("Company Revenue", revenue),
-            StepLine("Director Salary", -salary, indent=1),  # https://www.gov.uk/income-tax-rates
-            StepLine("Employer NI (15%)", -er_ni_result.total_er_ni, indent=1),  # https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
+            StepLine(
+                "Director Salary", -salary, indent=1
+            ),  # https://www.gov.uk/income-tax-rates
+            StepLine(
+                "Employer NI (15%)", -er_ni_result.total_er_ni, indent=1
+            ),  # https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
             StepLine("Company Profit", profit, is_subtotal=True),
-            StepLine("Corporation Tax", -ct_result.total_ct, indent=1),  # https://www.gov.uk/corporation-tax-rates
+            StepLine(
+                "Corporation Tax", -ct_result.total_ct, indent=1
+            ),  # https://www.gov.uk/corporation-tax-rates
             StepLine("Distributable Profit", post_tax_profit, is_subtotal=True),
-            StepLine("Dividend Tax", -div_tax_result.total_tax, indent=1),  # https://www.gov.uk/tax-on-dividends
+            StepLine(
+                "Dividend Tax", -div_tax_result.total_tax, indent=1
+            ),  # https://www.gov.uk/tax-on-dividends
             StepLine("Take-Home", take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
         ]

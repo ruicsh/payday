@@ -22,7 +22,9 @@ NI_UPPER_RATE: float = 0.02
 # Source: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
 NI_SECONDARY_THRESHOLD: int = 5_000
 NI_EMPLOYER_RATE: float = 0.15
-APPRENTICESHIP_LEVY_RATE: float = 0.005  # Source: https://www.gov.uk/guidance/pay-apprenticeship-levy
+APPRENTICESHIP_LEVY_RATE: float = (
+    0.005  # Source: https://www.gov.uk/guidance/pay-apprenticeship-levy
+)
 
 # Corporation Tax (Financial Year 2026)
 # Source: https://www.gov.uk/corporation-tax-rates
