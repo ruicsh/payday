@@ -3,6 +3,13 @@ from payday.calculators.inside_ir35 import InsideIR35Calculator
 
 
 class TestInsideIR35Calculator(unittest.TestCase):
+    def _find_step(self, breakdown, label):
+        """Helper to find a step by its label."""
+        for step in breakdown.steps:
+            if step.label == label:
+                return step
+        self.fail(f"Step with label '{label}' not found in breakdown")
+
     def test_solve_gross_salary_below_threshold(self):
         # Budget <= 5025 means gross <= 5000, uses /1.005 formula
         gross = InsideIR35Calculator.solve_gross_salary(5025)
@@ -29,17 +36,16 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertEqual(breakdown.inputs["margin_weekly"], 25)
 
         # Assignment = 500 * 240 = 120000
-        self.assertEqual(breakdown.steps[0].amount, 120000)
+        self.assertEqual(self._find_step(breakdown, "Assignment Rate").amount, 120000)
 
         # Margin = 25 * (240/5) = 25 * 48 = 1200
-        self.assertEqual(breakdown.steps[1].amount, -1200)
+        self.assertEqual(self._find_step(breakdown, "Umbrella Margin").amount, -1200)
 
         # Budget = 120000 - 1200 = 118800
         # Gross = (118800 + 750) / 1.155 = 103506
-        self.assertEqual(breakdown.steps[4].amount, 103506)
+        self.assertEqual(self._find_step(breakdown, "Gross Salary").amount, 103506)
 
-        # Employer NI on 103506: (103506 - 5000) * 0.15 = 98506 * 0.15 = 14775.9 -> 14776
-        # Actually let me just check the take-home is consistent
+        # Verify take-home and sub-results are present
         self.assertGreater(breakdown.annual_take_home, 0)
         self.assertGreater(breakdown.display_take_home, 0)
         self.assertIsNotNone(breakdown.income_tax)

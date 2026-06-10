@@ -27,16 +27,10 @@ class TestCorporationTax(unittest.TestCase):
         self.assertEqual(res.marginal_relief, 2250)
 
     def test_marginal_relief_near_upper(self):
-        # 249000 * 0.25 = 62250; relief = (250000 - 249000) * 3/200 = 1500 * 0.015 = 22.5 -> round to 23?
-        # Wait: 1500 * 3/200 = 1500 * 0.015 = 22.5, round(22.5) = 23 (Python banker's rounding)
-        # In Python 3, round(22.5) = 22 (banker's rounding: rounds to even)
-        # So relief = 22, total = 62250 - 22 = 62228
-        # Actually, (250000 - 249000) = 1000... wait, 250k - 249k = 1000
-        # Wait, 250000 - 249000 = 1000. 1000 * 3/200 = 1000 * 0.015 = 15.0
-        res = calc_corporation_tax(249000)
-        # full_rate_tax = 249000 * 0.25 = 62250
-        # relief = round((250000 - 249000) * 3/200) = round(1000 * 0.015) = round(15.0) = 15
+        # 249000 * 0.25 = 62250
+        # relief = round((250000 - 249000) * 3/200) = round(1000 * 0.015) = 15
         # total = 62250 - 15 = 62235
+        res = calc_corporation_tax(249000)
         self.assertEqual(res.total_ct, 62235)
 
     def test_main_rate(self):
