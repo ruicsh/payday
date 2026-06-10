@@ -1,3 +1,5 @@
 REQUIREMENTS.md
 SPEC.md
+tasks/
+tasks/*
 __pycache__/
