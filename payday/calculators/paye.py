@@ -17,9 +17,11 @@ class PAYECalculator:
         annual_take_home = salary - it_result.total_tax - ni_result.total_ni
         monthly_take_home = annual_take_home // 12
 
+        pa_label = "Personal Allowance" + (" (tapered)" if tapered else "")
+
         steps = [
             StepLine("Annual Gross Salary", salary),
-            StepLine("Personal Allowance", -pa, indent=1),
+            StepLine(pa_label, -pa, indent=1),
             StepLine("Taxable Income", it_result.taxable_income, indent=1),
             StepLine("Income Tax", -it_result.total_tax, indent=1),  # https://www.gov.uk/income-tax-rates
             StepLine("National Insurance", -ni_result.total_ni, indent=1),  # https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
