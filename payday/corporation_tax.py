@@ -10,12 +10,22 @@ from payday.models import CorporationTaxResult
 
 def calc_corporation_tax(profit: int) -> CorporationTaxResult:
     """Corporation Tax with Marginal Relief (financial year 2026).
-    # Source: https://www.gov.uk/corporation-tax-rates
+    Source: https://www.gov.uk/corporation-tax-rates
+    Legislation: Finance Act 2021, Schedule 1 (inserting CTA10/Part 3A)
+    HMRC Manual: CTM03925 (Marginal Relief formula)
 
-    - 19% if profit ≤ £50,000
-    - 25% - relief if £50,000 < profit ≤ £250,000
-      where relief = (250,000 - profit) × 3/200
-    - 25% if profit > £250,000
+    The calculation follows CTA10/S18B formula: (F x (U - A)) x (N / A)
+    where:
+    - F = standard marginal relief fraction (3/200)
+    - U = upper limit (£250,000)
+    - A = augmented profits
+    - N = taxable total profits
+
+    Note: This implementation assumes N = A (no exempt distributions).
+
+    - 19% if profit ≤ £50,000 (Small Profits Rate)
+    - 25% - relief if £50,000 < profit ≤ £250,000 (Marginal Relief)
+    - 25% if profit > £250,000 (Main Rate)
 
     >>> res = calc_corporation_tax(100000)
     >>> res.total_ct
