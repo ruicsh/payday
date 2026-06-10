@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 
 @dataclass
@@ -73,13 +72,13 @@ class StepLine:
 @dataclass
 class SalaryBreakdown:
     mode: str
-    inputs: Dict
-    steps: List[StepLine]
+    inputs: dict
+    steps: list[StepLine]
     annual_take_home: int
     display_take_home: int
-    income_tax: Optional[IncomeTaxResult] = None
-    employee_ni: Optional[EmployeeNIResult] = None
-    employer_ni: Optional[EmployerNIResult] = None
-    corporation_tax: Optional[CorporationTaxResult] = None
-    dividend_tax: Optional[DividendTaxResult] = None
-    pension: Optional[PensionResult] = None
+    income_tax: IncomeTaxResult | None = None
+    employee_ni: EmployeeNIResult | None = None
+    employer_ni: EmployerNIResult | None = None
+    corporation_tax: CorporationTaxResult | None = None
+    dividend_tax: DividendTaxResult | None = None
+    pension: PensionResult | None = None

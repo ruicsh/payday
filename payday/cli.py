@@ -1,5 +1,4 @@
 import sys
-from typing import Optional
 from payday.calculators.paye import PAYECalculator
 from payday.calculators.inside_ir35 import InsideIR35Calculator
 from payday.calculators.outside_ir35 import OutsideIR35Calculator
@@ -9,9 +8,9 @@ from payday.formatters import format_breakdown
 def prompt_int(
     prompt: str,
     *,
-    default: Optional[int] = None,
-    min_val: Optional[int] = None,
-    max_val: Optional[int] = None,
+    default: int | None = None,
+    min_val: int | None = None,
+    max_val: int | None = None,
 ) -> int:
     """Prompt user for an integer with validation and optional default."""
     while True:
