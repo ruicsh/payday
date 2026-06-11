@@ -63,6 +63,51 @@ class TestFormatBreakdown(unittest.TestCase):
         # Should contain separator line
         self.assertIn("──", output)
 
+    def test_format_outside_ir35_extra_info(self):
+        steps = [
+            StepLine("Company Revenue", 120000),
+            StepLine("Take-Home", 80000, is_subtotal=True),
+        ]
+        breakdown = SalaryBreakdown(
+            mode="Outside IR35",
+            inputs={"day_rate": 500, "working_days": 240},
+            steps=steps,
+            annual_take_home=80000,
+            display_take_home=6667,
+        )
+        output = format_breakdown(breakdown)
+        self.assertIn("Outside IR35 (Ltd Co)", output)
+        self.assertIn("(Salary: £12,570", output)
+        self.assertIn("Dividends: £67,430)", output)
+        self.assertIn("(£500/day × 240 days)", output)
+
+    def test_format_inside_ir35_day_rate_context(self):
+        steps = [
+            StepLine("Assignment Rate", 120000),
+            StepLine("Annual Take-Home", 70000),
+        ]
+        breakdown = SalaryBreakdown(
+            mode="Inside IR35",
+            inputs={"day_rate": 500, "working_days": 240, "margin_weekly": 25},
+            steps=steps,
+            annual_take_home=70000,
+            display_take_home=5833,
+        )
+        output = format_breakdown(breakdown)
+        self.assertIn("Inside IR35 (Umbrella)", output)
+        self.assertIn("(£500/day × 240 days)", output)
+
+    def test_mode_title_fallback(self):
+        breakdown = SalaryBreakdown(
+            mode="Unknown Mode",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
+        )
+        output = format_breakdown(breakdown)
+        self.assertIn("Unknown Mode — 2026/27", output)
+
 
 if __name__ == "__main__":
     unittest.main()
