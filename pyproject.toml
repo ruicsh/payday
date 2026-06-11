@@ -1,0 +1,11 @@
+[project]
+name = "payday"
+version = "0.1.0"
+description = "UK Tax & Take-Home Pay Calculator (2026/27)"
+requires-python = ">=3.10"
+authors = [
+    { name = "Rui Costa" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+dependencies = []
