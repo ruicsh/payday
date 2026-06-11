@@ -12,16 +12,10 @@ class PAYECalculator:
         Employee NI: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
         Pension: https://www.gov.uk/workplace-pensions/what-you-your-employer-and-the-government-pay
         """
-        pa, tapered = calc_personal_allowance(
-            salary
-        )  # https://www.gov.uk/income-tax-rates
-        it_result = calc_income_tax(salary, pa)  # https://www.gov.uk/income-tax-rates
-        ni_result = calc_employee_ni(
-            salary
-        )  # https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
-        pension_result = calc_pension(
-            salary
-        )  # https://www.gov.uk/workplace-pensions/what-you-your-employer-and-the-government-pay
+        pa, tapered = calc_personal_allowance(salary)
+        it_result = calc_income_tax(salary, pa)
+        ni_result = calc_employee_ni(salary)
+        pension_result = calc_pension(salary)
 
         annual_take_home = (
             salary
@@ -37,15 +31,11 @@ class PAYECalculator:
             StepLine("Annual Gross Salary", salary),
             StepLine(pa_label, -pa, indent=1),
             StepLine("Taxable Income", it_result.taxable_income, indent=1),
-            StepLine(
-                "Income Tax", -it_result.total_tax, indent=1
-            ),  # https://www.gov.uk/income-tax-rates
-            StepLine(
-                "National Insurance", -ni_result.total_ni, indent=1
-            ),  # https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
+            StepLine("Income Tax", -it_result.total_tax, indent=1),
+            StepLine("National Insurance", -ni_result.total_ni, indent=1),
             StepLine(
                 "Pension Contribution", -pension_result.employee_contribution, indent=1
-            ),  # https://www.gov.uk/workplace-pensions/what-you-your-employer-and-the-government-pay
+            ),
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("Monthly Take-Home", monthly_take_home),
         ]

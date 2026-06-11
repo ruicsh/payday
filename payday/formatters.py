@@ -1,18 +1,4 @@
-import math
 from payday.models import SalaryBreakdown
-
-
-def round_gbp(value: float) -> int:
-    """Round to nearest whole pound (traditional rounding, .5 rounds up).
-
-    >>> round_gbp(12570.0)
-    12570
-    >>> round_gbp(3594.45)
-    3594
-    >>> round_gbp(3594.5)
-    3595
-    """
-    return int(math.floor(value + 0.5))
 
 
 def format_gbp(amount: int) -> str:

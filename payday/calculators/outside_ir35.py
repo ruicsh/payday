@@ -10,28 +10,26 @@ class OutsideIR35Calculator:
     def calculate(day_rate: int, working_days: int) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
+        Income Tax: https://www.gov.uk/income-tax-rates
+        Employer NI: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
+        Corporation Tax: https://www.gov.uk/corporation-tax-rates
+        Dividend Tax: https://www.gov.uk/tax-on-dividends
         """
         revenue = day_rate * working_days
 
         # Tax-optimal salary for Outside IR35 is £12,570 (Primary Threshold)
         # 2026/27 Secondary Threshold is £5,000, so Employer NI will be due.
-        # Income Tax: https://www.gov.uk/income-tax-rates
-        # Employer NI: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
         salary = PERSONAL_ALLOWANCE
         er_ni_result = calc_employer_ni(salary)
 
         profit = revenue - salary - er_ni_result.total_er_ni
-        ct_result = calc_corporation_tax(
-            profit
-        )  # https://www.gov.uk/corporation-tax-rates
+        ct_result = calc_corporation_tax(profit)
 
         post_tax_profit = profit - ct_result.total_ct
 
         # Assume all distributed as dividends (clamped to zero if loss-making)
         dividends = max(0, post_tax_profit)
-        div_tax_result = calc_dividend_tax(
-            dividends, salary
-        )  # https://www.gov.uk/tax-on-dividends
+        div_tax_result = calc_dividend_tax(dividends, salary)
 
         # Take-home = Salary + (Dividends - Dividend Tax)
         # Note: at £12,570 salary, Income Tax and EE NI are both zero.
@@ -42,20 +40,12 @@ class OutsideIR35Calculator:
 
         steps = [
             StepLine("Company Revenue", revenue),
-            StepLine(
-                "Director Salary", -salary, indent=1
-            ),  # https://www.gov.uk/income-tax-rates
-            StepLine(
-                "Employer NI (15%)", -er_ni_result.total_er_ni, indent=1
-            ),  # https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
+            StepLine("Director Salary", -salary, indent=1),
+            StepLine("Employer NI (15%)", -er_ni_result.total_er_ni, indent=1),
             StepLine("Company Profit", profit, is_subtotal=True),
-            StepLine(
-                "Corporation Tax", -ct_result.total_ct, indent=1
-            ),  # https://www.gov.uk/corporation-tax-rates
+            StepLine("Corporation Tax", -ct_result.total_ct, indent=1),
             StepLine("Distributable Profit", post_tax_profit, is_subtotal=True),
-            StepLine(
-                "Dividend Tax", -div_tax_result.total_tax, indent=1
-            ),  # https://www.gov.uk/tax-on-dividends
+            StepLine("Dividend Tax", -div_tax_result.total_tax, indent=1),
             StepLine("Take-Home", take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
         ]

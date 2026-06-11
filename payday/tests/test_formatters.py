@@ -1,20 +1,6 @@
 import unittest
 from payday.models import SalaryBreakdown, StepLine
-from payday.formatters import round_gbp, format_gbp, format_breakdown
-
-
-class TestRoundGbp(unittest.TestCase):
-    def test_round_down(self):
-        self.assertEqual(round_gbp(3594.45), 3594)
-
-    def test_round_up(self):
-        self.assertEqual(round_gbp(3594.5), 3595)
-
-    def test_round_exact(self):
-        self.assertEqual(round_gbp(12570.0), 12570)
-
-    def test_round_zero(self):
-        self.assertEqual(round_gbp(0.0), 0)
+from payday.formatters import format_gbp, format_breakdown
 
 
 class TestFormatGbp(unittest.TestCase):
