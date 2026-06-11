@@ -10,6 +10,8 @@ from payday.models import PensionResult
 
 def calc_pension(salary: int) -> PensionResult:
     """Calculate auto-enrolment pension contributions.
+    Pension: https://www.gov.uk/workplace-pensions/what-you-your-employer-and-the-government-pay
+
     Rules:
     - If salary <= PENSION_TRIGGER, no auto-enrolment (eligible = False).
     - Qualifying earnings = Salary between LEL (£6,240) and UEL (£50,270).

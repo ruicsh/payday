@@ -10,7 +10,7 @@ from payday.models import CorporationTaxResult
 
 def calc_corporation_tax(profit: int) -> CorporationTaxResult:
     """Corporation Tax with Marginal Relief (financial year 2026).
-    Source: https://www.gov.uk/corporation-tax-rates
+    Corporation Tax: https://www.gov.uk/corporation-tax-rates
     Legislation: Finance Act 2021, Schedule 1 (inserting CTA10/Part 3A)
     HMRC Manual: CTM03925 (Marginal Relief formula)
 

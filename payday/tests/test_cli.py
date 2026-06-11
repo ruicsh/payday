@@ -3,6 +3,7 @@ from unittest.mock import patch
 from io import StringIO
 from payday.cli import prompt_int
 
+
 class TestCLI(unittest.TestCase):
     @patch("builtins.input", side_effect=["42"])
     def test_prompt_int_valid(self, mock_input):
@@ -43,6 +44,7 @@ class TestCLI(unittest.TestCase):
         result = prompt_int("Enter number")
         self.assertEqual(result, 99)
         self.assertEqual(mock_input.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
