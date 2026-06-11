@@ -91,6 +91,10 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         self.assertLessEqual(breakdown.corporation_tax.profit, 50000)
         self.assertEqual(breakdown.corporation_tax.marginal_relief, 0)
 
+    def test_zero_working_days_raises_value_error(self):
+        with self.assertRaisesRegex(ValueError, "working_days must be > 0"):
+            OutsideIR35Calculator.calculate(500, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -15,6 +15,9 @@ class OutsideIR35Calculator:
         Corporation Tax: https://www.gov.uk/corporation-tax-rates
         Dividend Tax: https://www.gov.uk/tax-on-dividends
         """
+        if working_days <= 0:
+            raise ValueError("working_days must be > 0")
+
         revenue = day_rate * working_days
 
         # Tax-optimal salary for Outside IR35 is £12,570 (Primary Threshold)

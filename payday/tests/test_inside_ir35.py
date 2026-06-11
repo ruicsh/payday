@@ -112,6 +112,10 @@ class TestInsideIR35Calculator(unittest.TestCase):
         expected_display = round(breakdown.annual_take_home / 200 * 20)
         self.assertEqual(breakdown.display_take_home, expected_display)
 
+    def test_zero_working_days_raises_value_error(self):
+        with self.assertRaisesRegex(ValueError, "working_days must be > 0"):
+            InsideIR35Calculator.calculate(500, 0, 25)
+
     def test_different_day_rates(self):
         # Just ensure all day rates produce reasonable results
         for rate in [300, 500, 800]:

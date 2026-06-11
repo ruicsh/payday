@@ -18,6 +18,9 @@ class InsideIR35Calculator:
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
         Umbrella company guidance: https://www.gov.uk/guidance/working-through-an-umbrella-company
         """
+        if working_days <= 0:
+            raise ValueError("working_days must be > 0")
+
         annual_assignment = day_rate * working_days
 
         # Calculate annual margin
