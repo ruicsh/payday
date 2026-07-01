@@ -12,6 +12,7 @@ class OutsideIR35Calculator:
         day_rate: int,
         working_days: int,
         start_month: int | None = None,
+        existing_income: int = 0,
     ) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
@@ -19,6 +20,9 @@ class OutsideIR35Calculator:
         Employer NI: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
         Corporation Tax: https://www.gov.uk/corporation-tax-rates
         Dividend Tax: https://www.gov.uk/tax-on-dividends
+
+        *existing_income* is income already earned in this tax year. It reduces
+        the remaining Personal Allowance and rate bands available for dividends.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
@@ -41,7 +45,7 @@ class OutsideIR35Calculator:
 
         # Assume all distributed as dividends (clamped to zero if loss-making)
         dividends = max(0, post_tax_profit)
-        div_tax_result = calc_dividend_tax(dividends, salary)
+        div_tax_result = calc_dividend_tax(dividends, salary, existing_income=existing_income)
 
         # Take-home = Salary + (Dividends - Dividend Tax)
         # Note: at £12,570 salary, Income Tax and EE NI are both zero.
@@ -71,6 +75,8 @@ class OutsideIR35Calculator:
             inputs["contract_months"] = months
             inputs["effective_working_days"] = effective_days
             inputs["contract_period"] = period_label
+        if existing_income:
+            inputs["existing_income"] = existing_income
 
         return SalaryBreakdown(
             mode="Outside IR35",

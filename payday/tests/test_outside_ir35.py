@@ -119,6 +119,29 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "working_days must be > 0"):
             OutsideIR35Calculator.calculate(500, 0)
 
+    # ── existing_income tests ──────────────────────────────────────────
+
+    def test_partial_year_existing_backward_compatible(self):
+        no_existing = OutsideIR35Calculator.calculate(500, 240, start_month=8)
+        explicit_zero = OutsideIR35Calculator.calculate(
+            500, 240, start_month=8, existing_income=0
+        )
+        self.assertEqual(no_existing.annual_take_home, explicit_zero.annual_take_home)
+        self.assertEqual(no_existing.display_take_home, explicit_zero.display_take_home)
+
+    def test_partial_year_with_existing_income(self):
+        # £500/day, Aug start, existing £30k pushes dividends into higher band
+        breakdown = OutsideIR35Calculator.calculate(
+            500, 240, start_month=8, existing_income=30000
+        )
+
+        self.assertIn("existing_income", breakdown.inputs)
+        self.assertEqual(breakdown.inputs["existing_income"], 30000)
+
+        without = OutsideIR35Calculator.calculate(500, 240, start_month=8)
+        self.assertGreater(breakdown.dividend_tax.total_tax, without.dividend_tax.total_tax)
+        self.assertLess(breakdown.annual_take_home, without.annual_take_home)
+
 
 if __name__ == "__main__":
     unittest.main()
