@@ -10,7 +10,7 @@ from payday.income_tax import (
 )
 from payday.national_insurance import calc_employee_ni, calc_employer_ni
 from payday.pension import calc_pension
-from payday.models import SalaryBreakdown, StepLine
+from payday.models import SalaryBreakdown, StepLine, PensionResult
 from payday.tax_year import pro_rate_contract
 
 
@@ -53,8 +53,15 @@ class InsideIR35Calculator:
 
         er_ni_result = calc_employer_ni(gross)
         levy = round(gross * APPRENTICESHIP_LEVY_RATE)
-        er_pension_contribution = calc_pension(gross).employer_contribution
-        pension_result = calc_pension(effective_gross)
+        er_pension = calc_pension(gross)
+        ee_pension = calc_pension(effective_gross)
+        er_pension_contribution = er_pension.employer_contribution
+        pension_result = PensionResult(
+            eligible=ee_pension.eligible,
+            qualifying_earnings=ee_pension.qualifying_earnings,
+            employee_contribution=ee_pension.employee_contribution,
+            employer_contribution=er_pension.employer_contribution,
+        )
 
         # ANI includes existing income for correct PA tapering
         ani = calc_adjusted_net_income(employment_income=effective_gross + existing_income)

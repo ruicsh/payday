@@ -204,6 +204,15 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertGreater(breakdown.annual_take_home, 0)
         self.assertGreater(breakdown.display_take_home, 0)
 
+    def test_salary_sacrifice_pension_data_consistent(self):
+        """Stored pension.employer_contribution must match displayed Employer Pension step."""
+        breakdown = InsideIR35Calculator.calculate(200, 240, 25, salary_sacrifice=5000)
+        er_pension_step = self._find_step(breakdown, "Employer Pension (3%)")
+        self.assertEqual(
+            -breakdown.pension.employer_contribution,
+            er_pension_step.amount,
+        )
+
     def test_different_day_rates(self):
         # Just ensure all day rates produce reasonable results
         for rate in [300, 500, 800]:
