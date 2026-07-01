@@ -64,6 +64,28 @@ class TestCLI(unittest.TestCase):
         result = prompt_existing_income(8)
         self.assertEqual(result, 0)
 
+    # ── prompt_existing_dividends tests ──────────────────────────────────
+
+    def test_prompt_existing_dividends_full_year_returns_zero(self):
+        """Full year (start_month=None) never prompts."""
+        from payday.cli import prompt_existing_dividends
+        result = prompt_existing_dividends(None)
+        self.assertEqual(result, 0)
+
+    @patch("builtins.input", side_effect=["15000"])
+    def test_prompt_existing_dividends_partial_year(self, mock_input):
+        """Partial year prompts and returns entered value."""
+        from payday.cli import prompt_existing_dividends
+        result = prompt_existing_dividends(8)
+        self.assertEqual(result, 15000)
+
+    @patch("builtins.input", side_effect=[""])
+    def test_prompt_existing_dividends_defaults_to_zero(self, mock_input):
+        """Partial year with empty input defaults to 0."""
+        from payday.cli import prompt_existing_dividends
+        result = prompt_existing_dividends(8)
+        self.assertEqual(result, 0)
+
     # ── prompt_salary_sacrifice tests ───────────────────────────────────
 
     @patch("builtins.input", side_effect=["n"])

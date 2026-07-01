@@ -51,11 +51,22 @@ def prompt_start_month() -> int | None:
 
 
 def prompt_existing_income(start_month: int | None) -> int:
-    """Prompt for income already earned this tax year (partial year only)."""
+    """Prompt for employment income already earned this tax year (partial year only)."""
     if start_month is None:
         return 0
     return prompt_int(
-        "Existing income already earned this tax year (£)",
+        "Existing employment income already earned this tax year (£)",
+        default=0,
+        min_val=0,
+    )
+
+
+def prompt_existing_dividends(start_month: int | None) -> int:
+    """Prompt for dividends already received this tax year (partial year only)."""
+    if start_month is None:
+        return 0
+    return prompt_int(
+        "Existing dividends already received this tax year (£)",
         default=0,
         min_val=0,
     )
@@ -111,10 +122,12 @@ def run_once() -> None:
         )
         start_month = prompt_start_month()
         existing_income = prompt_existing_income(start_month)
+        existing_dividends = prompt_existing_dividends(start_month)
         margin = prompt_int("Umbrella weekly margin (£)", default=25, min_val=0)
         salary_sacrifice = prompt_salary_sacrifice()
         breakdown = InsideIR35Calculator.calculate(
             day_rate, working_days, margin, start_month, existing_income,
+            existing_dividends=existing_dividends,
             salary_sacrifice=salary_sacrifice,
         )
 
