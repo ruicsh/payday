@@ -1,9 +1,13 @@
 import sys
+from payday.calculators.optimal_sacrifice import (
+    calc_optimal_sacrifice_inside_ir35,
+    calc_optimal_sacrifice_paye,
+)
 from payday.calculators.paye import PAYECalculator
 from payday.calculators.inside_ir35 import InsideIR35Calculator
 from payday.calculators.outside_ir35 import OutsideIR35Calculator
 from payday.formatters import format_breakdown
-from payday.tax_year import months_in_tax_year
+from payday.tax_year import months_in_tax_year, pro_rate_contract
 
 
 def prompt_int(
@@ -73,19 +77,76 @@ def prompt_existing_dividends(start_month: int | None) -> int:
     )
 
 
-def prompt_salary_sacrifice(start_month: int | None = None) -> int:
-    """Prompt whether to make a salary sacrifice for a personal pension."""
+def prompt_salary_sacrifice(
+    gross: int,
+    *,
+    mode: str = "paye",
+    start_month: int | None = None,
+    annual_margin: int = 0,
+    existing_income: int = 0,
+    existing_dividends: int = 0,
+    default_cap: int = 100_000,
+) -> int:
+    """Prompt whether to make a salary sacrifice for a personal pension.
+
+    Returns the *annual* sacrifice amount.
+
+    If the user enters an integer monthly amount, it's multiplied by
+    contract months.
+
+    If the user presses ENTER on the amount prompt, they enter auto-calc
+    mode: they specify a taxable income cap and the optimal sacrifice
+    is computed automatically.
+    """
     answer = input(
         "Would you like to make a salary sacrifice for a personal pension? [y/N]: "
     ).strip().lower()
     if answer != "y":
         return 0
-    monthly = prompt_int(
-        "How much would you like to sacrifice monthly (£)",
-        min_val=0,
-    )
     contract_months = 12 if start_month is None else months_in_tax_year(start_month)
-    return monthly * contract_months
+
+    while True:
+        user_input = input(
+            "Monthly salary sacrifice [ENTER=auto] (£): "
+        ).strip()
+
+        if not user_input:
+            cap = prompt_int(
+                "Taxable income cap (£)", default=default_cap, min_val=1
+            )
+            if mode == "paye":
+                annual_sacrifice = calc_optimal_sacrifice_paye(gross, cap=cap)
+            elif mode == "inside_ir35":
+                annual_sacrifice = calc_optimal_sacrifice_inside_ir35(
+                    gross, annual_margin, cap=cap,
+                    existing_income=existing_income,
+                    existing_dividends=existing_dividends,
+                )
+            else:
+                annual_sacrifice = 0
+
+            if annual_sacrifice == 0:
+                print(
+                    "Your gross is already at or below the cap — "
+                    "no sacrifice needed."
+                )
+                return 0
+
+            monthly = annual_sacrifice // contract_months
+            print(
+                f"Auto-calculated: £{annual_sacrifice:,}/yr "
+                f"(£{monthly:,}/mo) sacrifice."
+            )
+            return annual_sacrifice
+
+        try:
+            val = int(user_input)
+            if val < 0:
+                print("Error: Value must be at least 0.")
+                continue
+            return val * contract_months
+        except ValueError:
+            print("Error: Please enter a whole number.")
 
 
 def select_mode() -> int:
@@ -111,7 +172,7 @@ def run_once() -> None:
         print("  Regular PAYE")
         print("═══════════════════════════════════════")
         salary = prompt_int("Enter your annual gross salary (£)", min_val=0)
-        salary_sacrifice = prompt_salary_sacrifice()
+        salary_sacrifice = prompt_salary_sacrifice(salary, mode="paye")
         breakdown = PAYECalculator.calculate(salary, salary_sacrifice=salary_sacrifice)
 
     elif mode == 2:
@@ -126,7 +187,20 @@ def run_once() -> None:
         existing_income = prompt_existing_income(start_month)
         existing_dividends = prompt_existing_dividends(start_month)
         margin = prompt_int("Umbrella weekly margin (£)", default=25, min_val=0)
-        salary_sacrifice = prompt_salary_sacrifice(start_month)
+
+        months, effective_days, _ = pro_rate_contract(working_days, start_month)
+        annual_assignment = day_rate * effective_days
+        weeks = effective_days / 5
+        annual_margin = round(margin * weeks)
+
+        salary_sacrifice = prompt_salary_sacrifice(
+            annual_assignment,
+            mode="inside_ir35",
+            start_month=start_month,
+            annual_margin=annual_margin,
+            existing_income=existing_income,
+            existing_dividends=existing_dividends,
+        )
         breakdown = InsideIR35Calculator.calculate(
             day_rate, working_days, margin, start_month, existing_income,
             existing_dividends=existing_dividends,

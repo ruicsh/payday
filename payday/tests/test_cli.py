@@ -1,7 +1,11 @@
 import unittest
 from unittest.mock import patch
 from io import StringIO
-from payday.cli import prompt_int, prompt_existing_income, prompt_salary_sacrifice
+from payday.cli import (
+    prompt_int,
+    prompt_existing_income,
+    prompt_salary_sacrifice,
+)
 
 
 class TestCLI(unittest.TestCase):
@@ -86,51 +90,93 @@ class TestCLI(unittest.TestCase):
         result = prompt_existing_dividends(8)
         self.assertEqual(result, 0)
 
-    # ── prompt_salary_sacrifice tests ───────────────────────────────────
+    # ── prompt_salary_sacrifice — y/n / manual amount tests ────────────
 
     @patch("builtins.input", side_effect=["n"])
     def test_salary_sacrifice_no_lowercase(self, mock_input):
         """Entering 'n' returns 0."""
-        result = prompt_salary_sacrifice()
+        result = prompt_salary_sacrifice(0)
         self.assertEqual(result, 0)
 
     @patch("builtins.input", side_effect=["N"])
     def test_salary_sacrifice_no_uppercase(self, mock_input):
         """Entering 'N' returns 0."""
-        result = prompt_salary_sacrifice()
+        result = prompt_salary_sacrifice(0)
         self.assertEqual(result, 0)
 
     @patch("builtins.input", side_effect=[""])
     def test_salary_sacrifice_default_no(self, mock_input):
         """Empty input returns 0 (defaults to no)."""
-        result = prompt_salary_sacrifice()
+        result = prompt_salary_sacrifice(0)
         self.assertEqual(result, 0)
 
     @patch("builtins.input", side_effect=["y", "5000"])
     def test_salary_sacrifice_yes_with_amount(self, mock_input):
         """Entering 'y' then a monthly amount; result is annual (×12)."""
-        result = prompt_salary_sacrifice()
+        result = prompt_salary_sacrifice(150_000)
         self.assertEqual(result, 60000)  # 5000 × 12
 
     @patch("builtins.input", side_effect=["y", "abc", "3000"])
     @patch("sys.stdout", new_callable=StringIO)
     def test_salary_sacrifice_retry_on_invalid(self, mock_stdout, mock_input):
         """Entering non-numeric amount retries and accepts valid input."""
-        result = prompt_salary_sacrifice()
+        result = prompt_salary_sacrifice(150_000)
         self.assertEqual(result, 36000)  # 3000 × 12
         self.assertIn("Error: Please enter a whole number", mock_stdout.getvalue())
 
     @patch("builtins.input", side_effect=["yes"])
     def test_salary_sacrifice_not_strict_y(self, mock_input):
         """'yes' is not 'y', so it returns 0 (only bare 'y' counts)."""
-        result = prompt_salary_sacrifice()
+        result = prompt_salary_sacrifice(0)
         self.assertEqual(result, 0)
 
     @patch("builtins.input", side_effect=["y", "4350"])
     def test_salary_sacrifice_partial_year(self, mock_input):
         """Partial-year contract: monthly sacrifice × contract months, not 12."""
-        result = prompt_salary_sacrifice(start_month=8)
+        result = prompt_salary_sacrifice(0, start_month=8)
         self.assertEqual(result, 34800)  # 4350 × 8, not 4350 × 12
+
+    # ── prompt_salary_sacrifice — auto-calc tests ──────────────────────
+
+    @patch("builtins.input", side_effect=["y", "", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_auto_calc_paye(self, mock_stdout, mock_input):
+        """ENTER on amount → auto-calc mode: 150k with default cap → 50k/yr."""
+        result = prompt_salary_sacrifice(150_000, mode="paye")
+        self.assertEqual(result, 50_000)
+        output = mock_stdout.getvalue()
+        self.assertIn("Auto-calculated", output)
+        self.assertIn("£50,000/yr", output)
+        self.assertIn("£4,166/mo", output)
+
+    @patch("builtins.input", side_effect=["y", "", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_auto_calc_below_cap(self, mock_stdout, mock_input):
+        """Auto-calc when gross is already below cap: prints info and returns 0."""
+        result = prompt_salary_sacrifice(50_000, mode="paye")
+        self.assertEqual(result, 0)
+        output = mock_stdout.getvalue()
+        self.assertIn("already at or below the cap", output)
+
+    @patch("builtins.input", side_effect=["y", "", "80000"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_auto_calc_custom_cap(self, mock_stdout, mock_input):
+        """Auto-calc with a custom cap of £80k instead of default £100k."""
+        result = prompt_salary_sacrifice(130_000, mode="paye")
+        self.assertEqual(result, 50_000)
+
+    @patch("builtins.input", side_effect=["y", "", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_auto_calc_inside_ir35(self, mock_stdout, mock_input):
+        """Auto-calc for Inside IR35: 144k assignment, 1200 margin, 100k cap."""
+        result = prompt_salary_sacrifice(
+            144_000,
+            mode="inside_ir35",
+            annual_margin=1200,
+        )
+        self.assertEqual(result, 28_050)
+        output = mock_stdout.getvalue()
+        self.assertIn("Auto-calculated", output)
 
 
 if __name__ == "__main__":
