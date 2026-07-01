@@ -4,6 +4,7 @@ from payday.income_tax import (
     calc_personal_allowance,
     calc_income_tax,
 )
+from payday.models import IncomeTaxResult
 
 
 class TestIncomeTax(unittest.TestCase):
@@ -133,6 +134,21 @@ class TestIncomeTax(unittest.TestCase):
         self.assertEqual(res.basic_band, 0)
         self.assertEqual(res.higher_band, 0)
         self.assertEqual(res.additional_band, 50000)
+
+    def test_existing_income_float_accepted(self):
+        """Float existing_income should be accepted and produce valid results."""
+        res = calc_income_tax(20000, 12570, existing_income=30000.50)
+        self.assertIsInstance(res, IncomeTaxResult)
+        self.assertEqual(res.total_tax, 4000)
+        self.assertEqual(res.taxable_income, 20000)
+        self.assertEqual(res.basic_band, 20000)
+
+    def test_existing_income_float_precision(self):
+        """Float values near band boundaries should still produce valid results."""
+        res = calc_income_tax(40000, 12570, existing_income=50000.75)
+        self.assertIsInstance(res, IncomeTaxResult)
+        self.assertGreater(res.total_tax, 0)
+        self.assertGreater(res.taxable_income, 0)
 
 
 class TestAdjustedNetIncome(unittest.TestCase):

@@ -64,7 +64,7 @@ class PensionResult:
 @dataclass
 class StepLine:
     label: str
-    amount: int
+    amount: int | float
     indent: int = 0
     is_subtotal: bool = False
 

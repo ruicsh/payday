@@ -19,6 +19,10 @@ class TestFormatGbp(unittest.TestCase):
     def test_large_number(self):
         self.assertEqual(format_gbp(1000000), "£1,000,000")
 
+    def test_float_rounded_to_nearest_pound(self):
+        self.assertEqual(format_gbp(30000.51), "£30,001")
+        self.assertEqual(format_gbp(30000.49), "£30,000")
+
 
 class TestFormatBreakdown(unittest.TestCase):
     def test_paye_format_basic(self):

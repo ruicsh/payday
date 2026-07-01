@@ -63,8 +63,8 @@ def calc_optimal_sacrifice_inside_ir35(
     annual_margin: int,
     cap: int = 100_000,
     *,
-    existing_income: int = 0,
-    existing_dividends: int = 0,
+    existing_income: float = 0,
+    existing_dividends: float = 0,
 ) -> int:
     """Return the optimal annual salary sacrifice for an Inside IR35
     contractor so that adjusted net income ≤ *cap*.

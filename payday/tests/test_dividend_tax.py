@@ -1,5 +1,6 @@
 import unittest
 from payday.dividend_tax import calc_dividend_tax
+from payday.models import DividendTaxResult
 
 
 class TestDividendTax(unittest.TestCase):
@@ -108,6 +109,18 @@ class TestDividendTax(unittest.TestCase):
         self.assertEqual(res.total_tax, 6971)
         self.assertEqual(res.basic_band, 0)
         self.assertEqual(res.higher_band, 19500)
+
+    def test_dividend_tax_existing_income_float(self):
+        """Float existing_income should be accepted in dividend tax calc."""
+        res = calc_dividend_tax(50000, 12570, existing_income=30000.50)
+        self.assertIsInstance(res, DividendTaxResult)
+        # Result should be within £1 of the int case (£15,896)
+        self.assertEqual(res.total_tax, 15896)
+        # Bands should be valid (non-negative, reasonable)
+        self.assertGreaterEqual(res.basic_band, 7199)
+        self.assertLessEqual(res.basic_band, 7200)
+        self.assertGreaterEqual(res.higher_band, 42300)
+        self.assertLessEqual(res.higher_band, 42301)
 
 
 if __name__ == "__main__":

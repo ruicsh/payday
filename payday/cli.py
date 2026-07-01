@@ -43,6 +43,39 @@ def prompt_int(
             print("Error: Please enter a whole number.")
 
 
+def prompt_float(
+    prompt: str,
+    *,
+    default: float | None = None,
+    min_val: float | None = None,
+    max_val: float | None = None,
+    default_fmt: callable = str,
+) -> float:
+    """Prompt user for a number with validation and optional default."""
+    while True:
+        display_prompt = (
+            f"{prompt} [{default_fmt(default)}]: "
+            if default is not None
+            else f"{prompt}: "
+        )
+        user_input = input(display_prompt).strip()
+
+        if not user_input and default is not None:
+            return default
+
+        try:
+            val = float(user_input)
+            if min_val is not None and val < min_val:
+                print(f"Error: Value must be at least {min_val}.")
+                continue
+            if max_val is not None and val > max_val:
+                print(f"Error: Value must be no more {max_val}.")
+                continue
+            return val
+        except ValueError:
+            print("Error: Please enter a number.")
+
+
 def prompt_start_month() -> int | None:
     """Prompt for contract start month. None means full tax year."""
     while True:
@@ -58,22 +91,22 @@ def prompt_start_month() -> int | None:
         print("Error: Enter a number 1–12, or press ENTER for full year.")
 
 
-def prompt_existing_income(start_month: int | None) -> int:
+def prompt_existing_income(start_month: int | None) -> float:
     """Prompt for employment income already earned this tax year (partial year only)."""
     if start_month is None:
-        return 0
-    return prompt_int(
+        return 0.0
+    return prompt_float(
         "Existing employment income already earned this tax year (£)",
         default=0,
         min_val=0,
     )
 
 
-def prompt_existing_dividends(start_month: int | None) -> int:
+def prompt_existing_dividends(start_month: int | None) -> float:
     """Prompt for dividends already received this tax year (partial year only)."""
     if start_month is None:
-        return 0
-    return prompt_int(
+        return 0.0
+    return prompt_float(
         "Existing dividends already received this tax year (£)",
         default=0,
         min_val=0,
@@ -86,8 +119,8 @@ def prompt_salary_sacrifice(
     mode: str = "paye",
     start_month: int | None = None,
     annual_margin: int = 0,
-    existing_income: int = 0,
-    existing_dividends: int = 0,
+    existing_income: float = 0,
+    existing_dividends: float = 0,
     default_cap: int = 100_000,
 ) -> int:
     """Prompt whether to make a salary sacrifice for a personal pension.

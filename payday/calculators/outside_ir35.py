@@ -12,7 +12,7 @@ class OutsideIR35Calculator:
         day_rate: int,
         working_days: int,
         start_month: int | None = None,
-        existing_income: int = 0,
+        existing_income: float = 0,
     ) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35

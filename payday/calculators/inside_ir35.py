@@ -21,8 +21,8 @@ class InsideIR35Calculator:
         working_days: int,
         umbrella_margin_weekly: int = 25,
         start_month: int | None = None,
-        existing_income: int = 0,
-        existing_dividends: int = 0,
+        existing_income: float = 0,
+        existing_dividends: float = 0,
         salary_sacrifice: int = 0,
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.

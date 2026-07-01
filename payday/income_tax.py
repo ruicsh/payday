@@ -12,11 +12,11 @@ from payday.models import IncomeTaxResult
 
 
 def calc_adjusted_net_income(
-    employment_income: int = 0,
+    employment_income: float = 0,
     self_employment_income: int = 0,
     property_income: int = 0,
     savings_interest: int = 0,
-    dividend_income: int = 0,
+    dividend_income: float = 0,
     pension_income: int = 0,
     other_taxable_income: int = 0,
     gross_pension_contributions: int = 0,
@@ -65,10 +65,10 @@ def calc_adjusted_net_income(
     if relief_at_source_pension:
         ani -= round(relief_at_source_pension * 1.25)
 
-    return ani
+    return round(ani)
 
 
-def calc_personal_allowance(adjusted_net_income: int) -> tuple[int, bool]:
+def calc_personal_allowance(adjusted_net_income: int | float) -> tuple[int, bool]:
     """Return (personal_allowance, tapered_flag).
     Income Tax: https://www.gov.uk/income-tax-rates
     ANI: https://www.gov.uk/guidance/adjusted-net-income
@@ -103,7 +103,7 @@ def _tax_components(taxable: int, basic_band_width: int, higher_band_limit: int)
 
 
 def calc_income_tax(
-    salary: int, personal_allowance: int, existing_income: int = 0
+    salary: int, personal_allowance: int, existing_income: float = 0
 ) -> IncomeTaxResult:
     """Compute full IncomeTaxResult for a given salary and PA.
     Income Tax: https://www.gov.uk/income-tax-rates
@@ -150,12 +150,12 @@ def calc_income_tax(
     return IncomeTaxResult(
         personal_allowance=personal_allowance,
         tapered=(personal_allowance < PERSONAL_ALLOWANCE),
-        taxable_income=taxable_income,
-        basic_band=basic_band,
+        taxable_income=round(taxable_income),
+        basic_band=round(basic_band),
+        higher_band=round(higher_band),
+        additional_band=round(additional_band),
         basic_tax=basic_tax,
-        higher_band=higher_band,
         higher_tax=higher_tax,
-        additional_band=additional_band,
         additional_tax=additional_tax,
         total_tax=total_tax,
     )

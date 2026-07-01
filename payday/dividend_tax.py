@@ -19,7 +19,7 @@ _HIGHER_BAND_WIDTH = HIGHER_RATE_BAND_LIMIT - BASIC_RATE_BAND_LIMIT  # 74,870
 
 
 def calc_dividend_tax(
-    dividends: int, salary: int, existing_income: int = 0
+    dividends: int, salary: int, existing_income: float = 0
 ) -> DividendTaxResult:
     """Tax on dividends, stacked on top of salary (and optional existing_income).
     Dividend Tax: https://www.gov.uk/tax-on-dividends

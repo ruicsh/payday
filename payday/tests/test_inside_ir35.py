@@ -338,6 +338,24 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertEqual(breakdown.income_tax.personal_allowance, 0)
         self.assertTrue(breakdown.income_tax.tapered)
 
+    def test_existing_income_float_stored(self):
+        """Float existing_income should be stored and used correctly."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, start_month=8, existing_income=30000.50
+        )
+        self.assertIn("existing_income", breakdown.inputs)
+        self.assertEqual(breakdown.inputs["existing_income"], 30000.50)
+        self.assertGreater(breakdown.annual_take_home, 0)
+
+    def test_existing_dividends_float_stored(self):
+        """Float existing_dividends should be stored and used correctly."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, start_month=8, existing_dividends=15000.75
+        )
+        self.assertIn("existing_dividends", breakdown.inputs)
+        self.assertEqual(breakdown.inputs["existing_dividends"], 15000.75)
+        self.assertGreater(breakdown.annual_take_home, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

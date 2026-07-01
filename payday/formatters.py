@@ -1,17 +1,19 @@
 from payday.models import SalaryBreakdown
 
 
-def format_gbp(amount: int) -> str:
-    """Format integer pounds with commas and optional negative sign.
+def format_gbp(amount: int | float) -> str:
+    """Format pounds with commas and optional negative sign.
 
     >>> format_gbp(50000)
     '£50,000'
     >>> format_gbp(-3421)
     '-£3,421'
+    >>> format_gbp(30000.51)
+    '£30,001'
     """
     if amount < 0:
-        return f"-£{-amount:,}"
-    return f"£{amount:,}"
+        return f"-£{-amount:,.0f}"
+    return f"£{amount:,.0f}"
 
 
 def _day_rate_context(breakdown: SalaryBreakdown) -> str:
