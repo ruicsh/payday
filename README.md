@@ -21,7 +21,7 @@ For permanent employees on a fixed annual salary.
 For contractors working through an umbrella company. The umbrella sits between the agency and the contractor, handling tax deductions.
 
 - **Inputs:** day rate, working days per year, umbrella weekly margin, optional start month, optional existing income/dividends from this tax year, optional salary sacrifice (monthly)
-- **Flow:** assignment rate → minus margin → minus Employer NI (15% above £5,000 Secondary Threshold) → minus Apprenticeship Levy (0.5%) → minus Employer Pension (3% on qualifying earnings) → gross salary → minus Salary Sacrifice → minus Income Tax → minus Employee NI → minus Employee Pension
+- **Flow:** assignment rate → minus Salary Sacrifice → minus margin → minus Employer NI (15% above £5,000 Secondary Threshold) → minus Apprenticeship Levy (0.5%) → minus Employer Pension (3% on qualifying earnings) → gross salary → minus Income Tax → minus Employee NI → minus Employee Pension (auto-enrolment skipped when sacrifice active)
 - **Output:** annual and 20-day take-home pay (a common comparison metric for contractors)
 
 ### 3. Outside IR35 (Limited Company)
