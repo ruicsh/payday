@@ -6,7 +6,7 @@ from payday.calculators.optimal_sacrifice import (
 from payday.calculators.paye import PAYECalculator
 from payday.calculators.inside_ir35 import InsideIR35Calculator
 from payday.calculators.outside_ir35 import OutsideIR35Calculator
-from payday.formatters import format_breakdown
+from payday.formatters import format_breakdown, format_gbp
 from payday.tax_year import months_in_tax_year, pro_rate_contract
 
 
@@ -16,11 +16,14 @@ def prompt_int(
     default: int | None = None,
     min_val: int | None = None,
     max_val: int | None = None,
+    default_fmt: callable = str,
 ) -> int:
     """Prompt user for an integer with validation and optional default."""
     while True:
         display_prompt = (
-            f"{prompt} [{default}]: " if default is not None else f"{prompt}: "
+            f"{prompt} [{default_fmt(default)}]: "
+            if default is not None
+            else f"{prompt}: "
         )
         user_input = input(display_prompt).strip()
 
@@ -112,7 +115,10 @@ def prompt_salary_sacrifice(
 
         if not user_input:
             cap = prompt_int(
-                "Taxable income cap (£)", default=default_cap, min_val=1
+                "Taxable income cap",
+                default=default_cap,
+                min_val=1,
+                default_fmt=format_gbp,
             )
             if mode == "paye":
                 annual_sacrifice = calc_optimal_sacrifice_paye(gross, cap=cap)

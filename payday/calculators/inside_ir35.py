@@ -103,6 +103,9 @@ class InsideIR35Calculator:
             steps = [
                 StepLine("Assignment Rate", annual_assignment),
                 StepLine("Salary Sacrifice", -salary_sacrifice, indent=1),
+                StepLine(
+                    "Monthly Sacrifice", -(salary_sacrifice // months), indent=2
+                ),
                 StepLine("Umbrella Margin", -annual_margin, indent=1),
                 StepLine(
                     f"Employer NI ({int(NI_EMPLOYER_RATE * 100)}%)",

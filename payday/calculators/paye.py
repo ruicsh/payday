@@ -44,6 +44,9 @@ class PAYECalculator:
         if salary_sacrifice:
             steps.append(StepLine("Salary Sacrifice", -salary_sacrifice, indent=1))
             steps.append(
+                StepLine("Monthly Sacrifice", -(salary_sacrifice // 12), indent=2)
+            )
+            steps.append(
                 StepLine("Adjusted Gross Salary", effective_gross, is_subtotal=True)
             )
 
