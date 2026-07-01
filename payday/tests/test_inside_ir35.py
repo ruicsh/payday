@@ -155,6 +155,55 @@ class TestInsideIR35Calculator(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "working_days must be > 0"):
             InsideIR35Calculator.calculate(500, 0, 25)
 
+    # ── salary_sacrifice tests ─────────────────────────────────────────
+
+    def test_salary_sacrifice_backward_compatible_default(self):
+        """Calling with salary_sacrifice=0 should match default."""
+        default = InsideIR35Calculator.calculate(500, 240, 25)
+        explicit = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=0)
+        self.assertEqual(default.annual_take_home, explicit.annual_take_home)
+        self.assertEqual(default.steps, explicit.steps)
+
+    def test_salary_sacrifice_adds_waterfall_steps(self):
+        """With a sacrifice, the waterfall shows Salary Sacrifice and Adjusted Gross Salary."""
+        breakdown = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
+        self._find_step(breakdown, "Salary Sacrifice")
+        self._find_step(breakdown, "Adjusted Gross Salary")
+        self.assertIn("salary_sacrifice", breakdown.inputs)
+        self.assertEqual(breakdown.inputs["salary_sacrifice"], 5000)
+
+    def test_salary_sacrifice_reduces_tax_and_ni(self):
+        """A sacrifice of £15k on £300/day reduces IT, EE NI, and auto-enrolment pension."""
+        no_sac = InsideIR35Calculator.calculate(300, 240, 25)
+        with_sac = InsideIR35Calculator.calculate(300, 240, 25, salary_sacrifice=15000)
+
+        self.assertLess(with_sac.income_tax.total_tax, no_sac.income_tax.total_tax)
+        self.assertLess(with_sac.employee_ni.total_ni, no_sac.employee_ni.total_ni)
+        self.assertLess(
+            with_sac.pension.employee_contribution,
+            no_sac.pension.employee_contribution,
+        )
+
+    def test_salary_sacrifice_take_home_savings(self):
+        """£5k sacrifice should reduce take-home by less than £5k due to tax/NI savings."""
+        no_sac = InsideIR35Calculator.calculate(500, 240, 25)
+        with_sac = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
+
+        reduction = no_sac.annual_take_home - with_sac.annual_take_home
+        self.assertGreater(reduction, 0)
+        self.assertLess(reduction, 5000)
+
+    def test_salary_sacrifice_combined_with_existing_income(self):
+        """Salary sacrifice works alongside existing income and partial year."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, start_month=8, existing_income=30000, salary_sacrifice=5000
+        )
+
+        self.assertIn("salary_sacrifice", breakdown.inputs)
+        self._find_step(breakdown, "Salary Sacrifice")
+        self.assertGreater(breakdown.annual_take_home, 0)
+        self.assertGreater(breakdown.display_take_home, 0)
+
     def test_different_day_rates(self):
         # Just ensure all day rates produce reasonable results
         for rate in [300, 500, 800]:
