@@ -242,6 +242,19 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertIn("er_ni_saving", breakdown.inputs)
         self.assertGreater(breakdown.inputs["er_ni_saving"], 0)
 
+    def test_salary_sacrifice_budget_round_trip(self):
+        """Budget = gross + er_ni + levy within ±1 rounding for sacrifice path."""
+        from payday.constants import APPRENTICESHIP_LEVY_RATE
+
+        for rate, sacrifice in [(300, 5000), (500, 15000), (800, 10000)]:
+            breakdown = InsideIR35Calculator.calculate(
+                rate, 240, 25, salary_sacrifice=sacrifice
+            )
+            gross = self._find_step(breakdown, "Gross Salary").amount
+            sac_budget = rate * 240 - sacrifice - round(25 * 240 / 5)
+            actual = gross + breakdown.employer_ni.total_er_ni + round(gross * APPRENTICESHIP_LEVY_RATE)
+            self.assertAlmostEqual(actual, sac_budget, delta=1)
+
     def test_different_day_rates(self):
         # Just ensure all day rates produce reasonable results
         for rate in [300, 500, 800]:
