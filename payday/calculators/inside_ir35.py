@@ -147,17 +147,18 @@ class InsideIR35Calculator:
         )
 
     @staticmethod
-    def solve_gross_salary(budget: int) -> int:
-        """Closed-form solution for umbrella gross salary including pension.
-        Budget = Gross + Er NI + Levy + Er Pension
+    def solve_gross_salary(budget: int, include_er_pension: bool = True) -> int:
+        """Closed-form solution for umbrella gross salary.
+        Budget = Gross + Er NI + Levy (+ Er Pension, optional).
 
         Case A: Gross <= 5000 (No Er NI, No Er Pension)
         Budget = Gross + Gross * 0.005 = 1.005 * Gross
         Limit: Budget <= 5000 * 1.005 = 5025
 
-        Case B: 5000 < Gross <= 10000 (Er NI, No Er Pension)
+        Case B: Gross > 5000 (Er NI, No Er Pension)
         Budget = Gross + 0.15*(Gross - 5000) + 0.005*Gross = 1.155*Gross - 750
-        Limit: Budget <= 1.155*10000 - 750 = 10800
+
+        When include_er_pension=True, Case B is split further:
 
         Case C: 10000 < Gross <= 50270 (Er NI, Er Pension 3% of qualifying)
         Budget = Gross + 0.15*(Gross - 5000) + 0.005*Gross + 0.03*(Gross - 6240)
@@ -168,10 +169,13 @@ class InsideIR35Calculator:
         Budget = Gross + 0.15*(Gross - 5000) + 0.005*Gross + 0.03*(50270 - 6240)
         Budget = 1.155*Gross - 750 + 1320.90 = 1.155*Gross + 570.90
         """
-        # Thresholds in terms of Budget
         if budget <= 5025:
             return round(budget / 1.005)
 
+        if not include_er_pension:
+            return round((budget + 750) / 1.155)
+
+        # include_er_pension=True
         if budget <= 10800:
             return round((budget + 750) / 1.155)
 

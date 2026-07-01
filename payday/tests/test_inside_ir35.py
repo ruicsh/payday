@@ -39,6 +39,27 @@ class TestInsideIR35Calculator(unittest.TestCase):
         gross = InsideIR35Calculator.solve_gross_salary(0)
         self.assertEqual(gross, 0)
 
+    def test_solve_gross_salary_without_er_pension_low(self):
+        """Budget <= 5025: same formula with or without ER pension."""
+        gross = InsideIR35Calculator.solve_gross_salary(5025, include_er_pension=False)
+        self.assertEqual(gross, round(5025 / 1.005))
+
+    def test_solve_gross_salary_without_er_pension_mid(self):
+        """Mid budget: uses case B formula (ER NI + Levy, no ER pension)."""
+        gross = InsideIR35Calculator.solve_gross_salary(30000, include_er_pension=False)
+        self.assertEqual(gross, round((30000 + 750) / 1.155))
+
+    def test_solve_gross_salary_without_er_pension_high(self):
+        """High budget: same case B formula (ER pension cap doesn't apply)."""
+        gross = InsideIR35Calculator.solve_gross_salary(118800, include_er_pension=False)
+        self.assertEqual(gross, round((118800 + 750) / 1.155))
+
+    def test_solve_gross_salary_backward_compatible_default(self):
+        """Default (include_er_pension=True) preserves existing behavior."""
+        with_default = InsideIR35Calculator.solve_gross_salary(30000)
+        with_explicit = InsideIR35Calculator.solve_gross_salary(30000, include_er_pension=True)
+        self.assertEqual(with_default, with_explicit)
+
     def test_full_pipeline_500_day(self):
         # £500/day, 240 days, £25/wk margin
         breakdown = InsideIR35Calculator.calculate(500, 240, 25)
