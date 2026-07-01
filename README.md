@@ -12,25 +12,69 @@ Run it via `make run` or `python3 -m payday`.
 
 For permanent employees on a fixed annual salary.
 
-- **Input:** annual gross salary, optional salary sacrifice (monthly)
-- **Deductions:** Salary Sacrifice (if any), Income Tax (Personal Allowance £12,570, 20%/40%/45% bands), Employee NI (0%/8%/2%), Auto-enrolment Pension (5% on qualifying earnings — skipped when sacrifice is active)
-- **Output:** annual and monthly take-home pay
+**Inputs:** annual gross salary, optional salary sacrifice (monthly)
+
+**Flow:**
+```
+  Annual Gross Salary       £salary
+    └─ Salary Sacrifice      -£N  (optional, monthly)
+  ─────────────────────────────
+  Adjusted Gross Salary     £N
+    ├─ Personal Allowance   -£N
+    ├─ Income Tax           -£N
+    ├─ Employee NI (0/8/2%) -£N
+    └─ Pension (5% EE)      -£N  (skipped if sacrifice)
+  ─────────────────────────────
+  Annual Take-Home          £N
+  Monthly Take-Home         £N
+```
 
 ### 2. Inside IR35 (Umbrella Company)
 
 For contractors working through an umbrella company. The umbrella sits between the agency and the contractor, handling tax deductions.
 
-- **Inputs:** day rate, working days per year, umbrella weekly margin, optional start month, optional existing income/dividends from this tax year, optional salary sacrifice (monthly)
-- **Flow:** assignment rate → minus Salary Sacrifice → minus margin → minus Employer NI (15% above £5,000 Secondary Threshold) → minus Apprenticeship Levy (0.5%) → minus Employer Pension (3% on qualifying earnings) → gross salary → minus Income Tax → minus Employee NI → minus Employee Pension (auto-enrolment skipped when sacrifice active)
-- **Output:** annual and 20-day take-home pay (a common comparison metric for contractors)
+**Inputs:** day rate, working days/year, umbrella weekly margin, optional start month, optional existing income/dividends, optional salary sacrifice (monthly)
+
+**Flow:**
+```
+  Assignment Rate         £day_rate × days
+    ├─ Salary Sacrifice    -£N  (optional)
+    ├─ Umbrella Margin     -£N
+    ├─ Employer NI (15%)   -£N
+    ├─ Apprenticeship Levy -£N
+    └─ Employer Pension    -£N
+  ────────────────────────────
+  Gross Salary             £N
+    ├─ Income Tax          -£N
+    ├─ Employee NI (0/8/2%)-£N
+    └─ Pension (5% EE)     -£N  (skipped if sacrifice)
+  ────────────────────────────
+  Annual Take-Home         £N
+  20-Day Take-Home         £N
+```
 
 ### 3. Outside IR35 (Limited Company)
 
 For contractors operating through their own limited company. The company receives revenue, pays Corporation Tax, and distributes the remaining profit as dividends.
 
-- **Inputs:** day rate, working days per year, optional existing income from this tax year
-- **Flow:** company revenue → minus director salary (£12,570) → minus Employer NI (15%) → minus Corporation Tax (19% small profits / 25% main rate with Marginal Relief) → distributable profit → minus Dividend Tax (10.75%/35.75%/39.35% with £500 allowance)
-- **Output:** annual and 20-day take-home pay
+**Inputs:** day rate, working days/year, optional existing income from this tax year
+
+**Flow:**
+```
+  Company Revenue         £day_rate × days
+    ├─ Director Salary    -£N
+    └─ Employer NI        -£N
+  ────────────────────────────
+  Company Profit           £N
+    └─ Corporation Tax     -£N  (19% / 25% with Marginal Relief)
+  ────────────────────────────
+  Distributable Profit     £N
+    └─ Dividend Tax        -£N  (0% / 10.75% / 35.75% / 39.35%)
+  ────────────────────────────
+  Take-Home                £N
+    (Salary £N | Dividends £N)
+  20-Day Take-Home         £N
+```
 
 ---
 
