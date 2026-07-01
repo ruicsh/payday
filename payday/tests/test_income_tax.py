@@ -57,6 +57,61 @@ class TestIncomeTax(unittest.TestCase):
         res = calc_income_tax(150000, 0)
         self.assertEqual(res.total_tax, 53703)
 
+    # ── existing_income tests ──────────────────────────────────────────
+
+    def test_income_tax_existing_backward_compatible(self):
+        res_default = calc_income_tax(50000, 12570)
+        res_explicit = calc_income_tax(50000, 12570, existing_income=0)
+        self.assertEqual(res_default.total_tax, res_explicit.total_tax)
+        self.assertEqual(res_default.taxable_income, res_explicit.taxable_income)
+        self.assertEqual(res_default.basic_band, res_explicit.basic_band)
+
+    def test_income_tax_existing_consumes_pa(self):
+        # Existing £30k consumes £12,570 PA + £17,430 of basic band.
+        # New £20k has no remaining PA, all taxed at 20%.
+        res = calc_income_tax(20000, 12570, existing_income=30000)
+        self.assertEqual(res.total_tax, 4000)
+        self.assertEqual(res.taxable_income, 20000)
+        self.assertEqual(res.basic_band, 20000)
+        self.assertEqual(res.higher_band, 0)
+
+    def test_income_tax_existing_pushes_into_higher(self):
+        # Existing £50k consumes PA + £37,430 of basic band.
+        # Remaining basic: £37,700 - £37,430 = £270.
+        # New £40k: £270 at 20%, £39,730 at 40%.
+        res = calc_income_tax(40000, 12570, existing_income=50000)
+        self.assertEqual(res.total_tax, 15946)
+        self.assertEqual(res.taxable_income, 40000)
+        self.assertEqual(res.basic_band, 270)
+        self.assertEqual(res.higher_band, 39730)
+
+    def test_income_tax_existing_into_additional(self):
+        # Existing £120k + new £80k, PA tapered to 0.
+        # Combined taxable: 200,000
+        # Existing taxable: 120,000
+        pa, _ = calc_personal_allowance(200000)
+        self.assertEqual(pa, 0)
+        res = calc_income_tax(80000, pa, existing_income=120000)
+        # Combined tax on 200k:
+        #   basic:  37,700 * 0.20 =  7,540
+        #   higher: 87,440 * 0.40 = 34,976
+        #   addl:   (200k-125140) * 0.45 = 74,860*0.45 = 33,687
+        #   total: 76,203
+        # Existing tax on 120k:
+        #   basic:  37,700 * 0.20 =  7,540
+        #   higher: (120k-37,700) * 0.40 = 82,300*0.40 = 32,920
+        #   addl:   max(0, 120k-125140) = 0
+        #   total: 40,460
+        # New tax: 76,203 - 40,460 = 35,743
+        self.assertEqual(res.total_tax, 35743)
+        # New salary bands:
+        #   basic:   37,700 - 37,700 = 0
+        #   higher:  87,440 - 82,300 = 5,140
+        #   addl:    74,860 - 0 = 74,860
+        self.assertEqual(res.basic_band, 0)
+        self.assertEqual(res.higher_band, 5140)
+        self.assertEqual(res.additional_band, 74860)
+
 
 class TestAdjustedNetIncome(unittest.TestCase):
     def test_all_defaults(self):
