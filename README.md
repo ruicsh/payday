@@ -12,7 +12,10 @@ Run it via `make run` or `python3 -m payday`.
 
 For permanent employees on a fixed annual salary.
 
-**Inputs:** annual gross salary, optional salary sacrifice (monthly)
+| Input | Default | Description |
+|-------|---------|-------------|
+| Annual gross salary | — | Your full-year salary before deductions |
+| Salary sacrifice (monthly) | auto-calc | Reduces taxable income; auto-calc targets £100k ANI |
 
 **Flow:**
 ```
@@ -33,7 +36,15 @@ For permanent employees on a fixed annual salary.
 
 For contractors working through an umbrella company. The umbrella sits between the agency and the contractor, handling tax deductions.
 
-**Inputs:** day rate, working days/year, umbrella weekly margin, optional start month, optional existing income/dividends, optional salary sacrifice (monthly)
+| Input | Default | Description |
+|-------|---------|-------------|
+| Day rate | — | Daily contract rate |
+| Working days/year | 240 | Days you work per year |
+| Umbrella weekly margin | £25 | Weekly umbrella company fee |
+| Start month | None | Month contract starts (1–12) for mid-year proration |
+| Existing employment income | £0 | Income already earned this tax year |
+| Existing dividend income | £0 | Dividends already received this tax year |
+| Salary sacrifice (monthly) | auto-calc | Reduces taxable income; auto-calc targets £100k ANI |
 
 **Flow:**
 ```
@@ -57,7 +68,11 @@ For contractors working through an umbrella company. The umbrella sits between t
 
 For contractors operating through their own limited company. The company receives revenue, pays Corporation Tax, and distributes the remaining profit as dividends.
 
-**Inputs:** day rate, working days/year, optional existing income from this tax year
+| Input | Default | Description |
+|-------|---------|-------------|
+| Day rate | — | Daily contract rate |
+| Working days/year | 240 | Days you work per year |
+| Existing employment income | £0 | Income already earned this tax year (consumes PA and rate bands) |
 
 **Flow:**
 ```
