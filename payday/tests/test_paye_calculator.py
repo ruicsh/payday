@@ -51,6 +51,53 @@ class TestPAYECalculator(unittest.TestCase):
         breakdown = PAYECalculator.calculate(30000)
         self.assertLess(self._find_step(breakdown, "Pension Contribution").amount, 0)
 
+    # ── salary_sacrifice tests ─────────────────────────────────────────
+
+    def test_salary_sacrifice_backward_compatible_default(self):
+        """Calling with salary_sacrifice=0 should match default."""
+        default = PAYECalculator.calculate(50000)
+        explicit = PAYECalculator.calculate(50000, salary_sacrifice=0)
+        self.assertEqual(default.annual_take_home, explicit.annual_take_home)
+        self.assertEqual(default.steps, explicit.steps)
+
+    def test_salary_sacrifice_adds_waterfall_steps(self):
+        """With a sacrifice, the waterfall shows Salary Sacrifice and Adjusted Gross Salary."""
+        breakdown = PAYECalculator.calculate(50000, salary_sacrifice=5000)
+        self._find_step(breakdown, "Salary Sacrifice")
+        self._find_step(breakdown, "Adjusted Gross Salary")
+
+    def test_salary_sacrifice_reduces_tax_and_ni(self):
+        """A sacrifice of £5k on £50k reduces IT, NI, and pension contributions."""
+        no_sac = PAYECalculator.calculate(50000)
+        with_sac = PAYECalculator.calculate(50000, salary_sacrifice=5000)
+
+        # All deductions should be lower with sacrifice
+        self.assertLess(with_sac.income_tax.total_tax, no_sac.income_tax.total_tax)
+        self.assertLess(
+            with_sac.employee_ni.total_ni, no_sac.employee_ni.total_ni
+        )
+        self.assertLess(
+            with_sac.pension.employee_contribution,
+            no_sac.pension.employee_contribution,
+        )
+
+    def test_salary_sacrifice_take_home_savings(self):
+        """£5k sacrifice should reduce take-home by less than £5k due to tax/NI savings."""
+        no_sac = PAYECalculator.calculate(50000)
+        with_sac = PAYECalculator.calculate(50000, salary_sacrifice=5000)
+
+        reduction = no_sac.annual_take_home - with_sac.annual_take_home
+        self.assertGreater(reduction, 0)
+        self.assertLess(reduction, 5000)
+
+    def test_salary_sacrifice_exact_amounts(self):
+        """Verify exact take-home for £50k salary with £5k sacrifice."""
+        breakdown = PAYECalculator.calculate(50000, salary_sacrifice=5000)
+
+        self.assertEqual(self._find_step(breakdown, "Annual Gross Salary").amount, 50000)
+        self.assertEqual(self._find_step(breakdown, "Salary Sacrifice").amount, -5000)
+        self.assertEqual(self._find_step(breakdown, "Adjusted Gross Salary").amount, 45000)
+
 
 if __name__ == "__main__":
     unittest.main()
