@@ -18,35 +18,44 @@ _BASIC_BAND_WIDTH = BASIC_RATE_BAND_LIMIT - PERSONAL_ALLOWANCE  # 37,700
 _HIGHER_BAND_WIDTH = HIGHER_RATE_BAND_LIMIT - BASIC_RATE_BAND_LIMIT  # 74,870
 
 
-def calc_dividend_tax(dividends: int, salary: int) -> DividendTaxResult:
-    """Tax on dividends, stacked on top of salary.
+def calc_dividend_tax(
+    dividends: int, salary: int, existing_income: int = 0
+) -> DividendTaxResult:
+    """Tax on dividends, stacked on top of salary (and optional existing_income).
     Dividend Tax: https://www.gov.uk/tax-on-dividends
     Income Tax: https://www.gov.uk/income-tax-rates (band limits used for stacking)
+
+    *existing_income* is income already earned in the current tax year
+    (e.g. from a previous contract). It consumes Personal Allowance and
+    rate bands before *salary* and dividends are considered.
 
     - £500 dividend allowance at 0% (separate from Personal Allowance)
     - Basic rate: 10.75% (taxable income £0–£37,700)
     - Higher rate: 35.75% (taxable income £37,701–£125,140)
     - Additional rate: 39.35% (taxable income above £125,140)
-    - Personal Allowance consumed by salary first.
-    - Adjusted net income = salary + dividends determines PA taper.
+    - Personal Allowance consumed by salary + existing_income first.
+    - Adjusted net income = salary + existing + dividends determines PA taper.
 
     >>> res = calc_dividend_tax(40000, 12570)
     >>> res.total_tax
     4821
     """
-    ani = calc_adjusted_net_income(employment_income=salary, dividend_income=dividends)
+    total_employment = salary + existing_income
+    ani = calc_adjusted_net_income(
+        employment_income=total_employment, dividend_income=dividends
+    )
     pa, _ = calc_personal_allowance(ani)
 
-    # Taxable portion of salary after PA
-    taxable_salary = max(0, salary - pa)
+    # Taxable portion of all employment income after PA
+    taxable_employment = max(0, total_employment - pa)
 
     # £500 dividend allowance at 0%, reduces basic rate band space
     dividend_allowance = min(dividends, DIVIDEND_ALLOWANCE)
     remaining_dividends = max(0, dividends - dividend_allowance)
 
     # --- Basic Rate Band (0 to 37,700 taxable income) ---
-    basic_consumed_by_salary = min(taxable_salary, _BASIC_BAND_WIDTH)
-    basic_band_remaining = _BASIC_BAND_WIDTH - basic_consumed_by_salary
+    basic_consumed_by_employment = min(taxable_employment, _BASIC_BAND_WIDTH)
+    basic_band_remaining = _BASIC_BAND_WIDTH - basic_consumed_by_employment
 
     # Dividend allowance uses the bottom of the remaining basic band
     allowance_in_basic = min(dividend_allowance, basic_band_remaining)
@@ -58,11 +67,12 @@ def calc_dividend_tax(dividends: int, salary: int) -> DividendTaxResult:
     # --- Higher Rate Band (37,701 to 125,140 taxable income) ---
     remaining_after_basic = max(0, remaining_dividends - div_basic_band)
 
-    higher_consumed_by_salary = max(
+    higher_consumed_by_employment = max(
         0,
-        min(taxable_salary, _BASIC_BAND_WIDTH + _HIGHER_BAND_WIDTH) - _BASIC_BAND_WIDTH,
+        min(taxable_employment, _BASIC_BAND_WIDTH + _HIGHER_BAND_WIDTH)
+        - _BASIC_BAND_WIDTH,
     )
-    higher_band_remaining = _HIGHER_BAND_WIDTH - higher_consumed_by_salary
+    higher_band_remaining = _HIGHER_BAND_WIDTH - higher_consumed_by_employment
 
     div_higher_band = min(remaining_after_basic, higher_band_remaining)
     div_higher_tax = round(div_higher_band * DIVIDEND_HIGHER_RATE)

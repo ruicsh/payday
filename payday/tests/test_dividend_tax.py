@@ -78,5 +78,37 @@ class TestDividendTax(unittest.TestCase):
         self.assertEqual(res.total_tax, 4106)
 
 
+    # ── existing_income tests ──────────────────────────────────────────
+
+    def test_dividend_tax_with_existing_income(self):
+        # Existing £30k, director salary £12,570, dividends £50k.
+        # Total employment: £42,570 consumes £30k of basic band.
+        # Remaining basic band: £7,700, minus £500 allowance = £7,200.
+        # Higher band consumes rest.
+        res = calc_dividend_tax(50000, 12570, existing_income=30000)
+        self.assertEqual(res.total_tax, 15896)
+        self.assertEqual(res.basic_band, 7200)
+        self.assertEqual(res.higher_band, 42300)
+
+    def test_dividend_tax_existing_backward_compatible(self):
+        res_default = calc_dividend_tax(40000, 12570)
+        res_explicit = calc_dividend_tax(40000, 12570, existing_income=0)
+        self.assertEqual(res_default.total_tax, res_explicit.total_tax)
+
+    def test_dividend_tax_existing_fully_consumes_basic(self):
+        # Existing £50k + salary £12,570 = £62,570, PA £12,570.
+        # taxable_employment = £50k. All £37,700 basic band consumed.
+        # Dividends: £500 allowance, rest all at higher rate.
+        res = calc_dividend_tax(20000, 12570, existing_income=50000)
+        # remaining_dividends = 19,500
+        # basic_for_taxable_dividends = 37,700 - 37,700 = 0 (all consumed)
+        # div_basic_band = 0
+        # div_higher_band = min(19,500, 74,870) = 19,500
+        # tax = 19,500 * 0.3575 = 6,971 -> round = 6971
+        self.assertEqual(res.total_tax, 6971)
+        self.assertEqual(res.basic_band, 0)
+        self.assertEqual(res.higher_band, 19500)
+
+
 if __name__ == "__main__":
     unittest.main()
