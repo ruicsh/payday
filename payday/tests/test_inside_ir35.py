@@ -318,6 +318,26 @@ class TestInsideIR35Calculator(unittest.TestCase):
         without = InsideIR35Calculator.calculate(600, 240, 25, start_month=8)
         self.assertFalse(without.income_tax.tapered)
 
+    def test_existing_dividends_not_consuming_rate_bands(self):
+        """Dividends should not consume PAYE rate bands; tax must be lower."""
+        mixed = InsideIR35Calculator.calculate(
+            200, 240, 25, start_month=8, existing_income=16000, existing_dividends=15000
+        )
+        buggy = InsideIR35Calculator.calculate(
+            200, 240, 25, start_month=8, existing_income=31000
+        )
+        self.assertIn("existing_dividends", mixed.inputs)
+        self.assertEqual(mixed.inputs["existing_dividends"], 15000)
+        self.assertLess(mixed.income_tax.total_tax, buggy.income_tax.total_tax)
+
+    def test_existing_dividends_affect_pa_tapering(self):
+        """High dividends trigger PA taper even when employment income is low."""
+        breakdown = InsideIR35Calculator.calculate(
+            600, 240, 25, start_month=8, existing_income=10000, existing_dividends=200000
+        )
+        self.assertEqual(breakdown.income_tax.personal_allowance, 0)
+        self.assertTrue(breakdown.income_tax.tapered)
+
 
 if __name__ == "__main__":
     unittest.main()

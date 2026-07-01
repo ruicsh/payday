@@ -22,6 +22,7 @@ class InsideIR35Calculator:
         umbrella_margin_weekly: int = 25,
         start_month: int | None = None,
         existing_income: int = 0,
+        existing_dividends: int = 0,
         salary_sacrifice: int = 0,
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.
@@ -82,8 +83,11 @@ class InsideIR35Calculator:
                 employer_contribution=er_pension.employer_contribution,
             )
 
-        # ANI includes existing income for correct PA tapering
-        ani = calc_adjusted_net_income(employment_income=effective_gross + existing_income)
+        # ANI includes all income for correct PA tapering; dividends don't consume rate bands
+        ani = calc_adjusted_net_income(
+            employment_income=effective_gross + existing_income,
+            dividend_income=existing_dividends,
+        )
         pa, tapered = calc_personal_allowance(ani)
         it_result = calc_income_tax(effective_gross, pa, existing_income=existing_income)
         ee_ni_result = calc_employee_ni(effective_gross)
@@ -167,6 +171,8 @@ class InsideIR35Calculator:
             inputs["contract_period"] = period_label
         if existing_income:
             inputs["existing_income"] = existing_income
+        if existing_dividends:
+            inputs["existing_dividends"] = existing_dividends
         if salary_sacrifice:
             inputs["salary_sacrifice"] = salary_sacrifice
             inputs["er_ni_saving"] = er_ni_saving
