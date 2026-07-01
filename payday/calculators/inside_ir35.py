@@ -48,21 +48,22 @@ class InsideIR35Calculator:
         budget = annual_assignment - annual_margin
 
         if salary_sacrifice:
-            # Baseline (no sacrifice, with auto-enrolment) for ER NI comparison
-            baseline_gross = InsideIR35Calculator.solve_gross_salary(budget)
-            baseline_er_ni = calc_employer_ni(baseline_gross).total_er_ni
+            # Budget after sacrifice and margin: this must cover gross + ER NI + Levy
+            sac_budget = annual_assignment - salary_sacrifice - annual_margin
+            gross = InsideIR35Calculator.solve_gross_salary(
+                sac_budget, include_er_pension=False
+            )
 
-            # Post-sacrifice gross: sacrifice comes out before ER costs.
-            # 1.005*gross = assignment - sacrifice - margin - baseline_er_ni
-            raw = annual_assignment - salary_sacrifice - annual_margin - baseline_er_ni
-            gross = round(raw / 1.005)
-
-            effective_gross = gross  # already post-sacrifice by construction
+            effective_gross = gross
             er_ni_result = calc_employer_ni(gross)
             levy = round(gross * APPRENTICESHIP_LEVY_RATE)
-            er_ni_saving = baseline_er_ni - er_ni_result.total_er_ni
             er_pension_contribution = 0
             pension_result = PensionResult(False, 0, 0, 0)
+
+            # Informational: ER NI saving compared to what would have been paid
+            baseline_gross = InsideIR35Calculator.solve_gross_salary(budget)
+            baseline_er_ni = calc_employer_ni(baseline_gross).total_er_ni
+            er_ni_saving = baseline_er_ni - er_ni_result.total_er_ni
         else:
             gross = InsideIR35Calculator.solve_gross_salary(budget)
             effective_gross = gross
@@ -101,7 +102,6 @@ class InsideIR35Calculator:
                     -er_ni_result.total_er_ni,
                     indent=1,
                 ),
-                StepLine("ER NI Saved to SIPP", er_ni_saving, indent=1),
                 StepLine(
                     f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE * 100}%)",
                     -levy,

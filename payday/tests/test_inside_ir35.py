@@ -186,12 +186,15 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertEqual(default.steps, explicit.steps)
 
     def test_salary_sacrifice_adds_waterfall_steps(self):
-        """With a sacrifice, the waterfall shows Salary Sacrifice and ER NI Saved to SIPP."""
+        """With a sacrifice, the waterfall shows Salary Sacrifice and no auto-enrolment."""
         breakdown = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
         self._find_step(breakdown, "Salary Sacrifice")
-        self._find_step(breakdown, "ER NI Saved to SIPP")
         self.assertIn("salary_sacrifice", breakdown.inputs)
         self.assertEqual(breakdown.inputs["salary_sacrifice"], 5000)
+        labels = {step.label for step in breakdown.steps}
+        self.assertNotIn("Employer Pension (3%)", labels)
+        self.assertNotIn("Pension Contribution", labels)
+        self.assertNotIn("ER NI Saved to SIPP", labels)
 
     def test_salary_sacrifice_reduces_tax_and_ni(self):
         """A sacrifice of £15k on £300/day reduces IT and NI; pension is skipped."""
@@ -234,10 +237,8 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertNotIn("Pension Contribution", labels)
 
     def test_salary_sacrifice_er_ni_saving_computed(self):
-        """With sacrifice, ER NI saving is positive and present in waterfall."""
+        """With sacrifice, ER NI saving is positive and stored in inputs (not in waterfall)."""
         breakdown = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
-        saving_step = self._find_step(breakdown, "ER NI Saved to SIPP")
-        self.assertGreater(saving_step.amount, 0)
         self.assertIn("er_ni_saving", breakdown.inputs)
         self.assertGreater(breakdown.inputs["er_ni_saving"], 0)
 
