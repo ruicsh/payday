@@ -47,21 +47,36 @@ class InsideIR35Calculator:
 
         budget = annual_assignment - annual_margin
 
-        # Solve for gross salary including Er NI, Levy, and Er Pension
-        gross = InsideIR35Calculator.solve_gross_salary(budget)
-        effective_gross = gross - salary_sacrifice
+        if salary_sacrifice:
+            # Baseline (no sacrifice, with auto-enrolment) for ER NI comparison
+            baseline_gross = InsideIR35Calculator.solve_gross_salary(budget)
+            baseline_er_ni = calc_employer_ni(baseline_gross).total_er_ni
 
-        er_ni_result = calc_employer_ni(gross)
-        levy = round(gross * APPRENTICESHIP_LEVY_RATE)
-        er_pension = calc_pension(gross)
-        ee_pension = calc_pension(effective_gross)
-        er_pension_contribution = er_pension.employer_contribution
-        pension_result = PensionResult(
-            eligible=ee_pension.eligible,
-            qualifying_earnings=ee_pension.qualifying_earnings,
-            employee_contribution=ee_pension.employee_contribution,
-            employer_contribution=er_pension.employer_contribution,
-        )
+            # Post-sacrifice gross: sacrifice comes out before ER costs.
+            # 1.005*gross = assignment - sacrifice - margin - baseline_er_ni
+            raw = annual_assignment - salary_sacrifice - annual_margin - baseline_er_ni
+            gross = round(raw / 1.005)
+
+            effective_gross = gross  # already post-sacrifice by construction
+            er_ni_result = calc_employer_ni(gross)
+            levy = round(gross * APPRENTICESHIP_LEVY_RATE)
+            er_ni_saving = baseline_er_ni - er_ni_result.total_er_ni
+            er_pension_contribution = 0
+            pension_result = PensionResult(False, 0, 0, 0)
+        else:
+            gross = InsideIR35Calculator.solve_gross_salary(budget)
+            effective_gross = gross
+            er_ni_result = calc_employer_ni(gross)
+            levy = round(gross * APPRENTICESHIP_LEVY_RATE)
+            er_pension = calc_pension(gross)
+            ee_pension = calc_pension(effective_gross)
+            er_pension_contribution = er_pension.employer_contribution
+            pension_result = PensionResult(
+                eligible=ee_pension.eligible,
+                qualifying_earnings=ee_pension.qualifying_earnings,
+                employee_contribution=ee_pension.employee_contribution,
+                employer_contribution=er_pension.employer_contribution,
+            )
 
         # ANI includes existing income for correct PA tapering
         ani = calc_adjusted_net_income(employment_income=effective_gross + existing_income)
@@ -69,52 +84,70 @@ class InsideIR35Calculator:
         it_result = calc_income_tax(effective_gross, pa, existing_income=existing_income)
         ee_ni_result = calc_employee_ni(effective_gross)
 
-        annual_take_home = (
-            effective_gross
-            - it_result.total_tax
-            - ee_ni_result.total_ni
-            - pension_result.employee_contribution
-        )
+        annual_take_home = effective_gross - it_result.total_tax - ee_ni_result.total_ni
+
         take_home_20_day = round(annual_take_home / effective_days * 20)
 
         remaining_pa = max(0, pa - existing_income)
         pa_label = "Personal Allowance" + (" (tapered)" if tapered else "")
 
-        steps = [
-            StepLine("Assignment Rate", annual_assignment),
-            StepLine("Umbrella Margin", -annual_margin, indent=1),
-            StepLine(
-                f"Employer NI ({int(NI_EMPLOYER_RATE * 100)}%)",
-                -er_ni_result.total_er_ni,
-                indent=1,
-            ),
-            StepLine(
-                f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE * 100}%)",
-                -levy,
-                indent=1,
-            ),
-            StepLine(
-                f"Employer Pension ({int(PENSION_EMPLOYER_RATE * 100)}%)",
-                -er_pension_contribution,
-                indent=1,
-            ),
-            StepLine("Gross Salary", gross, is_subtotal=True),
-        ]
-
         if salary_sacrifice:
-            steps.append(StepLine("Salary Sacrifice", -salary_sacrifice, indent=1))
-            steps.append(
-                StepLine("Adjusted Gross Salary", effective_gross, is_subtotal=True)
-            )
+            steps = [
+                StepLine("Assignment Rate", annual_assignment),
+                StepLine("Salary Sacrifice", -salary_sacrifice, indent=1),
+                StepLine("Umbrella Margin", -annual_margin, indent=1),
+                StepLine(
+                    f"Employer NI ({int(NI_EMPLOYER_RATE * 100)}%)",
+                    -er_ni_result.total_er_ni,
+                    indent=1,
+                ),
+                StepLine("ER NI Saved to SIPP", er_ni_saving, indent=1),
+                StepLine(
+                    f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE * 100}%)",
+                    -levy,
+                    indent=1,
+                ),
+                StepLine("Gross Salary", gross, is_subtotal=True),
+            ]
+        else:
+            steps = [
+                StepLine("Assignment Rate", annual_assignment),
+                StepLine("Umbrella Margin", -annual_margin, indent=1),
+                StepLine(
+                    f"Employer NI ({int(NI_EMPLOYER_RATE * 100)}%)",
+                    -er_ni_result.total_er_ni,
+                    indent=1,
+                ),
+                StepLine(
+                    f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE * 100}%)",
+                    -levy,
+                    indent=1,
+                ),
+                StepLine(
+                    f"Employer Pension ({int(PENSION_EMPLOYER_RATE * 100)}%)",
+                    -er_pension_contribution,
+                    indent=1,
+                ),
+                StepLine("Gross Salary", gross, is_subtotal=True),
+            ]
 
         steps += [
             StepLine(pa_label, -remaining_pa, indent=1),
             StepLine("Taxable Income", it_result.taxable_income, indent=1),
             StepLine("Income Tax", -it_result.total_tax, indent=1),
             StepLine("Employee NI", -ee_ni_result.total_ni, indent=1),
-            StepLine(
-                "Pension Contribution", -pension_result.employee_contribution, indent=1
-            ),
+        ]
+
+        if not salary_sacrifice:
+            steps.append(
+                StepLine(
+                    "Pension Contribution",
+                    -pension_result.employee_contribution,
+                    indent=1,
+                )
+            )
+
+        steps += [
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
         ]
@@ -133,6 +166,7 @@ class InsideIR35Calculator:
             inputs["existing_income"] = existing_income
         if salary_sacrifice:
             inputs["salary_sacrifice"] = salary_sacrifice
+            inputs["er_ni_saving"] = er_ni_saving
 
         return SalaryBreakdown(
             mode="Inside IR35",

@@ -186,33 +186,31 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertEqual(default.steps, explicit.steps)
 
     def test_salary_sacrifice_adds_waterfall_steps(self):
-        """With a sacrifice, the waterfall shows Salary Sacrifice and Adjusted Gross Salary."""
+        """With a sacrifice, the waterfall shows Salary Sacrifice and ER NI Saved to SIPP."""
         breakdown = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
         self._find_step(breakdown, "Salary Sacrifice")
-        self._find_step(breakdown, "Adjusted Gross Salary")
+        self._find_step(breakdown, "ER NI Saved to SIPP")
         self.assertIn("salary_sacrifice", breakdown.inputs)
         self.assertEqual(breakdown.inputs["salary_sacrifice"], 5000)
 
     def test_salary_sacrifice_reduces_tax_and_ni(self):
-        """A sacrifice of £15k on £300/day reduces IT, EE NI, and auto-enrolment pension."""
+        """A sacrifice of £15k on £300/day reduces IT and NI; pension is skipped."""
         no_sac = InsideIR35Calculator.calculate(300, 240, 25)
         with_sac = InsideIR35Calculator.calculate(300, 240, 25, salary_sacrifice=15000)
 
         self.assertLess(with_sac.income_tax.total_tax, no_sac.income_tax.total_tax)
         self.assertLess(with_sac.employee_ni.total_ni, no_sac.employee_ni.total_ni)
-        self.assertLess(
-            with_sac.pension.employee_contribution,
-            no_sac.pension.employee_contribution,
-        )
+        self.assertEqual(with_sac.pension.employee_contribution, 0)
+        self.assertEqual(with_sac.pension.employer_contribution, 0)
 
     def test_salary_sacrifice_take_home_savings(self):
-        """£5k sacrifice should reduce take-home by less than £5k due to tax/NI savings."""
+        """£15k sacrifice should reduce take-home by less than £15k due to savings."""
         no_sac = InsideIR35Calculator.calculate(500, 240, 25)
-        with_sac = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
+        with_sac = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=15000)
 
         reduction = no_sac.annual_take_home - with_sac.annual_take_home
         self.assertGreater(reduction, 0)
-        self.assertLess(reduction, 5000)
+        self.assertLess(reduction, 15000)
 
     def test_salary_sacrifice_combined_with_existing_income(self):
         """Salary sacrifice works alongside existing income and partial year."""
@@ -225,14 +223,23 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertGreater(breakdown.annual_take_home, 0)
         self.assertGreater(breakdown.display_take_home, 0)
 
-    def test_salary_sacrifice_pension_data_consistent(self):
-        """Stored pension.employer_contribution must match displayed Employer Pension step."""
+    def test_salary_sacrifice_skips_auto_enrolment(self):
+        """With sacrifice, auto-enrolment pension is skipped entirely."""
         breakdown = InsideIR35Calculator.calculate(200, 240, 25, salary_sacrifice=5000)
-        er_pension_step = self._find_step(breakdown, "Employer Pension (3%)")
-        self.assertEqual(
-            -breakdown.pension.employer_contribution,
-            er_pension_step.amount,
-        )
+        self.assertEqual(breakdown.pension.employee_contribution, 0)
+        self.assertEqual(breakdown.pension.employer_contribution, 0)
+        self.assertFalse(breakdown.pension.eligible)
+        labels = {step.label for step in breakdown.steps}
+        self.assertNotIn("Employer Pension (3%)", labels)
+        self.assertNotIn("Pension Contribution", labels)
+
+    def test_salary_sacrifice_er_ni_saving_computed(self):
+        """With sacrifice, ER NI saving is positive and present in waterfall."""
+        breakdown = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
+        saving_step = self._find_step(breakdown, "ER NI Saved to SIPP")
+        self.assertGreater(saving_step.amount, 0)
+        self.assertIn("er_ni_saving", breakdown.inputs)
+        self.assertGreater(breakdown.inputs["er_ni_saving"], 0)
 
     def test_different_day_rates(self):
         # Just ensure all day rates produce reasonable results
