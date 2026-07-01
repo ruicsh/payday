@@ -38,6 +38,9 @@ def _mode_title(breakdown: SalaryBreakdown) -> str:
     period = breakdown.inputs.get("contract_period")
     if period:
         title += f"  ({period})"
+    existing = breakdown.inputs.get("existing_income")
+    if existing:
+        title += f"  [existing: {format_gbp(existing)}]"
     return title
 
 

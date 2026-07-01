@@ -153,6 +153,28 @@ class TestFormatBreakdown(unittest.TestCase):
         self.assertIn("× 160 days, Aug 2026–Apr 2027", output)
         self.assertNotIn("× 240 days", output)
 
+    def test_partial_year_shows_existing_income(self):
+        steps = [
+            StepLine("Assignment Rate", 80000),
+            StepLine("Annual Take-Home", 47840),
+        ]
+        breakdown = SalaryBreakdown(
+            mode="Inside IR35",
+            inputs={
+                "day_rate": 500,
+                "working_days": 240,
+                "margin_weekly": 25,
+                "contract_period": "Aug 2026–Apr 2027 (8 months)",
+                "effective_working_days": 160,
+                "existing_income": 30000,
+            },
+            steps=steps,
+            annual_take_home=47840,
+            display_take_home=5980,
+        )
+        output = format_breakdown(breakdown)
+        self.assertIn("[existing: £30,000]", output)
+
 
 if __name__ == "__main__":
     unittest.main()

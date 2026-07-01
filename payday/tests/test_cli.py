@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 from io import StringIO
-from payday.cli import prompt_int
+from payday.cli import prompt_int, prompt_existing_income
 
 
 class TestCLI(unittest.TestCase):
@@ -44,6 +44,25 @@ class TestCLI(unittest.TestCase):
         result = prompt_int("Enter number")
         self.assertEqual(result, 99)
         self.assertEqual(mock_input.call_count, 2)
+
+    # ── prompt_existing_income tests ───────────────────────────────────
+
+    def test_prompt_existing_income_full_year_returns_zero(self):
+        """Full year (start_month=None) never prompts."""
+        result = prompt_existing_income(None)
+        self.assertEqual(result, 0)
+
+    @patch("builtins.input", side_effect=["30000"])
+    def test_prompt_existing_income_partial_year(self, mock_input):
+        """Partial year prompts and returns entered value."""
+        result = prompt_existing_income(8)
+        self.assertEqual(result, 30000)
+
+    @patch("builtins.input", side_effect=[""])
+    def test_prompt_existing_income_defaults_to_zero(self, mock_input):
+        """Partial year with empty input defaults to 0."""
+        result = prompt_existing_income(8)
+        self.assertEqual(result, 0)
 
 
 if __name__ == "__main__":

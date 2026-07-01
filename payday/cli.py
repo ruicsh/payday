@@ -50,6 +50,17 @@ def prompt_start_month() -> int | None:
         print("Error: Enter a number 1–12, or press ENTER for full year.")
 
 
+def prompt_existing_income(start_month: int | None) -> int:
+    """Prompt for income already earned this tax year (partial year only)."""
+    if start_month is None:
+        return 0
+    return prompt_int(
+        "Existing income already earned this tax year (£)",
+        default=0,
+        min_val=0,
+    )
+
+
 def select_mode() -> int:
     """Display mode menu and return 1, 2, or 3."""
     print("\n╔═══════════════════════════════════════╗")
@@ -84,9 +95,10 @@ def run_once() -> None:
             "Working days per year", default=240, min_val=1, max_val=365
         )
         start_month = prompt_start_month()
+        existing_income = prompt_existing_income(start_month)
         margin = prompt_int("Umbrella weekly margin (£)", default=25, min_val=0)
         breakdown = InsideIR35Calculator.calculate(
-            day_rate, working_days, margin, start_month
+            day_rate, working_days, margin, start_month, existing_income
         )
 
     elif mode == 3:
@@ -98,7 +110,10 @@ def run_once() -> None:
             "Working days per year", default=240, min_val=1, max_val=365
         )
         start_month = prompt_start_month()
-        breakdown = OutsideIR35Calculator.calculate(day_rate, working_days, start_month)
+        existing_income = prompt_existing_income(start_month)
+        breakdown = OutsideIR35Calculator.calculate(
+            day_rate, working_days, start_month, existing_income
+        )
 
     else:
         return
