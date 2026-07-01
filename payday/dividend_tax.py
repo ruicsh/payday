@@ -7,7 +7,7 @@ from payday.constants import (
     BASIC_RATE_BAND_LIMIT,
     HIGHER_RATE_BAND_LIMIT,
 )
-from payday.income_tax import calc_personal_allowance
+from payday.income_tax import calc_adjusted_net_income, calc_personal_allowance
 from payday.models import DividendTaxResult
 
 # Taxable income band limits (fixed, independent of Personal Allowance):
@@ -28,14 +28,14 @@ def calc_dividend_tax(dividends: int, salary: int) -> DividendTaxResult:
     - Higher rate: 35.75% (taxable income £37,701–£125,140)
     - Additional rate: 39.35% (taxable income above £125,140)
     - Personal Allowance consumed by salary first.
-    - Total income = salary + dividends determines PA taper.
+    - Adjusted net income = salary + dividends determines PA taper.
 
     >>> res = calc_dividend_tax(40000, 12570)
     >>> res.total_tax
     4821
     """
-    total_income = salary + dividends
-    pa, _ = calc_personal_allowance(total_income)
+    ani = calc_adjusted_net_income(employment_income=salary, dividend_income=dividends)
+    pa, _ = calc_personal_allowance(ani)
 
     # Taxable portion of salary after PA
     taxable_salary = max(0, salary - pa)

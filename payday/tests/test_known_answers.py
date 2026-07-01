@@ -1,5 +1,5 @@
 import unittest
-from payday.income_tax import calc_income_tax, calc_personal_allowance
+from payday.income_tax import calc_adjusted_net_income, calc_income_tax, calc_personal_allowance
 from payday.national_insurance import calc_employee_ni
 from payday.corporation_tax import calc_corporation_tax
 
@@ -12,7 +12,8 @@ class TestKnownAnswers(unittest.TestCase):
         # PA: £12,570
         # Taxable: £37,430
         # 20% Tax: £7,486
-        pa, tapered = calc_personal_allowance(50000)
+        ani = calc_adjusted_net_income(employment_income=50000)
+        pa, tapered = calc_personal_allowance(ani)
         res = calc_income_tax(50000, pa)
         self.assertEqual(res.total_tax, 7486)
         self.assertFalse(tapered)
@@ -38,7 +39,8 @@ class TestKnownAnswers(unittest.TestCase):
         # Higher: (125,140 - 37,700) * 0.40 = 34,976
         # Additional: (150,000 - 125,140) * 0.45 = 11,187
         # Total: 53,703
-        pa, tapered = calc_personal_allowance(150000)
+        ani = calc_adjusted_net_income(employment_income=150000)
+        pa, tapered = calc_personal_allowance(ani)
         res = calc_income_tax(150000, pa)
         self.assertEqual(res.total_tax, 53703)
         self.assertTrue(tapered)

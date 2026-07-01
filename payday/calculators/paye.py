@@ -1,4 +1,4 @@
-from payday.income_tax import calc_personal_allowance, calc_income_tax
+from payday.income_tax import calc_adjusted_net_income, calc_personal_allowance, calc_income_tax
 from payday.national_insurance import calc_employee_ni
 from payday.pension import calc_pension
 from payday.models import SalaryBreakdown, StepLine
@@ -12,7 +12,8 @@ class PAYECalculator:
         Employee NI: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
         Pension: https://www.gov.uk/workplace-pensions/what-you-your-employer-and-the-government-pay
         """
-        pa, tapered = calc_personal_allowance(salary)
+        ani = calc_adjusted_net_income(employment_income=salary)
+        pa, tapered = calc_personal_allowance(ani)
         it_result = calc_income_tax(salary, pa)
         ni_result = calc_employee_ni(salary)
         pension_result = calc_pension(salary)
