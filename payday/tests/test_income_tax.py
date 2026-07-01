@@ -112,6 +112,28 @@ class TestIncomeTax(unittest.TestCase):
         self.assertEqual(res.higher_band, 5140)
         self.assertEqual(res.additional_band, 74860)
 
+    def test_income_tax_existing_consumes_all_bands(self):
+        # Existing £200k (all bands consumed), new £50k all at additional rate.
+        pa, _ = calc_personal_allowance(250000)
+        self.assertEqual(pa, 0)
+        res = calc_income_tax(50000, pa, existing_income=200000)
+        # Combined taxable: 250k
+        #   basic:  37,700 * 0.20 =  7,540
+        #   higher: 87,440 * 0.40 = 34,976
+        #   addl:   124,860 * 0.45 = 56,187
+        #   total: 98,703
+        # Existing taxable: 200k
+        #   basic:  37,700 * 0.20 =  7,540
+        #   higher: 87,440 * 0.40 = 34,976
+        #   addl:   74,860 * 0.45 = 33,687
+        #   total: 76,203
+        # New tax: 98,703 - 76,203 = 22,500
+        self.assertEqual(res.total_tax, 22500)
+        # New bands: all additional
+        self.assertEqual(res.basic_band, 0)
+        self.assertEqual(res.higher_band, 0)
+        self.assertEqual(res.additional_band, 50000)
+
 
 class TestAdjustedNetIncome(unittest.TestCase):
     def test_all_defaults(self):

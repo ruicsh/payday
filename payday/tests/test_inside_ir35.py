@@ -200,6 +200,20 @@ class TestInsideIR35Calculator(unittest.TestCase):
         # Take-home should be lower (more tax)
         self.assertLess(breakdown.annual_take_home, without.annual_take_home)
 
+    def test_existing_income_triggers_pa_taper(self):
+        # £600/day, Aug start (8mo/160d), existing £60k
+        # Without existing: ANI ≈ 82k < 100k → no taper
+        # With existing:    ANI ≈ 142k > 100k → taper
+        breakdown = InsideIR35Calculator.calculate(
+            600, 240, 25, start_month=8, existing_income=60000
+        )
+
+        self.assertLess(breakdown.income_tax.personal_allowance, 12570)
+        self.assertTrue(breakdown.income_tax.tapered)
+
+        without = InsideIR35Calculator.calculate(600, 240, 25, start_month=8)
+        self.assertFalse(without.income_tax.tapered)
+
 
 if __name__ == "__main__":
     unittest.main()
