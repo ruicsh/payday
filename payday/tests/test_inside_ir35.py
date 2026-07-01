@@ -176,6 +176,10 @@ class TestInsideIR35Calculator(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "working_days must be > 0"):
             InsideIR35Calculator.calculate(500, 0, 25)
 
+    def test_salary_sacrifice_exceeds_budget_raises_value_error(self):
+        with self.assertRaisesRegex(ValueError, "exceeds available budget"):
+            InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=120000)
+
     # ── salary_sacrifice tests ─────────────────────────────────────────
 
     def test_salary_sacrifice_backward_compatible_default(self):
