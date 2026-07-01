@@ -17,9 +17,13 @@ def format_gbp(amount: int) -> str:
 def _day_rate_context(breakdown: SalaryBreakdown) -> str:
     """Build day-rate suffix for modes with day rates."""
     day_rate = breakdown.inputs.get("day_rate")
-    days = breakdown.inputs.get("working_days")
+    days = breakdown.inputs.get("effective_working_days") or breakdown.inputs.get(
+        "working_days"
+    )
+    period = breakdown.inputs.get("contract_period")
     if day_rate and days:
-        return f"  ({format_gbp(day_rate)}/day × {days} days)"
+        suffix = f", {period}" if period else ""
+        return f"  ({format_gbp(day_rate)}/day × {days} days{suffix})"
     return ""
 
 
@@ -30,7 +34,11 @@ def _mode_title(breakdown: SalaryBreakdown) -> str:
         "Inside IR35": "Inside IR35 (Umbrella) — 2026/27",
         "Outside IR35": "Outside IR35 (Ltd Co) — 2026/27",
     }
-    return titles.get(breakdown.mode, f"{breakdown.mode} — 2026/27")
+    title = titles.get(breakdown.mode, f"{breakdown.mode} — 2026/27")
+    period = breakdown.inputs.get("contract_period")
+    if period:
+        title += f"  ({period})"
+    return title
 
 
 def format_breakdown(breakdown: SalaryBreakdown) -> str:

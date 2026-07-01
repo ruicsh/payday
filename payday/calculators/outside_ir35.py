@@ -3,11 +3,16 @@ from payday.national_insurance import calc_employer_ni
 from payday.corporation_tax import calc_corporation_tax
 from payday.dividend_tax import calc_dividend_tax
 from payday.models import SalaryBreakdown, StepLine
+from payday.tax_year import pro_rate_contract
 
 
 class OutsideIR35Calculator:
     @staticmethod
-    def calculate(day_rate: int, working_days: int) -> SalaryBreakdown:
+    def calculate(
+        day_rate: int,
+        working_days: int,
+        start_month: int | None = None,
+    ) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
         Income Tax: https://www.gov.uk/income-tax-rates
@@ -18,7 +23,11 @@ class OutsideIR35Calculator:
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
 
-        revenue = day_rate * working_days
+        months, effective_days, period_label = pro_rate_contract(
+            working_days, start_month
+        )
+
+        revenue = day_rate * effective_days
 
         # Tax-optimal salary for Outside IR35 is £12,570 (Primary Threshold)
         # 2026/27 Secondary Threshold is £5,000, so Employer NI will be due.
@@ -39,7 +48,7 @@ class OutsideIR35Calculator:
         net_dividends = dividends - div_tax_result.total_tax
         take_home = salary + net_dividends
 
-        take_home_20_day = round(take_home / working_days * 20)
+        take_home_20_day = round(take_home / effective_days * 20)
 
         steps = [
             StepLine("Company Revenue", revenue),
@@ -53,9 +62,19 @@ class OutsideIR35Calculator:
             StepLine("20-Day Take-Home", take_home_20_day),
         ]
 
+        inputs: dict = {
+            "day_rate": day_rate,
+            "working_days": working_days,
+        }
+        if period_label:
+            inputs["start_month"] = start_month
+            inputs["contract_months"] = months
+            inputs["effective_working_days"] = effective_days
+            inputs["contract_period"] = period_label
+
         return SalaryBreakdown(
             mode="Outside IR35",
-            inputs={"day_rate": day_rate, "working_days": working_days},
+            inputs=inputs,
             steps=steps,
             annual_take_home=take_home,
             display_take_home=take_home_20_day,

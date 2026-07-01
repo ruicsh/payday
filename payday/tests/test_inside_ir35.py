@@ -112,6 +112,45 @@ class TestInsideIR35Calculator(unittest.TestCase):
         expected_display = round(breakdown.annual_take_home / 200 * 20)
         self.assertEqual(breakdown.display_take_home, expected_display)
 
+    def test_partial_year_august_start(self):
+        # £500/day, 240 days/yr, £25/wk, start Aug → 8 months → 160 days
+        breakdown = InsideIR35Calculator.calculate(500, 240, 25, start_month=8)
+
+        self.assertEqual(breakdown.inputs["start_month"], 8)
+        self.assertEqual(breakdown.inputs["contract_months"], 8)
+        self.assertEqual(breakdown.inputs["effective_working_days"], 160)
+        self.assertEqual(
+            breakdown.inputs["contract_period"], "Aug 2026–Apr 2027 (8 months)"
+        )
+
+        # Assignment = 500 * 160 = 80000 (vs 120000 full year)
+        self.assertEqual(self._find_step(breakdown, "Assignment Rate").amount, 80000)
+
+        # 20-day pay = annual_take_home / 160 * 20
+        expected_display = round(breakdown.annual_take_home / 160 * 20)
+        self.assertEqual(breakdown.display_take_home, expected_display)
+
+    def test_partial_year_january_start(self):
+        # £500/day, 240 days/yr, £25/wk, start Jan → 3 months → 60 days
+        breakdown = InsideIR35Calculator.calculate(500, 240, 25, start_month=1)
+
+        self.assertEqual(breakdown.inputs["contract_months"], 3)
+        self.assertEqual(breakdown.inputs["effective_working_days"], 60)
+
+        # Assignment = 500 * 60 = 30000
+        self.assertEqual(self._find_step(breakdown, "Assignment Rate").amount, 30000)
+
+        expected_display = round(breakdown.annual_take_home / 60 * 20)
+        self.assertEqual(breakdown.display_take_home, expected_display)
+
+    def test_partial_year_no_start_month_identical_to_full_year(self):
+        # Calling with start_month=None should produce same result as not passing it
+        with_start = InsideIR35Calculator.calculate(500, 240, 25, start_month=None)
+        without = InsideIR35Calculator.calculate(500, 240, 25)
+        self.assertEqual(with_start.annual_take_home, without.annual_take_home)
+        self.assertEqual(with_start.display_take_home, without.display_take_home)
+        self.assertNotIn("contract_period", with_start.inputs)
+
     def test_zero_working_days_raises_value_error(self):
         with self.assertRaisesRegex(ValueError, "working_days must be > 0"):
             InsideIR35Calculator.calculate(500, 0, 25)

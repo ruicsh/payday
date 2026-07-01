@@ -91,6 +91,30 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         self.assertLessEqual(breakdown.corporation_tax.profit, 50000)
         self.assertEqual(breakdown.corporation_tax.marginal_relief, 0)
 
+    def test_partial_year_august_start(self):
+        # £500/day, 240 days/yr, start Aug → 8 months → 160 days
+        breakdown = OutsideIR35Calculator.calculate(500, 240, start_month=8)
+
+        self.assertEqual(breakdown.inputs["start_month"], 8)
+        self.assertEqual(breakdown.inputs["contract_months"], 8)
+        self.assertEqual(breakdown.inputs["effective_working_days"], 160)
+        self.assertEqual(
+            breakdown.inputs["contract_period"], "Aug 2026–Apr 2027 (8 months)"
+        )
+
+        # Revenue = 500 * 160 = 80000 (vs 120000)
+        self.assertEqual(self._find_step(breakdown, "Company Revenue").amount, 80000)
+
+        expected_display = round(breakdown.annual_take_home / 160 * 20)
+        self.assertEqual(breakdown.display_take_home, expected_display)
+
+    def test_partial_year_no_start_month_identical_to_full_year(self):
+        with_start = OutsideIR35Calculator.calculate(500, 240, start_month=None)
+        without = OutsideIR35Calculator.calculate(500, 240)
+        self.assertEqual(with_start.annual_take_home, without.annual_take_home)
+        self.assertEqual(with_start.display_take_home, without.display_take_home)
+        self.assertNotIn("contract_period", with_start.inputs)
+
     def test_zero_working_days_raises_value_error(self):
         with self.assertRaisesRegex(ValueError, "working_days must be > 0"):
             OutsideIR35Calculator.calculate(500, 0)

@@ -1,5 +1,9 @@
 import unittest
-from payday.income_tax import calc_adjusted_net_income, calc_income_tax, calc_personal_allowance
+from payday.income_tax import (
+    calc_adjusted_net_income,
+    calc_income_tax,
+    calc_personal_allowance,
+)
 from payday.national_insurance import calc_employee_ni
 from payday.corporation_tax import calc_corporation_tax
 

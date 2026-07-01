@@ -1,4 +1,8 @@
-from payday.income_tax import calc_adjusted_net_income, calc_personal_allowance, calc_income_tax
+from payday.income_tax import (
+    calc_adjusted_net_income,
+    calc_personal_allowance,
+    calc_income_tax,
+)
 from payday.national_insurance import calc_employee_ni
 from payday.pension import calc_pension
 from payday.models import SalaryBreakdown, StepLine

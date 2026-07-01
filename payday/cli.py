@@ -35,6 +35,21 @@ def prompt_int(
             print("Error: Please enter a whole number.")
 
 
+def prompt_start_month() -> int | None:
+    """Prompt for contract start month. None means full tax year."""
+    while True:
+        user_input = input("Contract start month [1-12], ENTER for full year: ").strip()
+        if not user_input:
+            return None
+        try:
+            val = int(user_input)
+            if 1 <= val <= 12:
+                return val
+        except ValueError:
+            pass
+        print("Error: Enter a number 1–12, or press ENTER for full year.")
+
+
 def select_mode() -> int:
     """Display mode menu and return 1, 2, or 3."""
     print("\n╔═══════════════════════════════════════╗")
@@ -68,8 +83,11 @@ def run_once() -> None:
         working_days = prompt_int(
             "Working days per year", default=240, min_val=1, max_val=365
         )
+        start_month = prompt_start_month()
         margin = prompt_int("Umbrella weekly margin (£)", default=25, min_val=0)
-        breakdown = InsideIR35Calculator.calculate(day_rate, working_days, margin)
+        breakdown = InsideIR35Calculator.calculate(
+            day_rate, working_days, margin, start_month
+        )
 
     elif mode == 3:
         print("\n═══════════════════════════════════════")
@@ -79,7 +97,8 @@ def run_once() -> None:
         working_days = prompt_int(
             "Working days per year", default=240, min_val=1, max_val=365
         )
-        breakdown = OutsideIR35Calculator.calculate(day_rate, working_days)
+        start_month = prompt_start_month()
+        breakdown = OutsideIR35Calculator.calculate(day_rate, working_days, start_month)
 
     else:
         return

@@ -3,16 +3,24 @@ from payday.constants import (
     NI_EMPLOYER_RATE,
     PENSION_EMPLOYER_RATE,
 )
-from payday.income_tax import calc_adjusted_net_income, calc_personal_allowance, calc_income_tax
+from payday.income_tax import (
+    calc_adjusted_net_income,
+    calc_personal_allowance,
+    calc_income_tax,
+)
 from payday.national_insurance import calc_employee_ni, calc_employer_ni
 from payday.pension import calc_pension
 from payday.models import SalaryBreakdown, StepLine
+from payday.tax_year import pro_rate_contract
 
 
 class InsideIR35Calculator:
     @staticmethod
     def calculate(
-        day_rate: int, working_days: int, umbrella_margin_weekly: int = 25
+        day_rate: int,
+        working_days: int,
+        umbrella_margin_weekly: int = 25,
+        start_month: int | None = None,
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
@@ -21,11 +29,15 @@ class InsideIR35Calculator:
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
 
-        annual_assignment = day_rate * working_days
+        months, effective_days, period_label = pro_rate_contract(
+            working_days, start_month
+        )
+
+        annual_assignment = day_rate * effective_days
 
         # Calculate annual margin
-        # Assuming 5 working days per week, so weeks = working_days / 5
-        weeks = working_days / 5
+        # Assuming 5 working days per week, so weeks = effective_days / 5
+        weeks = effective_days / 5
         annual_margin = round(umbrella_margin_weekly * weeks)
 
         budget = annual_assignment - annual_margin
@@ -48,7 +60,7 @@ class InsideIR35Calculator:
             - ee_ni_result.total_ni
             - pension_result.employee_contribution
         )
-        take_home_20_day = round(annual_take_home / working_days * 20)
+        take_home_20_day = round(annual_take_home / effective_days * 20)
 
         pa_label = "Personal Allowance" + (" (tapered)" if tapered else "")
 
@@ -82,13 +94,20 @@ class InsideIR35Calculator:
             StepLine("20-Day Take-Home", take_home_20_day),
         ]
 
+        inputs: dict = {
+            "day_rate": day_rate,
+            "working_days": working_days,
+            "margin_weekly": umbrella_margin_weekly,
+        }
+        if period_label:
+            inputs["start_month"] = start_month
+            inputs["contract_months"] = months
+            inputs["effective_working_days"] = effective_days
+            inputs["contract_period"] = period_label
+
         return SalaryBreakdown(
             mode="Inside IR35",
-            inputs={
-                "day_rate": day_rate,
-                "working_days": working_days,
-                "margin_weekly": umbrella_margin_weekly,
-            },
+            inputs=inputs,
             steps=steps,
             annual_take_home=annual_take_home,
             display_take_home=take_home_20_day,

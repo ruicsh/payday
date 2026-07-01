@@ -108,6 +108,51 @@ class TestFormatBreakdown(unittest.TestCase):
         output = format_breakdown(breakdown)
         self.assertIn("Unknown Mode — 2026/27", output)
 
+    def test_partial_year_title_includes_period(self):
+        steps = [
+            StepLine("Assignment Rate", 80000),
+            StepLine("Annual Take-Home", 47840),
+        ]
+        breakdown = SalaryBreakdown(
+            mode="Inside IR35",
+            inputs={
+                "day_rate": 500,
+                "working_days": 240,
+                "margin_weekly": 25,
+                "contract_period": "Aug 2026–Apr 2027 (8 months)",
+                "effective_working_days": 160,
+            },
+            steps=steps,
+            annual_take_home=47840,
+            display_take_home=5980,
+        )
+        output = format_breakdown(breakdown)
+        self.assertIn("Inside IR35 (Umbrella)", output)
+        self.assertIn("Aug 2026–Apr 2027 (8 months)", output)
+
+    def test_partial_year_day_rate_context(self):
+        steps = [
+            StepLine("Assignment Rate", 80000),
+            StepLine("Annual Take-Home", 47840),
+        ]
+        breakdown = SalaryBreakdown(
+            mode="Inside IR35",
+            inputs={
+                "day_rate": 500,
+                "working_days": 240,
+                "margin_weekly": 25,
+                "contract_period": "Aug 2026–Apr 2027 (8 months)",
+                "effective_working_days": 160,
+            },
+            steps=steps,
+            annual_take_home=47840,
+            display_take_home=5980,
+        )
+        output = format_breakdown(breakdown)
+        # Shows pro-rated days instead of full-year days
+        self.assertIn("× 160 days, Aug 2026–Apr 2027", output)
+        self.assertNotIn("× 240 days", output)
+
 
 if __name__ == "__main__":
     unittest.main()
