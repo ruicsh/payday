@@ -3,6 +3,7 @@ from payday.calculators.paye import PAYECalculator
 from payday.calculators.inside_ir35 import InsideIR35Calculator
 from payday.calculators.outside_ir35 import OutsideIR35Calculator
 from payday.formatters import format_breakdown
+from payday.tax_year import months_in_tax_year
 
 
 def prompt_int(
@@ -72,7 +73,7 @@ def prompt_existing_dividends(start_month: int | None) -> int:
     )
 
 
-def prompt_salary_sacrifice() -> int:
+def prompt_salary_sacrifice(start_month: int | None = None) -> int:
     """Prompt whether to make a salary sacrifice for a personal pension."""
     answer = input(
         "Would you like to make a salary sacrifice for a personal pension? [y/N]: "
@@ -83,7 +84,8 @@ def prompt_salary_sacrifice() -> int:
         "How much would you like to sacrifice monthly (£)",
         min_val=0,
     )
-    return monthly * 12
+    contract_months = 12 if start_month is None else months_in_tax_year(start_month)
+    return monthly * contract_months
 
 
 def select_mode() -> int:
@@ -124,7 +126,7 @@ def run_once() -> None:
         existing_income = prompt_existing_income(start_month)
         existing_dividends = prompt_existing_dividends(start_month)
         margin = prompt_int("Umbrella weekly margin (£)", default=25, min_val=0)
-        salary_sacrifice = prompt_salary_sacrifice()
+        salary_sacrifice = prompt_salary_sacrifice(start_month)
         breakdown = InsideIR35Calculator.calculate(
             day_rate, working_days, margin, start_month, existing_income,
             existing_dividends=existing_dividends,

@@ -126,6 +126,12 @@ class TestCLI(unittest.TestCase):
         result = prompt_salary_sacrifice()
         self.assertEqual(result, 0)
 
+    @patch("builtins.input", side_effect=["y", "4350"])
+    def test_salary_sacrifice_partial_year(self, mock_input):
+        """Partial-year contract: monthly sacrifice × contract months, not 12."""
+        result = prompt_salary_sacrifice(start_month=8)
+        self.assertEqual(result, 34800)  # 4350 × 8, not 4350 × 12
+
 
 if __name__ == "__main__":
     unittest.main()
