@@ -21,10 +21,14 @@ class InsideIR35Calculator:
         working_days: int,
         umbrella_margin_weekly: int = 25,
         start_month: int | None = None,
+        existing_income: int = 0,
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
         Umbrella company guidance: https://www.gov.uk/guidance/working-through-an-umbrella-company
+
+        *existing_income* is income already earned in this tax year. It reduces
+        the remaining Personal Allowance and rate bands available to this contract.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
@@ -49,9 +53,10 @@ class InsideIR35Calculator:
         levy = round(gross * APPRENTICESHIP_LEVY_RATE)
         pension_result = calc_pension(gross)
 
-        ani = calc_adjusted_net_income(employment_income=gross)
+        # ANI includes existing income for correct PA tapering
+        ani = calc_adjusted_net_income(employment_income=gross + existing_income)
         pa, tapered = calc_personal_allowance(ani)
-        it_result = calc_income_tax(gross, pa)
+        it_result = calc_income_tax(gross, pa, existing_income=existing_income)
         ee_ni_result = calc_employee_ni(gross)
 
         annual_take_home = (
@@ -62,6 +67,7 @@ class InsideIR35Calculator:
         )
         take_home_20_day = round(annual_take_home / effective_days * 20)
 
+        remaining_pa = max(0, pa - existing_income)
         pa_label = "Personal Allowance" + (" (tapered)" if tapered else "")
 
         steps = [
@@ -83,7 +89,7 @@ class InsideIR35Calculator:
                 indent=1,
             ),
             StepLine("Gross Salary", gross, is_subtotal=True),
-            StepLine(pa_label, -pa, indent=1),
+            StepLine(pa_label, -remaining_pa, indent=1),
             StepLine("Taxable Income", it_result.taxable_income, indent=1),
             StepLine("Income Tax", -it_result.total_tax, indent=1),
             StepLine("Employee NI", -ee_ni_result.total_ni, indent=1),
@@ -104,6 +110,8 @@ class InsideIR35Calculator:
             inputs["contract_months"] = months
             inputs["effective_working_days"] = effective_days
             inputs["contract_period"] = period_label
+        if existing_income:
+            inputs["existing_income"] = existing_income
 
         return SalaryBreakdown(
             mode="Inside IR35",

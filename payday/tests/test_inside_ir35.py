@@ -165,6 +165,41 @@ class TestInsideIR35Calculator(unittest.TestCase):
             gross = self._find_step(breakdown, "Gross Salary").amount
             self.assertLess(breakdown.annual_take_home, gross)
 
+    # ── existing_income tests ──────────────────────────────────────────
+
+    def test_partial_year_existing_backward_compatible(self):
+        no_existing = InsideIR35Calculator.calculate(500, 240, 25, start_month=8)
+        explicit_zero = InsideIR35Calculator.calculate(
+            500, 240, 25, start_month=8, existing_income=0
+        )
+        self.assertEqual(no_existing.annual_take_home, explicit_zero.annual_take_home)
+        self.assertEqual(no_existing.display_take_home, explicit_zero.display_take_home)
+
+    def test_partial_year_with_existing_income(self):
+        # £500/day, 240 days/yr, £25/wk, Aug start (8mo), existing £30k
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, start_month=8, existing_income=30000
+        )
+
+        self.assertIn("existing_income", breakdown.inputs)
+        self.assertEqual(breakdown.inputs["existing_income"], 30000)
+
+        # existing £30k fully consumes PA, so Personal Allowance line shows £0
+        pa_step = self._find_step(breakdown, "Personal Allowance")
+        self.assertEqual(pa_step.amount, 0)
+
+        # Taxable income should be full gross (no remaining PA)
+        gross = self._find_step(breakdown, "Gross Salary").amount
+        taxable = self._find_step(breakdown, "Taxable Income").amount
+        self.assertEqual(taxable, gross)
+
+        # Income tax should be higher than without existing income
+        without = InsideIR35Calculator.calculate(500, 240, 25, start_month=8)
+        self.assertGreater(breakdown.income_tax.total_tax, without.income_tax.total_tax)
+
+        # Take-home should be lower (more tax)
+        self.assertLess(breakdown.annual_take_home, without.annual_take_home)
+
 
 if __name__ == "__main__":
     unittest.main()
