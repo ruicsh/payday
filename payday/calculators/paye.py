@@ -43,8 +43,6 @@ class PAYECalculator:
             steps.append(
                 StepLine("Adjusted Gross Salary", effective_gross, is_subtotal=True)
             )
-        else:
-            steps.append(StepLine("Adjusted Gross Salary", effective_gross, indent=1))
 
         steps += [
             StepLine(pa_label, -pa, indent=1),
