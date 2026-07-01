@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 from io import StringIO
-from payday.cli import prompt_int, prompt_existing_income
+from payday.cli import prompt_int, prompt_existing_income, prompt_salary_sacrifice
 
 
 class TestCLI(unittest.TestCase):
@@ -62,6 +62,46 @@ class TestCLI(unittest.TestCase):
     def test_prompt_existing_income_defaults_to_zero(self, mock_input):
         """Partial year with empty input defaults to 0."""
         result = prompt_existing_income(8)
+        self.assertEqual(result, 0)
+
+    # ── prompt_salary_sacrifice tests ───────────────────────────────────
+
+    @patch("builtins.input", side_effect=["n"])
+    def test_salary_sacrifice_no_lowercase(self, mock_input):
+        """Entering 'n' returns 0."""
+        result = prompt_salary_sacrifice()
+        self.assertEqual(result, 0)
+
+    @patch("builtins.input", side_effect=["N"])
+    def test_salary_sacrifice_no_uppercase(self, mock_input):
+        """Entering 'N' returns 0."""
+        result = prompt_salary_sacrifice()
+        self.assertEqual(result, 0)
+
+    @patch("builtins.input", side_effect=[""])
+    def test_salary_sacrifice_default_no(self, mock_input):
+        """Empty input returns 0 (defaults to no)."""
+        result = prompt_salary_sacrifice()
+        self.assertEqual(result, 0)
+
+    @patch("builtins.input", side_effect=["y", "5000"])
+    def test_salary_sacrifice_yes_with_amount(self, mock_input):
+        """Entering 'y' then a valid amount returns that amount."""
+        result = prompt_salary_sacrifice()
+        self.assertEqual(result, 5000)
+
+    @patch("builtins.input", side_effect=["y", "abc", "3000"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_retry_on_invalid(self, mock_stdout, mock_input):
+        """Entering non-numeric amount retries and accepts valid input."""
+        result = prompt_salary_sacrifice()
+        self.assertEqual(result, 3000)
+        self.assertIn("Error: Please enter a whole number", mock_stdout.getvalue())
+
+    @patch("builtins.input", side_effect=["yes"])
+    def test_salary_sacrifice_not_strict_y(self, mock_input):
+        """'yes' is not 'y', so it returns 0 (only bare 'y' counts)."""
+        result = prompt_salary_sacrifice()
         self.assertEqual(result, 0)
 
 

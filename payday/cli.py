@@ -61,6 +61,19 @@ def prompt_existing_income(start_month: int | None) -> int:
     )
 
 
+def prompt_salary_sacrifice() -> int:
+    """Prompt whether to make a salary sacrifice for a personal pension."""
+    answer = input(
+        "Would you like to make a salary sacrifice for a personal pension? [y/N]: "
+    ).strip().lower()
+    if answer != "y":
+        return 0
+    return prompt_int(
+        "How much would you like to sacrifice annually (£)",
+        min_val=0,
+    )
+
+
 def select_mode() -> int:
     """Display mode menu and return 1, 2, or 3."""
     print("\n╔═══════════════════════════════════════╗")
@@ -84,7 +97,8 @@ def run_once() -> None:
         print("  Regular PAYE")
         print("═══════════════════════════════════════")
         salary = prompt_int("Enter your annual gross salary (£)", min_val=0)
-        breakdown = PAYECalculator.calculate(salary)
+        salary_sacrifice = prompt_salary_sacrifice()
+        breakdown = PAYECalculator.calculate(salary, salary_sacrifice=salary_sacrifice)
 
     elif mode == 2:
         print("\n═══════════════════════════════════════")
@@ -97,8 +111,10 @@ def run_once() -> None:
         start_month = prompt_start_month()
         existing_income = prompt_existing_income(start_month)
         margin = prompt_int("Umbrella weekly margin (£)", default=25, min_val=0)
+        salary_sacrifice = prompt_salary_sacrifice()
         breakdown = InsideIR35Calculator.calculate(
-            day_rate, working_days, margin, start_month, existing_income
+            day_rate, working_days, margin, start_month, existing_income,
+            salary_sacrifice=salary_sacrifice,
         )
 
     elif mode == 3:
