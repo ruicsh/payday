@@ -67,19 +67,15 @@ class TestPAYECalculator(unittest.TestCase):
         self._find_step(breakdown, "Adjusted Gross Salary")
 
     def test_salary_sacrifice_reduces_tax_and_ni(self):
-        """A sacrifice of £5k on £50k reduces IT, NI, and pension contributions."""
+        """A sacrifice of £5k on £50k reduces IT and NI; pension is skipped."""
         no_sac = PAYECalculator.calculate(50000)
         with_sac = PAYECalculator.calculate(50000, salary_sacrifice=5000)
 
-        # All deductions should be lower with sacrifice
         self.assertLess(with_sac.income_tax.total_tax, no_sac.income_tax.total_tax)
         self.assertLess(
             with_sac.employee_ni.total_ni, no_sac.employee_ni.total_ni
         )
-        self.assertLess(
-            with_sac.pension.employee_contribution,
-            no_sac.pension.employee_contribution,
-        )
+        self.assertEqual(with_sac.pension.employee_contribution, 0)
 
     def test_salary_sacrifice_take_home_savings(self):
         """£5k sacrifice should reduce take-home by less than £5k due to tax/NI savings."""
@@ -97,6 +93,14 @@ class TestPAYECalculator(unittest.TestCase):
         self.assertEqual(self._find_step(breakdown, "Annual Gross Salary").amount, 50000)
         self.assertEqual(self._find_step(breakdown, "Salary Sacrifice").amount, -5000)
         self.assertEqual(self._find_step(breakdown, "Adjusted Gross Salary").amount, 45000)
+
+    def test_salary_sacrifice_skips_auto_enrolment(self):
+        """With sacrifice, auto-enrolment pension is skipped entirely."""
+        breakdown = PAYECalculator.calculate(50000, salary_sacrifice=5000)
+        self.assertEqual(breakdown.pension.employee_contribution, 0)
+        self.assertFalse(breakdown.pension.eligible)
+        labels = {step.label for step in breakdown.steps}
+        self.assertNotIn("Pension Contribution", labels)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ from payday.income_tax import (
 )
 from payday.national_insurance import calc_employee_ni
 from payday.pension import calc_pension
-from payday.models import SalaryBreakdown, StepLine
+from payday.models import SalaryBreakdown, StepLine, PensionResult
 
 
 class PAYECalculator:
@@ -22,7 +22,10 @@ class PAYECalculator:
         pa, tapered = calc_personal_allowance(ani)
         it_result = calc_income_tax(effective_gross, pa)
         ni_result = calc_employee_ni(effective_gross)
-        pension_result = calc_pension(effective_gross)
+        if salary_sacrifice:
+            pension_result = PensionResult(False, 0, 0, 0)
+        else:
+            pension_result = calc_pension(effective_gross)
 
         annual_take_home = (
             effective_gross
@@ -49,9 +52,18 @@ class PAYECalculator:
             StepLine("Taxable Income", it_result.taxable_income, indent=1),
             StepLine("Income Tax", -it_result.total_tax, indent=1),
             StepLine("National Insurance", -ni_result.total_ni, indent=1),
-            StepLine(
-                "Pension Contribution", -pension_result.employee_contribution, indent=1
-            ),
+        ]
+
+        if not salary_sacrifice:
+            steps.append(
+                StepLine(
+                    "Pension Contribution",
+                    -pension_result.employee_contribution,
+                    indent=1,
+                )
+            )
+
+        steps += [
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("Monthly Take-Home", monthly_take_home),
         ]
