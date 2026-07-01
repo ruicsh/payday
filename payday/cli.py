@@ -68,10 +68,11 @@ def prompt_salary_sacrifice() -> int:
     ).strip().lower()
     if answer != "y":
         return 0
-    return prompt_int(
-        "How much would you like to sacrifice annually (£)",
+    monthly = prompt_int(
+        "How much would you like to sacrifice monthly (£)",
         min_val=0,
     )
+    return monthly * 12
 
 
 def select_mode() -> int:

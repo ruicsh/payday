@@ -86,16 +86,16 @@ class TestCLI(unittest.TestCase):
 
     @patch("builtins.input", side_effect=["y", "5000"])
     def test_salary_sacrifice_yes_with_amount(self, mock_input):
-        """Entering 'y' then a valid amount returns that amount."""
+        """Entering 'y' then a monthly amount; result is annual (×12)."""
         result = prompt_salary_sacrifice()
-        self.assertEqual(result, 5000)
+        self.assertEqual(result, 60000)  # 5000 × 12
 
     @patch("builtins.input", side_effect=["y", "abc", "3000"])
     @patch("sys.stdout", new_callable=StringIO)
     def test_salary_sacrifice_retry_on_invalid(self, mock_stdout, mock_input):
         """Entering non-numeric amount retries and accepts valid input."""
         result = prompt_salary_sacrifice()
-        self.assertEqual(result, 3000)
+        self.assertEqual(result, 36000)  # 3000 × 12
         self.assertIn("Error: Please enter a whole number", mock_stdout.getvalue())
 
     @patch("builtins.input", side_effect=["yes"])
