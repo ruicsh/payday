@@ -132,18 +132,16 @@ def calc_income_tax(
     bc, hc, ac, btc, htc, atc = _tax_components(total_taxable, basic_band_width, higher_band_limit)
     be, he, ae, bte, hte, ate = _tax_components(existing_taxable, basic_band_width, higher_band_limit)
 
-    # Tax attributable to the new salary
-    total_tax_combined = btc + htc + atc
-    total_tax_existing = bte + hte + ate
-    total_tax = total_tax_combined - total_tax_existing
-
-    # Band breakdown for the new salary only
+    # Band breakdown for the new salary only (difference of combined vs existing)
     basic_band = bc - be
     higher_band = hc - he
     additional_band = ac - ae
     basic_tax = round(basic_band * BASIC_RATE)
     higher_tax = round(higher_band * HIGHER_RATE)
     additional_tax = round(additional_band * ADDITIONAL_RATE)
+
+    # Total derived from band sum, consistent with per-band rounding
+    total_tax = basic_tax + higher_tax + additional_tax
 
     # Remaining PA for display
     remaining_pa = max(0, personal_allowance - existing_income)
