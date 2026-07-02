@@ -122,5 +122,53 @@ class TestDividendTax(unittest.TestCase):
         self.assertLessEqual(res.higher_band, 42301)
 
 
+    # ── existing_dividends tests ─────────────────────────────────────
+
+    def test_dividend_tax_existing_dividends_consumes_allowance(self):
+        # Existing £400 dividends consume most of the £500 allowance.
+        # New £40,000 dividends: only £100 allowance left, pushing more into higher rate.
+        # Without existing: £48,221. With existing £400: marginal tax £4,964.
+        res = calc_dividend_tax(40000, 12570, existing_dividends=400)
+        self.assertEqual(res.total_tax, 4964)
+        self.assertEqual(res.dividend_allowance, 100)
+        self.assertEqual(res.taxable_dividends, 39900)
+        self.assertEqual(res.basic_band, 37200)
+        self.assertEqual(res.higher_band, 2700)
+
+    def test_dividend_tax_existing_dividends_fully_consumes_allowance(self):
+        # Existing £500 dividends consume all of the £500 allowance.
+        res = calc_dividend_tax(40000, 12570, existing_dividends=500)
+        self.assertEqual(res.total_tax, 5000)
+        self.assertEqual(res.dividend_allowance, 0)
+        self.assertEqual(res.taxable_dividends, 40000)
+
+    def test_dividend_tax_existing_dividends_push_into_higher(self):
+        # Existing £37,500 dividends fill almost all basic band.
+        # New £5,000 dividends: taxed in higher rate band (no basic band left).
+        res = calc_dividend_tax(5000, 12570, existing_dividends=37500)
+        self.assertEqual(res.total_tax, 1737)
+        self.assertEqual(res.dividend_allowance, 0)
+        self.assertEqual(res.taxable_dividends, 5000)
+
+    def test_dividend_tax_existing_dividends_backward_compatible(self):
+        res_default = calc_dividend_tax(40000, 12570)
+        res_explicit = calc_dividend_tax(40000, 12570, existing_dividends=0)
+        self.assertEqual(res_default.total_tax, res_explicit.total_tax)
+
+    def test_dividend_tax_existing_dividends_no_new_dividends(self):
+        # Only existing dividends, no new dividends being taken.
+        res = calc_dividend_tax(0, 12570, existing_dividends=400)
+        self.assertEqual(res.total_tax, 0)
+        self.assertEqual(res.dividend_allowance, 0)
+        self.assertEqual(res.taxable_dividends, 0)
+
+    def test_dividend_tax_existing_dividends_float(self):
+        res = calc_dividend_tax(40000, 12570, existing_dividends=400.50)
+        self.assertIsInstance(res, DividendTaxResult)
+        self.assertEqual(res.total_tax, 4964)
+        self.assertEqual(res.dividend_allowance, 100)
+        self.assertEqual(res.taxable_dividends, 39900)
+
+
 if __name__ == "__main__":
     unittest.main()

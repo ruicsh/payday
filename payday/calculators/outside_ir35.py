@@ -57,7 +57,9 @@ class OutsideIR35Calculator:
         # Assume all distributed as dividends (clamped to zero if loss-making)
         dividends = max(0, post_tax_profit)
         div_tax_result = calc_dividend_tax(
-            dividends, salary, existing_income=existing_income
+            dividends, salary,
+            existing_income=existing_income,
+            existing_dividends=existing_dividends,
         )
 
         # Take-home = Salary + (Dividends - Dividend Tax)
