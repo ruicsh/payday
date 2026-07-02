@@ -3,6 +3,7 @@ from unittest.mock import patch
 from io import StringIO
 from payday.cli import (
     prompt_int,
+    prompt_float,
     prompt_existing_income,
     prompt_salary_sacrifice,
     prompt_working_days,
@@ -11,6 +12,124 @@ from payday.cli import (
 
 
 class TestCLI(unittest.TestCase):
+    # ── select_mode config tests ───────────────────────────────────────
+
+    @patch("builtins.input", side_effect=["3"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_select_mode_interactive(self, mock_stdout, mock_input):
+        from payday.cli import select_mode
+        result = select_mode()
+        self.assertEqual(result, 3)
+
+    def test_select_mode_config_paye(self):
+        from payday.cli import select_mode
+        result = select_mode({"mode": "paye"})
+        self.assertEqual(result, 1)
+
+    def test_select_mode_config_inside_ir35_string(self):
+        from payday.cli import select_mode
+        result = select_mode({"mode": "inside_ir35"})
+        self.assertEqual(result, 2)
+
+    def test_select_mode_config_outside_ir35_int(self):
+        from payday.cli import select_mode
+        result = select_mode({"mode": 3})
+        self.assertEqual(result, 3)
+
+    def test_select_mode_config_none_shows_menu(self):
+        from payday.cli import select_mode
+        with patch("builtins.input", return_value="2"):
+            result = select_mode(None)
+        self.assertEqual(result, 2)
+
+    # ── prompt_int / prompt_float config tests ─────────────────────────
+
+    def test_prompt_int_config_value(self):
+        result = prompt_int("Enter number", config_value=42)
+        self.assertEqual(result, 42)
+
+    def test_prompt_int_config_value_default_ignored(self):
+        result = prompt_int("Enter number", default=10, config_value=99)
+        self.assertEqual(result, 99)
+
+    def test_prompt_float_config_value(self):
+        result = prompt_float("Enter amount", config_value=12345.67)
+        self.assertEqual(result, 12345.67)
+
+    # ── prompt_start_month / prompt_existing_* config tests ────────────
+
+    def test_prompt_start_month_config(self):
+        from payday.cli import prompt_start_month
+        result = prompt_start_month(config={"start_month": 4})
+        self.assertEqual(result, 4)
+
+    def test_prompt_start_month_config_full_year(self):
+        from payday.cli import prompt_start_month
+        result = prompt_start_month(config={"start_month": None})
+        self.assertIsNone(result)
+
+    def test_prompt_existing_income_config(self):
+        result = prompt_existing_income(8, config={"existing_income": 30000})
+        self.assertEqual(result, 30000)
+
+    def test_prompt_existing_income_config_default(self):
+        result = prompt_existing_income(8, config={"existing_income": None})
+        self.assertEqual(result, 0)
+
+    def test_prompt_existing_dividends_config(self):
+        from payday.cli import prompt_existing_dividends
+        result = prompt_existing_dividends(8, config={"existing_dividends": 15000})
+        self.assertEqual(result, 15000)
+
+    def test_prompt_existing_dividends_config_default(self):
+        from payday.cli import prompt_existing_dividends
+        result = prompt_existing_dividends(8, config={"existing_dividends": None})
+        self.assertEqual(result, 0)
+
+    # ── prompt_salary_sacrifice config tests ───────────────────────────
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_config_disabled(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": False}
+        result = prompt_salary_sacrifice(100_000, config=config)
+        self.assertEqual(result, 0)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_config_manual(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": True, "monthly_salary_sacrifice": 2000}
+        result = prompt_salary_sacrifice(100_000, config=config)
+        self.assertEqual(result, 24000)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_config_max(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": True, "monthly_salary_sacrifice": "max"}
+        result = prompt_salary_sacrifice(150_000, config=config)
+        self.assertEqual(result, 60_000)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_config_auto(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": True, "monthly_salary_sacrifice": "auto"}
+        result = prompt_salary_sacrifice(150_000, config=config)
+        self.assertEqual(result, 50_000)
+
+    # ── prompt_working_days config tests ───────────────────────────────
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_working_days_config_days_off(self, mock_stdout):
+        from payday.cli import prompt_working_days
+        result, days_off = prompt_working_days(None, config={"days_off": 10})
+        self.assertEqual(days_off, 10)
+        self.assertEqual(result, 242)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_working_days_config_override(self, mock_stdout):
+        from payday.cli import prompt_working_days
+        result, days_off = prompt_working_days(
+            None, config={"days_off": 10, "working_days": 200}
+        )
+        self.assertEqual(days_off, 10)
+        self.assertEqual(result, 200)
+
     @patch("builtins.input", side_effect=["42"])
     def test_prompt_int_valid(self, mock_input):
         result = prompt_int("Enter number")

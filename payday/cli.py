@@ -23,8 +23,22 @@ def prompt_int(
     min_val: int | None = None,
     max_val: int | None = None,
     default_fmt: callable = str,
+    config_value: int | None = None,
 ) -> int:
     """Prompt user for an integer with validation and optional default."""
+    if config_value is not None:
+        val = config_value
+        if min_val is not None and val < min_val:
+            print(f"Using value from payday.json: {config_value}")
+            print(f"Error: Value must be at least {min_val}.")
+            return val
+        if max_val is not None and val > max_val:
+            print(f"Using value from payday.json: {config_value}")
+            print(f"Error: Value must be no more {max_val}.")
+            return val
+        print(f"Using value from payday.json: {config_value}")
+        return val
+
     while True:
         display_prompt = (
             f"{prompt} [{default_fmt(default)}]: "
@@ -56,8 +70,22 @@ def prompt_float(
     min_val: float | None = None,
     max_val: float | None = None,
     default_fmt: callable = str,
+    config_value: float | None = None,
 ) -> float:
     """Prompt user for a number with validation and optional default."""
+    if config_value is not None:
+        val = float(config_value)
+        if min_val is not None and val < min_val:
+            print(f"Using value from payday.json: {config_value}")
+            print(f"Error: Value must be at least {min_val}.")
+            return val
+        if max_val is not None and val > max_val:
+            print(f"Using value from payday.json: {config_value}")
+            print(f"Error: Value must be no more {max_val}.")
+            return val
+        print(f"Using value from payday.json: {config_value}")
+        return val
+
     while True:
         display_prompt = (
             f"{prompt} [{default_fmt(default)}]: "
@@ -82,8 +110,16 @@ def prompt_float(
             print("Error: Please enter a number.")
 
 
-def prompt_start_month() -> int | None:
+def prompt_start_month(config: dict | None = None) -> int | None:
     """Prompt for contract start month. None means full tax year."""
+    if config and "start_month" in config:
+        val = config["start_month"]
+        if val is not None:
+            print(f"Using value from payday.json: {val}")
+            return val
+        print("Using value from payday.json: full year")
+        return None
+
     while True:
         user_input = input("Contract start month [1-12], ENTER for full year: ").strip()
         if not user_input:
@@ -97,8 +133,17 @@ def prompt_start_month() -> int | None:
         print("Error: Enter a number 1–12, or press ENTER for full year.")
 
 
-def prompt_existing_income(start_month: int | None) -> float:
+def prompt_existing_income(
+    start_month: int | None,
+    config: dict | None = None,
+) -> float:
     """Prompt for employment income already earned this tax year (partial year only)."""
+    if config and "existing_income" in config:
+        val = config["existing_income"]
+        if val is not None:
+            print(f"Using value from payday.json: {val}")
+            return float(val)
+        return 0.0
     if start_month is None:
         return 0.0
     return prompt_float(
@@ -108,8 +153,17 @@ def prompt_existing_income(start_month: int | None) -> float:
     )
 
 
-def prompt_existing_dividends(start_month: int | None) -> float:
+def prompt_existing_dividends(
+    start_month: int | None,
+    config: dict | None = None,
+) -> float:
     """Prompt for dividends already received this tax year (partial year only)."""
+    if config and "existing_dividends" in config:
+        val = config["existing_dividends"]
+        if val is not None:
+            print(f"Using value from payday.json: {val}")
+            return float(val)
+        return 0.0
     if start_month is None:
         return 0.0
     return prompt_float(
@@ -128,22 +182,55 @@ def prompt_salary_sacrifice(
     existing_income: float = 0,
     existing_dividends: float = 0,
     default_cap: int = 100_000,
+    config: dict | None = None,
 ) -> int:
     """Prompt whether to make a salary sacrifice for a personal pension.
 
     Returns the *annual* sacrifice amount.
-
-    If the user enters an integer monthly amount, it's multiplied by
-    contract months.
-
-    If the user types "max" (case-insensitive), the sacrifice is set to
-    the maximum allowed amount (capped at MAX_SALARY_SACRIFICE and by
-    available income/budget).
-
-    If the user presses ENTER on the amount prompt, they enter auto-calc
-    mode: they specify a taxable income cap and the optimal sacrifice
-    is computed automatically.
     """
+    if config:
+        if not config.get("salary_sacrifice_enabled"):
+            return 0
+
+        contract_months = 12 if start_month is None else months_in_tax_year(start_month)
+
+        ms = config.get("monthly_salary_sacrifice")
+        if isinstance(ms, int):
+            annual = ms * contract_months
+            result = min(annual, MAX_SALARY_SACRIFICE) if annual > MAX_SALARY_SACRIFICE else annual
+            print(f"Using value from payday.json: {ms}/mo ({result:,}/yr)")
+            return result
+
+        if ms == "max":
+            if mode == "paye":
+                result = min(gross, MAX_SALARY_SACRIFICE)
+            elif mode == "inside_ir35":
+                max_within_budget = max(0, gross - annual_margin - 1)
+                result = min(max_within_budget, MAX_SALARY_SACRIFICE)
+            else:
+                result = 0
+            monthly = result // contract_months
+            print(f"Using value from payday.json: max ({result:,}/yr, £{monthly:,}/mo)")
+            return result
+
+        if ms == "auto":
+            cap = config.get("salary_sacrifice_cap") or default_cap
+            if mode == "paye":
+                result = calc_optimal_sacrifice_paye(gross, cap=cap)
+            elif mode == "inside_ir35":
+                result = calc_optimal_sacrifice_inside_ir35(
+                    gross, annual_margin, cap=cap,
+                    existing_income=existing_income,
+                    existing_dividends=existing_dividends,
+                )
+            else:
+                result = 0
+            if result == 0:
+                print("Gross is already at or below cap — no sacrifice needed (payday.json).")
+                return 0
+            print(f"Using value from payday.json: auto ({result:,}/yr)")
+            return result
+
     answer = (
         input(
             "Would you like to make a salary sacrifice for a personal pension? [y/N]: "
@@ -234,7 +321,10 @@ def prompt_salary_sacrifice(
             print("Error: Please enter a whole number.")
 
 
-def prompt_working_days(start_month: int | None) -> tuple[int, int]:
+def prompt_working_days(
+    start_month: int | None,
+    config: dict | None = None,
+) -> tuple[int, int]:
     """Prompt for working days with holiday-aware defaults and manual override.
 
     Returns (net_working_days, days_off_taken).
@@ -250,6 +340,18 @@ def prompt_working_days(start_month: int | None) -> tuple[int, int]:
         f"Working days available in {period} "
         f"(Mon–Fri minus E&W bank holidays): {available}"
     )
+
+    if config and "working_days" in config:
+        net = config["working_days"]
+        days_off = config.get("days_off") or 0
+        print(f"Using value from payday.json: {net}")
+        return net, days_off
+
+    if config and "days_off" in config:
+        days_off = config["days_off"]
+        print(f"Using value from payday.json: {days_off}")
+        net = max(1, available - days_off)
+        return net, days_off
 
     days_off = prompt_int(
         "Days off you'll take (annual leave, sick, etc.)",
@@ -278,8 +380,19 @@ def prompt_working_days(start_month: int | None) -> tuple[int, int]:
             print("Error: Please enter a whole number.")
 
 
-def select_mode() -> int:
+def select_mode(config: dict | None = None) -> int:
     """Display mode menu and return 1, 2, or 3."""
+    if config and config.get("mode") is not None:
+        raw = config["mode"]
+        if isinstance(raw, str):
+            mode_map = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3}
+            mode = mode_map[raw]
+        else:
+            mode = raw
+        mode_labels = {1: "PAYE", 2: "Inside IR35", 3: "Outside IR35"}
+        print(f"\nUsing mode from payday.json: {mode_labels[mode]}")
+        return mode
+
     print("\n╔═══════════════════════════════════════╗")
     print("║      Payday - UK Salary Calculator    ║")
     print("║            2026/27 Tax Year           ║")
@@ -294,28 +407,36 @@ def select_mode() -> int:
 
 def run_once(config: dict | None = None) -> None:
     """One full cycle: select mode → prompt → calculate → display."""
-    # config will be wired into prompts in a later task
-    mode = select_mode()
+    mode = select_mode(config)
 
     if mode == 1:
         print("\n═══════════════════════════════════════")
         print("  Regular PAYE")
         print("═══════════════════════════════════════")
-        salary = prompt_int("Enter your annual gross salary (£)", min_val=0)
-        salary_sacrifice = prompt_salary_sacrifice(salary, mode="paye")
+        salary = prompt_int(
+            "Enter your annual gross salary (£)", min_val=0,
+            config_value=config.get("salary") if config else None,
+        )
+        salary_sacrifice = prompt_salary_sacrifice(salary, mode="paye", config=config)
         breakdown = PAYECalculator.calculate(salary, salary_sacrifice=salary_sacrifice)
 
     elif mode == 2:
         print("\n═══════════════════════════════════════")
         print("  Inside IR35 (Umbrella Company)")
         print("═══════════════════════════════════════")
-        day_rate = prompt_int("Enter your day rate (£)", min_val=1)
-        start_month = prompt_start_month()
-        existing_income = prompt_existing_income(start_month)
-        existing_dividends = prompt_existing_dividends(start_month)
+        day_rate = prompt_int(
+            "Enter your day rate (£)", min_val=1,
+            config_value=config.get("day_rate") if config else None,
+        )
+        start_month = prompt_start_month(config)
+        existing_income = prompt_existing_income(start_month, config)
+        existing_dividends = prompt_existing_dividends(start_month, config)
 
-        net_working_days, _ = prompt_working_days(start_month)
-        margin = prompt_int("Umbrella weekly margin (£)", default=25, min_val=0)
+        net_working_days, _ = prompt_working_days(start_month, config)
+        margin = prompt_int(
+            "Umbrella weekly margin (£)", default=25, min_val=0,
+            config_value=config.get("umbrella_margin") if config else None,
+        )
 
         weeks = net_working_days / 5
         annual_margin = round(margin * weeks)
