@@ -155,7 +155,7 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         self.assertTrue(step.is_subtotal)
 
     def test_year_taxable_income_partial_year(self):
-        """Partial year: includes existing income but not existing_dividends."""
+        """Partial year (no existing): equals salary + dividends from this contract."""
         breakdown = OutsideIR35Calculator.calculate(
             500, 240, start_month=8,
         )
