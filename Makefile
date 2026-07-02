@@ -10,7 +10,10 @@ test:
 	python3 -m unittest discover -v -s payday/tests
 
 run:
-	python3 -m payday --config payday.json
+	python3 -m payday --config $(or $(filter-out $@,$(MAKECMDGOALS)),payday.json)
+
+%:
+	@true
 
 run-init:
 	python3 -m payday --init

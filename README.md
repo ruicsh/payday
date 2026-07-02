@@ -2,7 +2,7 @@
 
 A command-line tool to calculate take-home pay under three different UK employment structures, using 2026/27 tax rates.
 
-Run it via `make run` or `python3 -m payday`.
+Run it via `make run` (defaults to `payday.json`) or `make run myconfig.json`. Or directly with `python3 -m payday`.
 
 ---
 
@@ -115,13 +115,14 @@ All rates, thresholds and formulas used in this project are sourced from the fol
 ## Usage
 
 ```bash
-make run
+make run              # uses payday.json
+make run custom.json  # uses custom.json
 ```
 
 Or directly:
 
 ```bash
-python3 -m payday
+python3 -m payday --config payday.json
 ```
 
 Follow the prompts to select a mode and enter your details. You'll be asked about salary sacrifice and existing income/dividends where applicable.
