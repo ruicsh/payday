@@ -94,12 +94,16 @@ class InsideIR35Calculator:
             dividend_income=existing_dividends,
         )
         pa, tapered = calc_personal_allowance(ani)
-        it_result = calc_income_tax(effective_gross, pa, existing_income=existing_income)
+        it_result = calc_income_tax(
+            effective_gross, pa, existing_income=existing_income
+        )
         ee_ni_result = calc_employee_ni(effective_gross)
 
         annual_take_home = effective_gross - it_result.total_tax - ee_ni_result.total_ni
 
-        year_taxable_income = round(effective_gross + existing_income + existing_dividends)
+        year_taxable_income = round(
+            effective_gross + existing_income + existing_dividends
+        )
         take_home_20_day = round(annual_take_home / effective_days * 20)
 
         remaining_pa = max(0, pa - existing_income)
@@ -109,9 +113,7 @@ class InsideIR35Calculator:
             steps = [
                 StepLine("Assignment Rate", annual_assignment),
                 StepLine("Salary Sacrifice", -salary_sacrifice, indent=1),
-                StepLine(
-                    "Monthly Sacrifice", -(salary_sacrifice // months), indent=2
-                ),
+                StepLine("Monthly Sacrifice", -(salary_sacrifice // months), indent=2),
                 StepLine("Umbrella Margin", -annual_margin, indent=1),
                 StepLine(
                     f"Employer NI ({int(NI_EMPLOYER_RATE * 100)}%)",

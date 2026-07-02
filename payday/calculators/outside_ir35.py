@@ -51,7 +51,9 @@ class OutsideIR35Calculator:
 
         # Assume all distributed as dividends (clamped to zero if loss-making)
         dividends = max(0, post_tax_profit)
-        div_tax_result = calc_dividend_tax(dividends, salary, existing_income=existing_income)
+        div_tax_result = calc_dividend_tax(
+            dividends, salary, existing_income=existing_income
+        )
 
         # Take-home = Salary + (Dividends - Dividend Tax)
         # Note: at £12,570 salary, Income Tax and EE NI are both zero.
@@ -60,7 +62,9 @@ class OutsideIR35Calculator:
 
         take_home_20_day = round(take_home / effective_days * 20)
 
-        year_taxable_income = round(salary + dividends + existing_income + existing_dividends)
+        year_taxable_income = round(
+            salary + dividends + existing_income + existing_dividends
+        )
 
         steps = [
             StepLine("Company Revenue", revenue),

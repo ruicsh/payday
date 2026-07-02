@@ -80,16 +80,22 @@ TAX_YEAR_END: date = date(2027, 4, 5)
 
 def contract_start_date(start_month: int) -> date:
     """First calendar day of the contract month in the relevant year."""
-    cal_year = _TAX_YEAR_START_CALENDAR if start_month >= 4 else _TAX_YEAR_START_CALENDAR + 1
+    cal_year = (
+        _TAX_YEAR_START_CALENDAR if start_month >= 4 else _TAX_YEAR_START_CALENDAR + 1
+    )
     return date(cal_year, start_month, 1)
 
 
 def working_days_in_full_tax_year() -> int:
     from payday.bank_holidays import working_days_in_range, ENGLAND_WALES_2026_27
-    return working_days_in_range(TAX_YEAR_START, TAX_YEAR_END, set(ENGLAND_WALES_2026_27))
+
+    return working_days_in_range(
+        TAX_YEAR_START, TAX_YEAR_END, set(ENGLAND_WALES_2026_27)
+    )
 
 
 def working_days_in_contract_period(start_month: int) -> int:
     from payday.bank_holidays import working_days_in_range, ENGLAND_WALES_2026_27
+
     start = max(contract_start_date(start_month), TAX_YEAR_START)
     return working_days_in_range(start, TAX_YEAR_END, set(ENGLAND_WALES_2026_27))

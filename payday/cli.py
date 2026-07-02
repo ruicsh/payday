@@ -10,7 +10,6 @@ from payday.formatters import format_breakdown, format_gbp
 from payday.tax_year import (
     contract_period_label,
     months_in_tax_year,
-    pro_rate_contract,
     working_days_in_contract_period,
     working_days_in_full_tax_year,
 )
@@ -140,17 +139,19 @@ def prompt_salary_sacrifice(
     mode: they specify a taxable income cap and the optimal sacrifice
     is computed automatically.
     """
-    answer = input(
-        "Would you like to make a salary sacrifice for a personal pension? [y/N]: "
-    ).strip().lower()
+    answer = (
+        input(
+            "Would you like to make a salary sacrifice for a personal pension? [y/N]: "
+        )
+        .strip()
+        .lower()
+    )
     if answer != "y":
         return 0
     contract_months = 12 if start_month is None else months_in_tax_year(start_month)
 
     while True:
-        user_input = input(
-            "Monthly salary sacrifice [ENTER=auto] (£): "
-        ).strip()
+        user_input = input("Monthly salary sacrifice [ENTER=auto] (£): ").strip()
 
         if not user_input:
             cap = prompt_int(
@@ -163,7 +164,9 @@ def prompt_salary_sacrifice(
                 annual_sacrifice = calc_optimal_sacrifice_paye(gross, cap=cap)
             elif mode == "inside_ir35":
                 annual_sacrifice = calc_optimal_sacrifice_inside_ir35(
-                    gross, annual_margin, cap=cap,
+                    gross,
+                    annual_margin,
+                    cap=cap,
                     existing_income=existing_income,
                     existing_dividends=existing_dividends,
                 )
@@ -172,8 +175,7 @@ def prompt_salary_sacrifice(
 
             if annual_sacrifice == 0:
                 print(
-                    "Your gross is already at or below the cap — "
-                    "no sacrifice needed."
+                    "Your gross is already at or below the cap — no sacrifice needed."
                 )
                 return 0
 
@@ -290,7 +292,11 @@ def run_once() -> None:
             existing_dividends=existing_dividends,
         )
         breakdown = InsideIR35Calculator.calculate(
-            day_rate, net_working_days, margin, start_month, existing_income,
+            day_rate,
+            net_working_days,
+            margin,
+            start_month,
+            existing_income,
             existing_dividends=existing_dividends,
             salary_sacrifice=salary_sacrifice,
             effective_days=net_working_days,
@@ -308,7 +314,10 @@ def run_once() -> None:
         net_working_days, _ = prompt_working_days(start_month)
 
         breakdown = OutsideIR35Calculator.calculate(
-            day_rate, net_working_days, start_month, existing_income,
+            day_rate,
+            net_working_days,
+            start_month,
+            existing_income,
             existing_dividends=existing_dividends,
             effective_days=net_working_days,
         )
