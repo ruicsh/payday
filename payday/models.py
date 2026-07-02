@@ -76,6 +76,7 @@ class SalaryBreakdown:
     steps: list[StepLine]
     annual_take_home: int
     display_take_home: int
+    year_taxable_income: int | None = None
     income_tax: IncomeTaxResult | None = None
     employee_ni: EmployeeNIResult | None = None
     employer_ni: EmployerNIResult | None = None

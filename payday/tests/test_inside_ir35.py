@@ -356,6 +356,46 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertEqual(breakdown.inputs["existing_dividends"], 15000.75)
         self.assertGreater(breakdown.annual_take_home, 0)
 
+    # ── Year Taxable Income tests ──────────────────────────────────────
+
+    def test_year_taxable_income_full_year(self):
+        """Full year: year_taxable_income equals effective_gross."""
+        breakdown = InsideIR35Calculator.calculate(500, 240, 25)
+        gross = self._find_step(breakdown, "Gross Salary").amount
+        self.assertEqual(breakdown.year_taxable_income, gross)
+        step = self._find_step(breakdown, "Year Taxable Income")
+        self.assertEqual(step.amount, gross)
+        self.assertTrue(step.is_subtotal)
+
+    def test_year_taxable_income_partial_year_no_existing(self):
+        """Partial year with no existing income: equals gross."""
+        breakdown = InsideIR35Calculator.calculate(500, 240, 25, start_month=8)
+        gross = self._find_step(breakdown, "Gross Salary").amount
+        self.assertEqual(breakdown.year_taxable_income, gross)
+        step = self._find_step(breakdown, "Year Taxable Income")
+        self.assertEqual(step.amount, gross)
+
+    def test_year_taxable_income_partial_year_with_existing(self):
+        """Partial year with existing income and dividends: gross + existing."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, start_month=8,
+            existing_income=30000, existing_dividends=15000,
+        )
+        gross = self._find_step(breakdown, "Gross Salary").amount
+        expected = gross + 30000 + 15000
+        self.assertEqual(breakdown.year_taxable_income, expected)
+        step = self._find_step(breakdown, "Year Taxable Income")
+        self.assertEqual(step.amount, expected)
+
+    def test_year_taxable_income_with_salary_sacrifice(self):
+        """Salary sacrifice reduces effective_gross, so year taxable
+        income reflects the reduced gross."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, salary_sacrifice=5000,
+        )
+        gross = self._find_step(breakdown, "Gross Salary").amount
+        self.assertEqual(breakdown.year_taxable_income, gross)
+
 
 if __name__ == "__main__":
     unittest.main()

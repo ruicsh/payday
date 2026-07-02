@@ -94,6 +94,7 @@ class InsideIR35Calculator:
 
         annual_take_home = effective_gross - it_result.total_tax - ee_ni_result.total_ni
 
+        year_taxable_income = round(effective_gross + existing_income + existing_dividends)
         take_home_20_day = round(annual_take_home / effective_days * 20)
 
         remaining_pa = max(0, pa - existing_income)
@@ -160,6 +161,7 @@ class InsideIR35Calculator:
         steps += [
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
+            StepLine("Year Taxable Income", year_taxable_income, is_subtotal=True),
         ]
 
         inputs: dict = {
@@ -186,6 +188,7 @@ class InsideIR35Calculator:
             steps=steps,
             annual_take_home=annual_take_home,
             display_take_home=take_home_20_day,
+            year_taxable_income=year_taxable_income,
             income_tax=it_result,
             employee_ni=ee_ni_result,
             employer_ni=er_ni_result,
