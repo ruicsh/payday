@@ -39,7 +39,7 @@ For contractors working through an umbrella company. The umbrella sits between t
 | Input | Default | Description |
 |-------|---------|-------------|
 | Day rate | — | Daily contract rate |
-| Working days/year | 240 | Days you work per year |
+| Working days/year | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
 | Umbrella weekly margin | £25 | Weekly umbrella company fee |
 | Start month | None | Month contract starts (1–12) for mid-year proration |
 | Existing employment income | £0 | Income already earned this tax year |
@@ -71,7 +71,7 @@ For contractors operating through their own limited company. The company receive
 | Input | Default | Description |
 |-------|---------|-------------|
 | Day rate | — | Daily contract rate |
-| Working days/year | 240 | Days you work per year |
+| Working days/year | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
 | Existing employment income | £0 | Income already earned this tax year (consumes PA and rate bands) |
 
 **Flow:**
