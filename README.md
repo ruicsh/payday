@@ -73,12 +73,14 @@ For contractors operating through their own limited company. The company receive
 | Day rate | — | Daily contract rate |
 | Working days/year | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
 | Existing employment income | £0 | Income already earned this tax year (consumes PA and rate bands) |
+| Director pension contribution | £0 | Annual company pension contribution to director's SIPP (≥ 0, max £60k); reduces Corporation Tax |
 
 **Flow:**
 ```
   Company Revenue         £day_rate × days
     ├─ Director Salary    -£N
-    └─ Employer NI        -£N
+    ├─ Employer NI        -£N
+    └─ Director Pension   -£N  (optional, reduces CT)
   ────────────────────────────
   Company Profit           £N
     └─ Corporation Tax     -£N  (19% / 25% with Marginal Relief)
@@ -161,6 +163,7 @@ All fields are optional. `null` or absent = prompt interactively (or use default
 | `salary_sacrifice_enabled` | bool or null | Enable salary sacrifice |
 | `monthly_salary_sacrifice` | int or str or null | Monthly amount, `"max"`, or `"auto"` |
 | `income_target` | int, bool, or null | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively. |
+| `director_pension` | int, bool, or null | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = use £0 default. |
 
 ### Example
 
@@ -194,7 +197,7 @@ Or directly:
 python3 -m unittest discover -v -s payday/tests
 ```
 
-All tests pass (303 test cases and counting).
+All tests pass (347 test cases and counting).
 
 ---
 

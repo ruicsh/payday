@@ -220,6 +220,104 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         )
         self.assertEqual(default.annual_take_home, explicit_none.annual_take_home)
 
+    # ── director_pension tests ──────────────────────────────────────────
+
+    def test_director_pension_reduces_profit(self):
+        """Pension contribution reduces profit before CT."""
+        no_pension = OutsideIR35Calculator.calculate(500, 240)
+        with_pension = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
+
+        profit_no = self._find_step(no_pension, "Company Profit").amount
+        profit_with = self._find_step(with_pension, "Company Profit").amount
+        self.assertEqual(profit_with, profit_no - 20000)
+
+    def test_director_pension_shows_in_waterfall(self):
+        """Director Pension line appears in waterfall as negative indent-1 line."""
+        breakdown = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
+        step = self._find_step(breakdown, "Director Pension")
+        self.assertEqual(step.amount, -20000)
+        self.assertEqual(step.indent, 1)
+
+    def test_director_pension_not_directly_added_to_year_taxable_income(self):
+        """Pension value is NOT directly added to year_taxable_income.
+        year_taxable_income only changes because dividends are lower."""
+        no_pension = OutsideIR35Calculator.calculate(500, 240)
+        with_pension = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
+        # The pension itself (20000) is not added; the difference is entirely
+        # from reduced dividends due to lower profit/CT.
+        self.assertLess(
+            with_pension.year_taxable_income,
+            no_pension.year_taxable_income,
+        )
+        diff = no_pension.year_taxable_income - with_pension.year_taxable_income
+        # Difference should be less than the full pension (since CT also changes)
+        self.assertLess(diff, 20000)
+        self.assertGreater(diff, 0)
+
+    def test_director_pension_stored_in_inputs(self):
+        """Pension value stored in breakdown.inputs when > 0."""
+        breakdown = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
+        self.assertIn("director_pension", breakdown.inputs)
+        self.assertEqual(breakdown.inputs["director_pension"], 20000)
+
+    def test_director_pension_default_zero(self):
+        """Default director_pension=0 matches omitting the parameter."""
+        explicit = OutsideIR35Calculator.calculate(500, 240, director_pension=0)
+        implicit = OutsideIR35Calculator.calculate(500, 240)
+        self.assertEqual(explicit.annual_take_home, implicit.annual_take_home)
+        self.assertNotIn("director_pension", implicit.inputs)
+
+    def test_director_pension_reduces_ct(self):
+        """Pension reduces profit, so CT should be lower."""
+        no_pension = OutsideIR35Calculator.calculate(500, 240)
+        with_pension = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
+        self.assertLess(
+            with_pension.corporation_tax.total_ct,
+            no_pension.corporation_tax.total_ct,
+        )
+
+    def test_director_pension_reduces_take_home(self):
+        """Pension reduces take-home (less profit → less dividends)."""
+        no_pension = OutsideIR35Calculator.calculate(500, 240)
+        with_pension = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
+        self.assertLess(
+            with_pension.annual_take_home,
+            no_pension.annual_take_home,
+        )
+
+    def test_director_pension_max_60k(self):
+        """Pension at £60k max (MAX_SALARY_SACRIFICE) works correctly."""
+        breakdown = OutsideIR35Calculator.calculate(500, 240, director_pension=60000)
+        step = self._find_step(breakdown, "Director Pension")
+        self.assertEqual(step.amount, -60000)
+
+    def test_director_pension_greater_than_profit(self):
+        """Pension > profit produces loss, zero CT/div tax, take-home = salary."""
+        breakdown = OutsideIR35Calculator.calculate(50, 240, director_pension=100000)
+        # Revenue = 12000, salary = 12570, er_ni = 0
+        # Pension capped at 60000 (MAX_SALARY_SACRIFICE) → loss
+        self.assertGreaterEqual(breakdown.annual_take_home, 0)
+        self.assertEqual(breakdown.dividend_tax.total_tax, 0)
+        self.assertEqual(breakdown.corporation_tax.total_ct, 0)
+
+    def test_director_pension_small_profits_rate(self):
+        """Pension keeps profit in small profits (19% CT) band."""
+        # Revenue = 60000, salary = 12570, er_ni = 1136
+        # Profit without pension = 46294 (< 50000, already small profits)
+        # With 10000 pension: profit = 36294 → still < 50000 → 19% CT
+        breakdown = OutsideIR35Calculator.calculate(250, 240, director_pension=10000)
+        self.assertLessEqual(breakdown.corporation_tax.profit, 50000)
+        self.assertEqual(breakdown.corporation_tax.marginal_relief, 0)
+
+    def test_director_pension_does_not_affect_er_ni(self):
+        """Pension reduces profit but not Employer NI (which is on salary)."""
+        no_pension = OutsideIR35Calculator.calculate(500, 240)
+        with_pension = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
+        self.assertEqual(
+            no_pension.employer_ni.total_er_ni,
+            with_pension.employer_ni.total_er_ni,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

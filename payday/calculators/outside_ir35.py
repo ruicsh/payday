@@ -1,4 +1,4 @@
-from payday.constants import PERSONAL_ALLOWANCE
+from payday.constants import MAX_SALARY_SACRIFICE, PERSONAL_ALLOWANCE
 from payday.national_insurance import calc_employer_ni
 from payday.corporation_tax import calc_corporation_tax
 from payday.dividend_tax import calc_dividend_tax
@@ -15,6 +15,7 @@ class OutsideIR35Calculator:
         existing_income: float = 0,
         existing_dividends: float = 0,
         effective_days: int | None = None,
+        director_pension: int = 0,
     ) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
@@ -44,7 +45,11 @@ class OutsideIR35Calculator:
         salary = PERSONAL_ALLOWANCE
         er_ni_result = calc_employer_ni(salary)
 
-        profit = revenue - salary - er_ni_result.total_er_ni
+        # Director pension contributions are an allowable expense that reduces
+        # company profit (and therefore CT). Capped at £60k annual allowance.
+        pension = min(director_pension, MAX_SALARY_SACRIFICE) if director_pension else 0
+
+        profit = revenue - salary - er_ni_result.total_er_ni - pension
         ct_result = calc_corporation_tax(profit)
 
         post_tax_profit = profit - ct_result.total_ct
@@ -70,6 +75,10 @@ class OutsideIR35Calculator:
             StepLine("Company Revenue", revenue),
             StepLine("Director Salary", -salary, indent=1),
             StepLine("Employer NI (15%)", -er_ni_result.total_er_ni, indent=1),
+        ]
+        if pension:
+            steps.append(StepLine("Director Pension", -pension, indent=1))
+        steps += [
             StepLine("Company Profit", profit, is_subtotal=True),
             StepLine("Corporation Tax", -ct_result.total_ct, indent=1),
             StepLine("Distributable Profit", post_tax_profit, is_subtotal=True),
@@ -84,6 +93,8 @@ class OutsideIR35Calculator:
             "working_days": working_days,
             "effective_working_days": effective_days,
         }
+        if pension:
+            inputs["director_pension"] = pension
         if period_label:
             inputs["start_month"] = start_month
             inputs["contract_months"] = months

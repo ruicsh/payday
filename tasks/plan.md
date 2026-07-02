@@ -1,30 +1,102 @@
-# Implementation Plan: Config Mode Income Cap Prompt
+# Implementation Plan: Outside IR35 Director Pension Contributions
 
 ## Overview
 
-When running with `--config payday.json` and `monthly_salary_sacrifice: "auto"`, the user expects to be prompted for a "Taxable income cap" target when the config does not specify `salary_sacrifice_cap`. Currently, both `None` (not specified) and `True` (use default) silently fall back to £100,000 — the interactive prompt is only reached in the purely interactive (no-config) path.
+Add support for company-to-director pension contributions in the Outside IR35 (Limited Company) calculation path. When operating Outside IR35, the company can make pension contributions directly to the director's SIPP — up to £60,000/year — before Corporation Tax is calculated. This reduces taxable profit and therefore Corporation Tax. The tool will prompt the user for the contribution amount and factor it into the waterfall breakdown.
 
-The fix: in the config "auto" path, when `salary_sacrifice_cap` is `None` or `True`, fall back to the existing `prompt_int("Taxable income cap", ...)` prompt instead of silently using the default.
+**Current flow:**
+```
+Revenue → Director Salary (-£12,570) → Employer NI → Profit → CT → Dividends → Dividend Tax → Take-Home
+```
+
+**New flow:**
+```
+Revenue → Director Salary (-£12,570) → Employer NI → Director Pension (-£X) → Profit → CT → Dividends → Dividend Tax → Take-Home
+```
 
 ## Architecture Decisions
 
-- **Minimal change**: Only modify the config path in `prompt_salary_sacrifice` (`cli.py:237-254`). The interactive prompt already exists at lines 271-275 and works correctly.
-- **Consistent with config conventions**: `None` = "not specified, ask user", `True` = "use default, ask user" (matching how other config fields work — see `test_prompt_start_month_config_null_prompts`, etc.).
-- **Reuse existing prompt code**: Call the same `prompt_int` that the interactive path uses, rather than duplicating logic.
+- **Reuse existing constant**: The £60,000 annual allowance is the same as `MAX_SALARY_SACRIFICE` — reuse it directly.
+- **Pension is NOT taxable income**: The contribution is a company expense, not personal income. It does not affect the director's income tax, NI, or dividend tax bands. Excluded from `year_taxable_income`.
+- **Pension is NOT take-home**: The contribution goes into a pension pot. Take-home remains salary + net dividends.
+- **Follow existing patterns**: Store value in `inputs` dict, display as deduction `StepLine` with `indent=1`, positioned between "Employer NI" and "Company Profit".
+- **Prompt style**: Annual amount, consistent with how Outside IR35 handles figures annually.
+
+## Dependency Graph
+
+```
+constants.py (MAX_SALARY_SACRIFICE — already exists)
+    │
+    ├── calculators/outside_ir35.py  (new director_pension param, profit recalculation)
+    │
+    ├── cli.py  (new prompt in run_once() mode 3, wire to calculator)
+    │       │
+    │       └── config.py  (new field: director_pension)
+    │
+    └── tests/
+        ├── test_outside_ir35.py  (calculator unit tests with pension)
+        ├── test_cli.py           (CLI prompt tests)
+        └── test_config.py        (config field validation tests)
+```
 
 ## Task List
 
-- [ ] Task 1: Modify the config "auto" path to prompt when `raw_cap` is `None`/`True`, and pass the user-specified cap to the optimal-sacrifice calculators
-- [ ] Task 2: Update `test_prompt_salary_sacrifice_config_auto_with_cap_true` to expect interactive prompt behavior
-- [ ] Task 3: Add tests for the `None` fallback (config without `salary_sacrifice_cap` should prompt)
+### Phase 1: Foundation — Calculator
 
-## Files likely touched
+#### Task 1: Add `director_pension` to OutsideIR35Calculator
 
-- `payday/cli.py` (the fix)
-- `payday/tests/test_cli.py` (test updates)
+**Description:** Modify `OutsideIR35Calculator.calculate()` to accept a `director_pension: int = 0` parameter. Deduct it from profit before CT calculation. Add a "Director Pension" StepLine between "Employer NI (15%)" and "Company Profit". Store in `inputs` when > 0.
 
-## Verification
+**Acceptance criteria:**
+- [ ] `OutsideIR35Calculator.calculate(500, 240, director_pension=20000)` produces correct results
+- [ ] Profit = revenue - salary - er_ni - director_pension
+- [ ] CT calculated on reduced profit
+- [ ] Waterfall shows "Director Pension" line as negative, indent=1
+- [ ] NOT included in `year_taxable_income`
+- [ ] Backward compatible: default `director_pension=0` identical to before
+
+**Files:** `payday/calculators/outside_ir35.py`
+
+### Phase 2: CLI
+
+#### Task 2: Add CLI prompt for director pension
+
+**Description:** In `run_once()` mode 3, add a prompt asking for the director pension contribution. Use `prompt_int()` with default 0, min 0, max `MAX_SALARY_SACRIFICE`. Pass to calculator.
+
+**Files:** `payday/cli.py`
+
+### Phase 3: Config
+
+#### Task 3: Add `director_pension` to config system
+
+**Description:** Add `director_pension` to `FIELD_TYPES`, `_ALL_FIELDS`, `_validate_field`, `generate_template`. Wire config value through `run_once()`.
+
+**Files:** `payday/config.py`, `payday/cli.py`
+
+### Checkpoint: Core Feature Complete
 
 - [ ] All existing tests pass
-- [ ] New tests verify prompt fallback for both `None` and `True` cap values
-- [ ] Manual smoke test with `--config payday.json` confirms prompt appears
+- [ ] Outside IR35 with pension works end-to-end interactively and via config
+- [ ] Backward compatible
+
+### Phase 4: Tests
+
+#### Task 4: Write comprehensive tests
+
+**Description:** Calculator tests (various pension levels, profit/CT/take-home verification), CLI tests (prompt behavior, defaults, caps), config tests (validation).
+
+**Files:** `payday/tests/test_outside_ir35.py`, `payday/tests/test_cli.py`, `payday/tests/test_config.py`
+
+### Checkpoint: Complete
+
+- [ ] All tests pass
+- [ ] Lint passes
+- [ ] Manual smoke test
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Different tax treatment for director pensions vs salary sacrifice | Low | Standard employer contribution, well-established |
+| £60k AA could change | Low | In constants.py, easy to update |
+| Existing configs without new field | Low | Default None → prompt, backward compatible |

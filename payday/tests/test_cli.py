@@ -528,6 +528,7 @@ class TestCLI(unittest.TestCase):
             "15000",  # existing dividends
             "",  # days off (default 25)
             "",  # accept default working days
+            "",  # director pension (default 0)
         ],
     )
     @patch("sys.stdout", new_callable=StringIO)
@@ -559,6 +560,7 @@ class TestCLI(unittest.TestCase):
             "",  # start month (full year → no existing prompts)
             "",  # days off (default 25)
             "",  # accept default working days
+            "",  # director pension (default 0)
         ],
     )
     @patch("sys.stdout", new_callable=StringIO)
@@ -674,9 +676,126 @@ class TestCLI(unittest.TestCase):
             "existing_dividends": True,
             "days_off": 25,
             "working_days": 200,
+            "director_pension": True,
         }
         run_once(config)
         mock_calc.assert_called_once()
+
+    @patch("payday.cli.OutsideIR35Calculator.calculate")
+    @patch("builtins.input", side_effect=["n"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_outside_ir35_config_with_director_pension(
+        self, mock_stdout, mock_input, mock_calc
+    ):
+        """Config with director_pension set passes value without prompting."""
+        from payday.models import SalaryBreakdown
+
+        mock_calc.return_value = SalaryBreakdown(
+            mode="Outside IR35", inputs={}, steps=[],
+            annual_take_home=0, display_take_home=0,
+        )
+        config = {
+            "mode": "outside_ir35",
+            "day_rate": 500,
+            "start_month": True,
+            "existing_income": True,
+            "existing_dividends": True,
+            "days_off": 25,
+            "working_days": 200,
+            "director_pension": 25000,
+        }
+        run_once(config)
+        mock_calc.assert_called_once()
+        _, kwargs = mock_calc.call_args
+        self.assertEqual(kwargs.get("director_pension"), 25000)
+        # No interactive prompts (all values from config)
+        self.assertEqual(mock_input.call_count, 0)
+
+    # ── director_pension CLI tests ─────────────────────────────────────
+
+    @patch("payday.cli.OutsideIR35Calculator.calculate")
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "3",  # mode: Outside IR35
+            "500",  # day rate
+            "",  # start month (full year)
+            "",  # days off (default 25)
+            "",  # accept default working days
+            "",  # director pension (default 0)
+        ],
+    )
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_mode3_director_pension_default(
+        self, mock_stdout, mock_input, mock_calc
+    ):
+        """Outside IR35: empty director pension prompt defaults to 0."""
+        from payday.models import SalaryBreakdown
+
+        mock_calc.return_value = SalaryBreakdown(
+            mode="Outside IR35", inputs={}, steps=[],
+            annual_take_home=0, display_take_home=0,
+        )
+        run_once()
+        mock_calc.assert_called_once()
+        _, kwargs = mock_calc.call_args
+        self.assertEqual(kwargs.get("director_pension"), 0)
+
+    @patch("payday.cli.OutsideIR35Calculator.calculate")
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "3",  # mode: Outside IR35
+            "500",  # day rate
+            "",  # start month (full year)
+            "",  # days off (default 25)
+            "",  # accept default working days
+            "20000",  # director pension
+        ],
+    )
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_mode3_director_pension_entered(
+        self, mock_stdout, mock_input, mock_calc
+    ):
+        """Outside IR35: entered director pension is passed to calculator."""
+        from payday.models import SalaryBreakdown
+
+        mock_calc.return_value = SalaryBreakdown(
+            mode="Outside IR35", inputs={}, steps=[],
+            annual_take_home=0, display_take_home=0,
+        )
+        run_once()
+        mock_calc.assert_called_once()
+        _, kwargs = mock_calc.call_args
+        self.assertEqual(kwargs.get("director_pension"), 20000)
+
+    @patch("payday.cli.OutsideIR35Calculator.calculate")
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "3",  # mode: Outside IR35
+            "500",  # day rate
+            "",  # start month (full year)
+            "",  # days off (default 25)
+            "",  # accept default working days
+            "60000",  # max director pension
+        ],
+    )
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_mode3_director_pension_max(
+        self, mock_stdout, mock_input, mock_calc
+    ):
+        """Outside IR35: max director pension (60000) passes through."""
+        from payday.models import SalaryBreakdown
+
+        mock_calc.return_value = SalaryBreakdown(
+            mode="Outside IR35", inputs={}, steps=[],
+            annual_take_home=0, display_take_home=0,
+        )
+        run_once()
+        mock_calc.assert_called_once()
+        _, kwargs = mock_calc.call_args
+        self.assertEqual(kwargs.get("director_pension"), 60000)
 
 
 class TestPromptWorkingDays(unittest.TestCase):

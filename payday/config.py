@@ -17,12 +17,14 @@ FIELD_TYPES = {
     "salary_sacrifice_enabled": (bool, type(None)),
     "monthly_salary_sacrifice": (int, str, bool, type(None)),
     "income_target": (int, bool, type(None)),
+    "director_pension": (int, bool, type(None)),
 }
 _ALL_FIELDS = [
     "mode", "salary", "day_rate", "start_month",
     "existing_income", "existing_dividends", "days_off",
     "working_days", "umbrella_margin", "salary_sacrifice_enabled",
     "monthly_salary_sacrifice", "income_target",
+    "director_pension",
 ]
 
 
@@ -77,6 +79,10 @@ def _validate_field(key: str, value) -> None:
     elif key == "income_target" and value is not None:
         if value < 1:
             raise ValueError(f"'income_target': must be >= 1, got {value}")
+
+    elif key == "director_pension" and isinstance(value, int):
+        if value < 0:
+            raise ValueError(f"'director_pension': must be >= 0, got {value}")
 
 
 def load_config(path: str) -> dict | None:

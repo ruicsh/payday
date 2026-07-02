@@ -525,6 +525,14 @@ def run_once(config: dict | None = None) -> None:
 
         net_working_days, _ = prompt_working_days(start_month, config)
 
+        director_pension = prompt_int(
+            "Director pension contribution (£)",
+            default=0,
+            min_val=0,
+            max_val=MAX_SALARY_SACRIFICE,
+            config_value=config.get("director_pension") if config else None,
+        )
+
         breakdown = OutsideIR35Calculator.calculate(
             day_rate,
             net_working_days,
@@ -532,6 +540,7 @@ def run_once(config: dict | None = None) -> None:
             existing_income,
             existing_dividends=existing_dividends,
             effective_days=net_working_days,
+            director_pension=director_pension,
         )
 
     else:

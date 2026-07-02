@@ -24,6 +24,7 @@ class TestLoadConfig(unittest.TestCase):
             "salary_sacrifice_enabled": False,
             "monthly_salary_sacrifice": None,
             "income_target": 100000,
+            "director_pension": None,
         }
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False
@@ -37,6 +38,7 @@ class TestLoadConfig(unittest.TestCase):
             self.assertEqual(result["days_off"], 25)
             self.assertFalse(result["salary_sacrifice_enabled"])
             self.assertIsNone(result["monthly_salary_sacrifice"])
+            self.assertIsNone(result["director_pension"])
         finally:
             os.unlink(path)
 
@@ -56,6 +58,7 @@ class TestLoadConfig(unittest.TestCase):
             self.assertIsNone(result["working_days"])
             self.assertIsNone(result["umbrella_margin"])
             self.assertIsNone(result["income_target"])
+            self.assertIsNone(result["director_pension"])
         finally:
             os.unlink(path)
 
@@ -186,6 +189,7 @@ class TestLoadConfig(unittest.TestCase):
             "start_month", "existing_income", "existing_dividends",
             "days_off", "working_days", "umbrella_margin",
             "monthly_salary_sacrifice", "income_target",
+            "director_pension",
         ]
         for field in fields_with_defaults:
             data = {"mode": "paye", field: True}
@@ -209,7 +213,7 @@ class TestLoadConfig(unittest.TestCase):
             "start_month", "existing_income", "existing_dividends",
             "days_off", "working_days", "umbrella_margin",
             "monthly_salary_sacrifice", "income_target",
-            "salary", "day_rate",
+            "salary", "day_rate", "director_pension",
         ]
         for field in fields:
             data = {"mode": "paye", field: False}
@@ -223,6 +227,92 @@ class TestLoadConfig(unittest.TestCase):
                     load_config(path)
             finally:
                 os.unlink(path)
+
+    # ── director_pension config tests ───────────────────────────────────
+
+    def test_director_pension_in_config(self):
+        """director_pension set in config is loaded correctly."""
+        data = {"mode": "outside_ir35", "director_pension": 20000}
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            self.assertEqual(result["director_pension"], 20000)
+        finally:
+            os.unlink(path)
+
+    def test_director_pension_true_uses_default(self):
+        """director_pension: true is valid and returns True (use default)."""
+        data = {"mode": "outside_ir35", "director_pension": True}
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            self.assertIs(result["director_pension"], True)
+        finally:
+            os.unlink(path)
+
+    def test_director_pension_null_is_valid(self):
+        """director_pension: null sets it to None."""
+        data = {"mode": "outside_ir35", "director_pension": None}
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            self.assertIsNone(result["director_pension"])
+        finally:
+            os.unlink(path)
+
+    def test_director_pension_negative_rejected(self):
+        """director_pension: -1 is rejected."""
+        data = {"mode": "outside_ir35", "director_pension": -1}
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
+        finally:
+            os.unlink(path)
+
+    def test_director_pension_string_rejected(self):
+        """director_pension: 'bad' is rejected."""
+        data = {"mode": "outside_ir35", "director_pension": "bad"}
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
+        finally:
+            os.unlink(path)
+
+    def test_true_accepted_for_director_pension(self):
+        """director_pension: true is accepted (disabling prompt with default)."""
+        data = {"mode": "outside_ir35", "director_pension": True}
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False
+        ) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            self.assertIs(result["director_pension"], True)
+        finally:
+            os.unlink(path)
 
 
 class TestGenerateTemplate(unittest.TestCase):
