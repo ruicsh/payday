@@ -99,6 +99,13 @@ class TestCLI(unittest.TestCase):
         result = prompt_start_month(config={"start_month": 4})
         self.assertEqual(result, 4)
 
+    def test_prompt_start_month_config_out_of_range_raises(self):
+        from payday.cli import prompt_start_month
+        with self.assertRaises(ValueError):
+            prompt_start_month(config={"start_month": 13})
+        with self.assertRaises(ValueError):
+            prompt_start_month(config={"start_month": 0})
+
     def test_prompt_start_month_config_true_default(self):
         from payday.cli import prompt_start_month
         result = prompt_start_month(config={"start_month": True})

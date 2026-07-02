@@ -119,6 +119,8 @@ def prompt_start_month(config: dict | None = None) -> int | None:
             print("Contract start month [1-12], ENTER for full year: full year")
             return None
         if val is not None:
+            if not (1 <= val <= 12):
+                raise ValueError(f"start_month: must be 1-12, got {val}")
             print(f"Contract start month [1-12], ENTER for full year: {val}")
             return val
 
