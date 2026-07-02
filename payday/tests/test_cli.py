@@ -433,6 +433,72 @@ class TestCLI(unittest.TestCase):
         _, kwargs = mock_calc.call_args
         self.assertEqual(kwargs.get("existing_dividends"), 0)
 
+    # ── run_once — full config (no prompts) tests ──────────────────────
+
+    @patch("payday.cli.PAYECalculator.calculate")
+    @patch("builtins.input", side_effect=["n"])  # only "run again?" prompt
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_paye_full_config(self, mock_stdout, mock_input, mock_calc):
+        """PAYE with full config should skip all prompts."""
+        from payday.models import SalaryBreakdown
+
+        mock_calc.return_value = SalaryBreakdown(
+            mode="PAYE", inputs={}, steps=[],
+            annual_take_home=0, display_take_home=0,
+        )
+        config = {"mode": "paye", "salary": 50000, "salary_sacrifice_enabled": False}
+        run_once(config)
+        mock_calc.assert_called_once_with(50000, salary_sacrifice=0)
+
+    @patch("payday.cli.InsideIR35Calculator.calculate")
+    @patch("builtins.input", side_effect=["n"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_inside_ir35_full_config(self, mock_stdout, mock_input, mock_calc):
+        """Inside IR35 with full config should skip all prompts."""
+        from payday.models import SalaryBreakdown
+
+        mock_calc.return_value = SalaryBreakdown(
+            mode="Inside IR35", inputs={}, steps=[],
+            annual_take_home=0, display_take_home=0,
+        )
+        config = {
+            "mode": "inside_ir35",
+            "day_rate": 600,
+            "start_month": 4,
+            "existing_income": 10000,
+            "existing_dividends": 5000,
+            "days_off": 25,
+            "umbrella_margin": 25,
+            "salary_sacrifice_enabled": False,
+        }
+        run_once(config)
+        mock_calc.assert_called_once()
+        kwargs = mock_calc.call_args[1] if len(mock_calc.call_args) > 1 else {}
+        self.assertEqual(kwargs.get("existing_dividends"), 5000)
+
+    @patch("payday.cli.OutsideIR35Calculator.calculate")
+    @patch("builtins.input", side_effect=["n"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_outside_ir35_full_config(self, mock_stdout, mock_input, mock_calc):
+        """Outside IR35 with full config should skip all prompts."""
+        from payday.models import SalaryBreakdown
+
+        mock_calc.return_value = SalaryBreakdown(
+            mode="Outside IR35", inputs={}, steps=[],
+            annual_take_home=0, display_take_home=0,
+        )
+        config = {
+            "mode": "outside_ir35",
+            "day_rate": 500,
+            "start_month": None,
+            "existing_income": None,
+            "existing_dividends": None,
+            "days_off": 25,
+            "working_days": 200,
+        }
+        run_once(config)
+        mock_calc.assert_called_once()
+
 
 class TestPromptWorkingDays(unittest.TestCase):
     @patch("builtins.input", side_effect=["", ""])

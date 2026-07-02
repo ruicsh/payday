@@ -341,13 +341,13 @@ def prompt_working_days(
         f"(Mon–Fri minus E&W bank holidays): {available}"
     )
 
-    if config and "working_days" in config:
+    if config and config.get("working_days") is not None:
         net = config["working_days"]
         days_off = config.get("days_off") or 0
         print(f"Using value from payday.json: {net}")
         return net, days_off
 
-    if config and "days_off" in config:
+    if config and config.get("days_off") is not None:
         days_off = config["days_off"]
         print(f"Using value from payday.json: {days_off}")
         net = max(1, available - days_off)
@@ -466,12 +466,15 @@ def run_once(config: dict | None = None) -> None:
         print("\n═══════════════════════════════════════")
         print("  Outside IR35 (Limited Company)")
         print("═══════════════════════════════════════")
-        day_rate = prompt_int("Enter your day rate (£)", min_val=1)
-        start_month = prompt_start_month()
-        existing_income = prompt_existing_income(start_month)
-        existing_dividends = prompt_existing_dividends(start_month)
+        day_rate = prompt_int(
+            "Enter your day rate (£)", min_val=1,
+            config_value=config.get("day_rate") if config else None,
+        )
+        start_month = prompt_start_month(config)
+        existing_income = prompt_existing_income(start_month, config)
+        existing_dividends = prompt_existing_dividends(start_month, config)
 
-        net_working_days, _ = prompt_working_days(start_month)
+        net_working_days, _ = prompt_working_days(start_month, config)
 
         breakdown = OutsideIR35Calculator.calculate(
             day_rate,
