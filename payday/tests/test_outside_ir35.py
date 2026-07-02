@@ -142,6 +142,51 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         self.assertGreater(breakdown.dividend_tax.total_tax, without.dividend_tax.total_tax)
         self.assertLess(breakdown.annual_take_home, without.annual_take_home)
 
+    # ── Year Taxable Income tests ──────────────────────────────────────
+
+    def test_year_taxable_income_full_year(self):
+        """Full year: year_taxable_income equals salary + dividends."""
+        breakdown = OutsideIR35Calculator.calculate(500, 240)
+        divs = self._find_step(breakdown, "Distributable Profit").amount
+        expected = 12570 + divs  # salary = PERSONAL_ALLOWANCE
+        self.assertEqual(breakdown.year_taxable_income, expected)
+        step = self._find_step(breakdown, "Year Taxable Income")
+        self.assertEqual(step.amount, expected)
+        self.assertTrue(step.is_subtotal)
+
+    def test_year_taxable_income_partial_year(self):
+        """Partial year: includes existing income but not existing_dividends."""
+        breakdown = OutsideIR35Calculator.calculate(
+            500, 240, start_month=8,
+        )
+        divs = self._find_step(breakdown, "Distributable Profit").amount
+        expected = 12570 + divs
+        self.assertEqual(breakdown.year_taxable_income, expected)
+        step = self._find_step(breakdown, "Year Taxable Income")
+        self.assertEqual(step.amount, expected)
+
+    def test_year_taxable_income_with_existing(self):
+        """Partial year with existing income and dividends: salary + divs + existing."""
+        breakdown = OutsideIR35Calculator.calculate(
+            500, 240, start_month=8,
+            existing_income=20000, existing_dividends=15000,
+        )
+        self.assertIn("existing_dividends", breakdown.inputs)
+        self.assertEqual(breakdown.inputs["existing_dividends"], 15000)
+        divs = self._find_step(breakdown, "Distributable Profit").amount
+        expected = 12570 + divs + 20000 + 15000
+        self.assertEqual(breakdown.year_taxable_income, expected)
+        step = self._find_step(breakdown, "Year Taxable Income")
+        self.assertEqual(step.amount, expected)
+
+    def test_year_taxable_income_existing_dividends_backward_compat(self):
+        """Default existing_dividends=0 matches previous output."""
+        default = OutsideIR35Calculator.calculate(500, 240, start_month=8)
+        explicit = OutsideIR35Calculator.calculate(
+            500, 240, start_month=8, existing_dividends=0,
+        )
+        self.assertEqual(default.annual_take_home, explicit.annual_take_home)
+
 
 if __name__ == "__main__":
     unittest.main()

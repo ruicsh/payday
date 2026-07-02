@@ -13,6 +13,7 @@ class OutsideIR35Calculator:
         working_days: int,
         start_month: int | None = None,
         existing_income: float = 0,
+        existing_dividends: float = 0,
     ) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
@@ -23,6 +24,7 @@ class OutsideIR35Calculator:
 
         *existing_income* is income already earned in this tax year. It reduces
         the remaining Personal Allowance and rate bands available for dividends.
+        *existing_dividends* is dividends already received this tax year.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
@@ -54,6 +56,8 @@ class OutsideIR35Calculator:
 
         take_home_20_day = round(take_home / effective_days * 20)
 
+        year_taxable_income = round(salary + dividends + existing_income + existing_dividends)
+
         steps = [
             StepLine("Company Revenue", revenue),
             StepLine("Director Salary", -salary, indent=1),
@@ -64,6 +68,7 @@ class OutsideIR35Calculator:
             StepLine("Dividend Tax", -div_tax_result.total_tax, indent=1),
             StepLine("Take-Home", take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
+            StepLine("Year Taxable Income", year_taxable_income, is_subtotal=True),
         ]
 
         inputs: dict = {
@@ -77,6 +82,8 @@ class OutsideIR35Calculator:
             inputs["contract_period"] = period_label
         if existing_income:
             inputs["existing_income"] = existing_income
+        if existing_dividends:
+            inputs["existing_dividends"] = existing_dividends
 
         return SalaryBreakdown(
             mode="Outside IR35",
@@ -84,6 +91,7 @@ class OutsideIR35Calculator:
             steps=steps,
             annual_take_home=take_home,
             display_take_home=take_home_20_day,
+            year_taxable_income=year_taxable_income,
             employer_ni=er_ni_result,
             corporation_tax=ct_result,
             dividend_tax=div_tax_result,
