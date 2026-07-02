@@ -140,7 +140,9 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         self.assertEqual(breakdown.inputs["existing_income"], 30000)
 
         without = OutsideIR35Calculator.calculate(500, 240, start_month=8)
-        self.assertGreater(breakdown.dividend_tax.total_tax, without.dividend_tax.total_tax)
+        self.assertGreater(
+            breakdown.dividend_tax.total_tax, without.dividend_tax.total_tax
+        )
         self.assertLess(breakdown.annual_take_home, without.annual_take_home)
 
     # ── Year Taxable Income tests ──────────────────────────────────────
@@ -158,7 +160,9 @@ class TestOutsideIR35Calculator(unittest.TestCase):
     def test_year_taxable_income_partial_year(self):
         """Partial year (no existing): equals salary + dividends from this contract."""
         breakdown = OutsideIR35Calculator.calculate(
-            500, 240, start_month=8,
+            500,
+            240,
+            start_month=8,
         )
         divs = self._find_step(breakdown, "Distributable Profit").amount
         expected = PERSONAL_ALLOWANCE + divs
@@ -169,8 +173,11 @@ class TestOutsideIR35Calculator(unittest.TestCase):
     def test_year_taxable_income_with_existing(self):
         """Partial year with existing income and dividends: salary + divs + existing."""
         breakdown = OutsideIR35Calculator.calculate(
-            500, 240, start_month=8,
-            existing_income=20000, existing_dividends=15000,
+            500,
+            240,
+            start_month=8,
+            existing_income=20000,
+            existing_dividends=15000,
         )
         self.assertIn("existing_dividends", breakdown.inputs)
         self.assertEqual(breakdown.inputs["existing_dividends"], 15000)
@@ -184,7 +191,10 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         """Default existing_dividends=0 matches previous output."""
         default = OutsideIR35Calculator.calculate(500, 240, start_month=8)
         explicit = OutsideIR35Calculator.calculate(
-            500, 240, start_month=8, existing_dividends=0,
+            500,
+            240,
+            start_month=8,
+            existing_dividends=0,
         )
         self.assertEqual(default.annual_take_home, explicit.annual_take_home)
 
@@ -194,19 +204,13 @@ class TestOutsideIR35Calculator(unittest.TestCase):
             500, 240, start_month=8, effective_days=170
         )
         self.assertEqual(breakdown.inputs["effective_working_days"], 170)
-        self.assertEqual(
-            self._find_step(breakdown, "Company Revenue").amount, 85000
-        )
+        self.assertEqual(self._find_step(breakdown, "Company Revenue").amount, 85000)
 
     def test_effective_days_on_full_year(self):
         """effective_days=252 on full year overrides working_days=240."""
-        breakdown = OutsideIR35Calculator.calculate(
-            500, 240, effective_days=252
-        )
+        breakdown = OutsideIR35Calculator.calculate(500, 240, effective_days=252)
         self.assertEqual(breakdown.inputs["effective_working_days"], 252)
-        self.assertEqual(
-            self._find_step(breakdown, "Company Revenue").amount, 126000
-        )
+        self.assertEqual(self._find_step(breakdown, "Company Revenue").amount, 126000)
 
     def test_effective_days_defaults_to_none(self):
         """Omitting effective_days keeps old pro-rate behavior."""

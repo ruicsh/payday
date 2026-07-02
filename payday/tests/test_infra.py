@@ -18,11 +18,17 @@ class TestInfra(unittest.TestCase):
 
     def test_salary_breakdown_has_year_taxable_income(self):
         """SalaryBreakdown should accept year_taxable_income with default None."""
-        b = SalaryBreakdown(mode="PAYE", inputs={}, steps=[], annual_take_home=0, display_take_home=0)
+        b = SalaryBreakdown(
+            mode="PAYE", inputs={}, steps=[], annual_take_home=0, display_take_home=0
+        )
         self.assertIsNone(b.year_taxable_income)
 
         b2 = SalaryBreakdown(
-            mode="PAYE", inputs={}, steps=[], annual_take_home=0, display_take_home=0,
+            mode="PAYE",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
             year_taxable_income=50000,
         )
         self.assertEqual(b2.year_taxable_income, 50000)

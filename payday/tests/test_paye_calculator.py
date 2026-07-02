@@ -72,9 +72,7 @@ class TestPAYECalculator(unittest.TestCase):
         with_sac = PAYECalculator.calculate(50000, salary_sacrifice=5000)
 
         self.assertLess(with_sac.income_tax.total_tax, no_sac.income_tax.total_tax)
-        self.assertLess(
-            with_sac.employee_ni.total_ni, no_sac.employee_ni.total_ni
-        )
+        self.assertLess(with_sac.employee_ni.total_ni, no_sac.employee_ni.total_ni)
         self.assertEqual(with_sac.pension.employee_contribution, 0)
 
     def test_salary_sacrifice_take_home_savings(self):
@@ -90,9 +88,13 @@ class TestPAYECalculator(unittest.TestCase):
         """Verify exact take-home for £50k salary with £5k sacrifice."""
         breakdown = PAYECalculator.calculate(50000, salary_sacrifice=5000)
 
-        self.assertEqual(self._find_step(breakdown, "Annual Gross Salary").amount, 50000)
+        self.assertEqual(
+            self._find_step(breakdown, "Annual Gross Salary").amount, 50000
+        )
         self.assertEqual(self._find_step(breakdown, "Salary Sacrifice").amount, -5000)
-        self.assertEqual(self._find_step(breakdown, "Adjusted Gross Salary").amount, 45000)
+        self.assertEqual(
+            self._find_step(breakdown, "Adjusted Gross Salary").amount, 45000
+        )
 
     def test_salary_sacrifice_skips_auto_enrolment(self):
         """With sacrifice, auto-enrolment pension is skipped entirely."""

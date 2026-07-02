@@ -51,13 +51,17 @@ class TestInsideIR35Calculator(unittest.TestCase):
 
     def test_solve_gross_salary_without_er_pension_high(self):
         """High budget: same case B formula (ER pension cap doesn't apply)."""
-        gross = InsideIR35Calculator.solve_gross_salary(118800, include_er_pension=False)
+        gross = InsideIR35Calculator.solve_gross_salary(
+            118800, include_er_pension=False
+        )
         self.assertEqual(gross, round((118800 + 750) / 1.155))
 
     def test_solve_gross_salary_backward_compatible_default(self):
         """Default (include_er_pension=True) preserves existing behavior."""
         with_default = InsideIR35Calculator.solve_gross_salary(30000)
-        with_explicit = InsideIR35Calculator.solve_gross_salary(30000, include_er_pension=True)
+        with_explicit = InsideIR35Calculator.solve_gross_salary(
+            30000, include_er_pension=True
+        )
         self.assertEqual(with_default, with_explicit)
 
     def test_full_pipeline_500_day(self):
@@ -256,7 +260,11 @@ class TestInsideIR35Calculator(unittest.TestCase):
             )
             gross = self._find_step(breakdown, "Gross Salary").amount
             sac_budget = rate * 240 - sacrifice - round(25 * 240 / 5)
-            actual = gross + breakdown.employer_ni.total_er_ni + round(gross * APPRENTICESHIP_LEVY_RATE)
+            actual = (
+                gross
+                + breakdown.employer_ni.total_er_ni
+                + round(gross * APPRENTICESHIP_LEVY_RATE)
+            )
             self.assertAlmostEqual(actual, sac_budget, delta=1)
 
     def test_different_day_rates(self):
@@ -333,7 +341,12 @@ class TestInsideIR35Calculator(unittest.TestCase):
     def test_existing_dividends_affect_pa_tapering(self):
         """High dividends trigger PA taper even when employment income is low."""
         breakdown = InsideIR35Calculator.calculate(
-            600, 240, 25, start_month=8, existing_income=10000, existing_dividends=200000
+            600,
+            240,
+            25,
+            start_month=8,
+            existing_income=10000,
+            existing_dividends=200000,
         )
         self.assertEqual(breakdown.income_tax.personal_allowance, 0)
         self.assertTrue(breakdown.income_tax.tapered)
@@ -378,8 +391,12 @@ class TestInsideIR35Calculator(unittest.TestCase):
     def test_year_taxable_income_partial_year_with_existing(self):
         """Partial year with existing income and dividends: gross + existing."""
         breakdown = InsideIR35Calculator.calculate(
-            500, 240, 25, start_month=8,
-            existing_income=30000, existing_dividends=15000,
+            500,
+            240,
+            25,
+            start_month=8,
+            existing_income=30000,
+            existing_dividends=15000,
         )
         gross = self._find_step(breakdown, "Gross Salary").amount
         expected = gross + 30000 + 15000
@@ -391,7 +408,10 @@ class TestInsideIR35Calculator(unittest.TestCase):
         """Salary sacrifice reduces effective_gross, so year taxable
         income reflects the reduced gross."""
         breakdown = InsideIR35Calculator.calculate(
-            500, 240, 25, salary_sacrifice=5000,
+            500,
+            240,
+            25,
+            salary_sacrifice=5000,
         )
         gross = self._find_step(breakdown, "Gross Salary").amount
         self.assertEqual(breakdown.year_taxable_income, gross)
@@ -402,20 +422,14 @@ class TestInsideIR35Calculator(unittest.TestCase):
             500, 240, 25, start_month=8, effective_days=170
         )
         self.assertEqual(breakdown.inputs["effective_working_days"], 170)
-        self.assertEqual(
-            self._find_step(breakdown, "Assignment Rate").amount, 85000
-        )
+        self.assertEqual(self._find_step(breakdown, "Assignment Rate").amount, 85000)
         expected_display = round(breakdown.annual_take_home / 170 * 20)
         self.assertEqual(breakdown.display_take_home, expected_display)
 
     def test_effective_days_on_full_year(self):
         """effective_days=252 on full year overrides working_days=240."""
-        breakdown = InsideIR35Calculator.calculate(
-            500, 240, 25, effective_days=252
-        )
-        self.assertEqual(
-            self._find_step(breakdown, "Assignment Rate").amount, 126000
-        )
+        breakdown = InsideIR35Calculator.calculate(500, 240, 25, effective_days=252)
+        self.assertEqual(self._find_step(breakdown, "Assignment Rate").amount, 126000)
 
     def test_effective_days_defaults_to_none(self):
         """Omitting effective_days keeps old pro-rate behavior."""

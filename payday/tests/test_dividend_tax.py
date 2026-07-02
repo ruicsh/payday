@@ -78,7 +78,6 @@ class TestDividendTax(unittest.TestCase):
         res = calc_dividend_tax(38000, 0)
         self.assertEqual(res.total_tax, 4106)
 
-
     # ── existing_income tests ──────────────────────────────────────────
 
     def test_dividend_tax_with_existing_income(self):
