@@ -1,88 +1,164 @@
-# Implementation Plan: "max" Option for Salary Sacrifice
+# Implementation Plan: `payday.json` Config File Support
 
 ## Overview
 
-Add a `max` keyword option to the salary sacrifice prompt so users can quickly set their sacrifice to the maximum allowed amount without manually calculating it. When the user types `max` at the monthly sacrifice prompt, the system auto-calculates the maximum annual sacrifice (capped by `MAX_SALARY_SACRIFICE` at £60,000 and by available income/budget).
+Allow users to pre-define answers to all CLI prompts in a `payday.json` file. When a value is present in the config, the corresponding prompt is skipped and the value is used automatically. When absent or `null`, the interactive prompt is shown as normal. Fully backward compatible — no config file means full interactive mode (unchanged behavior).
 
 ## Architecture Decisions
 
-- **Keyword**: The literal string `"max"` (case-insensitive) in the monthly amount prompt triggers max mode
-- **Max calculation**:
-  - PAYE: `min(salary, MAX_SALARY_SACRIFICE)`
-  - Inside IR35: `min(annual_assignment - annual_margin, MAX_SALARY_SACRIFICE)`
-  - Other modes: `0` (unaffected)
-- **Monthly display**: The max is divided by contract months for monthly figure, same as manual entry
-- **No changes** to `constants.py`, `optimal_sacrifice.py`, calculators, or formatters
+- **Flat JSON schema** — one level, field names map 1:1 to prompt parameters. Simpler than nested mode-specific sections.
+- **Null = prompt interactively** — any field set to `null` or missing triggers the interactive prompt for that value.
+- **Explicit transparency** — when a config value is used, print `"Using value from payday.json: X"` so the user knows what's happening.
+- **Pass config as optional parameter** — `config: dict | None` flows from `main()` → `run_once()` → each prompt function. No module-level global state. Easy to test.
+- **`argparse` for CLI flags** — stdlib-only, zero new dependencies. `--config PATH`, `--init [PATH]`.
+- **`--no-config` flag** — force interactive mode even if `payday.json` exists in CWD. No auto-detection to avoid surprise.
 
-## Dependency Graph
+## `payday.json` Schema
 
-```
-constants.py (MAX_SALARY_SACRIFICE = 60_000)  [NO CHANGE]
-    │
-    └── cli.py (prompt_salary_sacrifice)       [CHANGE: add "max" case]
-            │
-            └── tests/test_cli.py              [CHANGE: add "max" tests]
+```json
+{
+  "mode": "paye",
+  "salary": 100000,
+  "day_rate": null,
+  "start_month": null,
+  "existing_income": null,
+  "existing_dividends": null,
+  "days_off": 25,
+  "working_days": null,
+  "umbrella_margin": 25,
+  "salary_sacrifice_enabled": false,
+  "monthly_salary_sacrifice": null,
+  "salary_sacrifice_cap": 100000
+}
 ```
 
 ## Task List
 
-### Task 1: Add "max" keyword handling to `prompt_salary_sacrifice()`
+### Phase 1: Foundation
 
-**Description:** Modify the `prompt_salary_sacrifice()` function in `cli.py` to accept `"max"` as a keyword in the monthly amount prompt. When entered, calculate the maximum allowed sacrifice and return it, with a confirmation message.
+#### ✅ Task 1: Create `payday/config.py` — Config loader, validator, and template generator
 
-**Acceptance criteria:**
-- [x] Typing `"max"` at the monthly prompt for PAYE mode sets sacrifice to `min(salary, 60000)`
-- [x] Typing `"max"` at the monthly prompt for Inside IR35 mode sets sacrifice to `min(assignment - margin, 60000)`
-- [x] `"MAX"`, `"Max"`, and `"max"` all work (case-insensitive)
-- [x] Confirmation message displays: `"Maximum sacrifice: £{N}/yr (£{M}/mo)."`
-- [x] Prompt text updated to show `[ENTER=auto, or 'max']` hint
-- [x] `"max"` respects contract months (partial year) for the monthly display
+**Description:** Create a new module that loads a `payday.json` file from disk, validates its schema, and generates a template. Uses only stdlib `json` and `pathlib`.
 
-**Verification:**
-- [x] Tests pass: `python3 -m unittest payday.tests.test_cli -v`
-- [x] Manual check: Run `python3 -m payday`, select PAYE mode, enter salary 150000, type `y` to sacrifice, type `max` → should show £60,000/yr (£5,000/mo)
+**Files touched:** `payday/config.py` (new), `payday/tests/test_config.py` (new)
 
-**Dependencies:** None
+**Status:** ✅ Complete
 
-**Files touched:**
-- `payday/cli.py`
+---
 
-**Estimated scope:** Small (1 file, 1 function)
+#### Task 2: Add CLI argument parsing and config plumbing to `__main__.py` and `main()`
 
-### Task 2: Add tests for "max" keyword
-
-**Description:** Add unit tests for the new `"max"` keyword behavior in `test_cli.py`, covering PAYE and Inside IR35 modes, full and partial years, and edge cases.
+**Description:** Add `argparse` to `__main__.py` to accept `--config PATH`, `--init [PATH]`, and `--no-config` flags. Load config and pass it through the call chain. Modify `main()` and `run_once()` signatures to accept an optional config dict.
 
 **Acceptance criteria:**
-- [x] Test: `"max"` on PAYE £150k salary → £60,000 annual sacrifice
-- [x] Test: `"max"` on PAYE £30k salary → £30,000 annual sacrifice (gross below cap)
-- [x] Test: `"max"` on Inside IR35 with enough budget → £60,000 or budget-limited
-- [x] Test: `"max"` + partial year contract → annual amount correct, monthly = annual / months
-- [x] Test: `"MAX"` works (case insensitive)
-- [x] All existing CLI tests still pass (no regressions)
+- [ ] `python -m payday --config payday.json` loads and passes config
+- [ ] `python -m payday --init` writes `./payday.json` template and exits
+- [ ] `python -m payday --init custom.json` writes to custom path
+- [ ] `python -m payday --no-config` forces interactive mode
+- [ ] `python -m payday` (no args) works as before (no config, fully interactive)
+- [ ] `python -m payday --config missing.json` shows clean error
+- [ ] `main()` accepts `config: dict | None = None` parameter (backward compatible)
+- [ ] `run_once()` accepts `config: dict | None = None` parameter (backward compatible)
 
-**Verification:**
-- [x] `python3 -m unittest payday.tests.test_cli -v` passes (including new + existing tests)
-- [x] `python3 -m unittest discover -s payday/tests -v` passes (full suite — 261 tests)
+**Files touched:** `payday/__main__.py`, `payday/cli.py`
 
-**Dependencies:** Task 1
+---
 
-**Files touched:**
-- `payday/tests/test_cli.py`
+### Checkpoint: Foundation
+- [ ] `payday/config.py` loads and validates config files correctly
+- [ ] `--config`, `--init`, `--no-config` flags all work
+- [ ] Interactive mode still works (no regressions when no config)
+- [ ] Existing 273 tests still pass
 
-**Estimated scope:** Small (1 file)
+---
+
+### Phase 2: Core Integration
+
+#### Task 3: Integrate config into mode selection and all prompt functions
+
+**Description:** Modify `select_mode()`, `prompt_int()`, `prompt_float()`, and all mode-specific prompt functions to accept a config dict and use its values to skip interactive prompting. When a value is used from config, print a confirmation message.
+
+**Acceptance criteria:**
+- [ ] `select_mode(config)` — if `config["mode"]` is set, print confirmation and return mode number
+- [ ] `prompt_int(..., config_value=...)` — if value provided, skip prompt and return validated value
+- [ ] `prompt_float(config_value=...)` — same behavior for floats
+- [ ] All mode-specific prompts check config before prompting
+- [ ] `prompt_salary_sacrifice` accepts config values
+- [ ] Partial config works (some values from config, some prompted)
+- [ ] Interactive mode unchanged when no config
+
+**Files touched:** `payday/cli.py`
+
+---
+
+### Checkpoint: Core Integration
+- [ ] Full PAYE mode works via `payday.json` with zero prompts
+- [ ] Full Inside IR35 mode works via `payday.json` with zero prompts
+- [ ] Full Outside IR35 mode works via `payday.json` with zero prompts
+- [ ] Salary sacrifice (manual, auto, max) works via config
+- [ ] Partial config works (some values from config, some prompted)
+- [ ] Interactive mode unchanged when no `--config` flag
+
+---
+
+### Phase 3: Tests and Polish
+
+#### Task 4: Add tests for config-aware prompts
+
+**Description:** Add tests in `test_cli.py` that verify prompt functions auto-answer when config values are provided, and skip interactive input.
+
+**Acceptance criteria:**
+- [ ] Test: `select_mode({"mode": "paye"})` returns 1 without reading input
+- [ ] Test: `prompt_int(config_value=42)` returns 42 without reading input
+- [ ] Test: `prompt_salary_sacrifice(config values)` returns correct sacrifice without prompting
+- [ ] Test: `run_once(config=full_paye_config)` runs without any user input
+- [ ] All existing CLI tests still pass (no regressions)
+
+**Files touched:** `payday/tests/test_cli.py`
+
+---
+
+### Checkpoint: Complete
+- [ ] All acceptance criteria met
+- [ ] Full test suite passes
+- [ ] Backward compatible — no config = unchanged UX
+- [ ] Ready for review
+
+## Dependency Graph
+
+```
+NEW: payday/config.py          (JSON loader, schema validation, template generator)
+       │
+       ├── payday/__main__.py  (add argparse --config, --init, --no-config)
+       │       │
+       │       └── payday/cli.py:main()      (accept config param)
+       │               │
+       │               └── payday/cli.py:run_once()   (accept+pass config)
+       │                       │
+       │                       ├── select_mode()          (check config.mode)
+       │                       ├── prompt_int/float()     (check config.field)
+       │                       ├── prompt_start_month()   (check config.start_month)
+       │                       ├── prompt_existing_income/dividends() (check config)
+       │                       ├── prompt_working_days()  (check config)
+       │                       └── prompt_salary_sacrifice() (check config)
+       │
+       └── payday/tests/test_config.py  (new: config loading, validation, template)
+       └── payday/tests/test_cli.py     (mod: add config-aware tests)
+```
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| "max" keyword accidentally triggers for a legitimate numeric entry | Low — numbers start with digits, not letters | Case-insensitive string match on `"max"` only |
-| Inside IR35 max exceeds budget, causing `ValueError` | Medium | Clamp to `gross - annual_margin - 1` before applying `MAX_SALARY_SACRIFICE` |
+| `prompt_float()` type checks break for `config_value` int → float | Low | `config_value` passed as-is; `prompt_float` returns `float(config_value)` if int |
+| `"max"` keyword in `monthly_salary_sacrifice` JSON field conflicts with strict int validation | Low | Allow `int` / `"max"` / `"auto"` / `null` union type in schema validation |
+| Interactive fallback confusing when some fields set, some not | Medium | Each auto-answered field prints a clear `"Using value from payday.json: X"` line |
 
 ## Summary
 
 | Aspect | Detail |
 |--------|--------|
-| Files changed | 2 (`cli.py`, `test_cli.py`) |
-| Total tasks | 2 |
-| Estimated effort | ~30 minutes |
+| New files | 2 (`payday/config.py`, `payday/tests/test_config.py`) |
+| Modified files | 3 (`payday/__main__.py`, `payday/cli.py`, `payday/tests/test_cli.py`) |
+| Total tasks | 4 |
+| Estimated effort | ~4-6 hours |

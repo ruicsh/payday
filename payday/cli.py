@@ -292,8 +292,9 @@ def select_mode() -> int:
     return prompt_int("\nChoice [1/2/3]", min_val=1, max_val=3)
 
 
-def run_once() -> None:
+def run_once(config: dict | None = None) -> None:
     """One full cycle: select mode → prompt → calculate → display."""
+    # config will be wired into prompts in a later task
     mode = select_mode()
 
     if mode == 1:
@@ -366,11 +367,11 @@ def run_once() -> None:
     print("\n" + format_breakdown(breakdown))
 
 
-def main() -> None:
+def main(config: dict | None = None) -> None:
     """Main entry point. Loops run_once() until user quits."""
     try:
         while True:
-            run_once()
+            run_once(config)
             again = input("\nRun another calculation? [y/N]: ").strip().lower()
             if again != "y":
                 print("Goodbye!")

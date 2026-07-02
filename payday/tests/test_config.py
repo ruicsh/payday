@@ -184,5 +184,35 @@ class TestGenerateTemplate(unittest.TestCase):
             os.unlink(path)
 
 
+
+
+class TestMainModule(unittest.TestCase):
+    def test_parse_args_no_args(self):
+        from payday.__main__ import parse_args
+        args = parse_args([])
+        self.assertIsNone(args.config)
+
+    def test_parse_args_config(self):
+        from payday.__main__ import parse_args
+        args = parse_args(["--config", "myconfig.json"])
+        self.assertEqual(args.config, "myconfig.json")
+
+    def test_parse_args_init_default(self):
+        from payday.__main__ import parse_args
+        args = parse_args(["--init"])
+        self.assertEqual(args.init, "payday.json")
+
+    def test_parse_args_init_custom(self):
+        from payday.__main__ import parse_args
+        args = parse_args(["--init", "custom.json"])
+        self.assertEqual(args.init, "custom.json")
+
+    def test_parse_args_init_lock(self):
+        from payday.__main__ import parse_args
+        args = parse_args(["--init", "--config", "c.json"])
+        self.assertEqual(args.init, "payday.json")
+        self.assertEqual(args.config, "c.json")
+
+
 if __name__ == "__main__":
     unittest.main()
