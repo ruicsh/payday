@@ -132,6 +132,8 @@ class TestTaxYearBounds(unittest.TestCase):
         self.assertEqual(working_days_in_contract_period(1), 64)
 
     def test_working_days_contract_april_full_year(self):
+        # Apr-start = same as full tax year because contract_start_date(4)
+        # returns 2026-04-01, which gets clamped to TAX_YEAR_START (2026-04-06).
         self.assertEqual(working_days_in_contract_period(4), 252)
 
     def test_working_days_contract_march(self):

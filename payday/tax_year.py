@@ -87,7 +87,7 @@ def contract_start_date(start_month: int) -> date:
 
 
 def working_days_in_full_tax_year() -> int:
-    from payday.bank_holidays import working_days_in_range, ENGLAND_WALES_2026_27
+    from payday.bank_holidays import working_days_in_range, ENGLAND_WALES_2026_27  # local import avoids circular dependency
 
     return working_days_in_range(
         TAX_YEAR_START, TAX_YEAR_END, set(ENGLAND_WALES_2026_27)
@@ -95,7 +95,7 @@ def working_days_in_full_tax_year() -> int:
 
 
 def working_days_in_contract_period(start_month: int) -> int:
-    from payday.bank_holidays import working_days_in_range, ENGLAND_WALES_2026_27
+    from payday.bank_holidays import working_days_in_range, ENGLAND_WALES_2026_27  # local import avoids circular dependency
 
     start = max(contract_start_date(start_month), TAX_YEAR_START)
     return working_days_in_range(start, TAX_YEAR_END, set(ENGLAND_WALES_2026_27))

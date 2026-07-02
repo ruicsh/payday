@@ -275,6 +275,14 @@ class TestPromptWorkingDays(unittest.TestCase):
         self.assertEqual(result, 200)
         self.assertIn("Error: Please enter a whole number", mock_stdout.getvalue())
 
+    @patch("builtins.input", side_effect=["25", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_march_start_clamps_to_one(self, mock_stdout, mock_input):
+        """March: 24 available, 25 days-off → net clamped to 1 (not 0)."""
+        result, days_off = prompt_working_days(3)
+        self.assertEqual(result, 1)
+        self.assertEqual(days_off, 25)
+
 
 if __name__ == "__main__":
     unittest.main()

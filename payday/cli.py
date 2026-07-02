@@ -219,7 +219,7 @@ def prompt_working_days(start_month: int | None) -> tuple[int, int]:
         min_val=0,
     )
 
-    net = max(0, available - days_off)
+    net = max(1, available - days_off)
 
     while True:
         user_input = input(

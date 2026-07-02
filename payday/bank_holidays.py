@@ -1,3 +1,5 @@
+"""England & Wales bank holidays for the 2026/27 tax year."""
+
 from datetime import date, timedelta
 
 ENGLAND_WALES_2026_27: list[date] = [
