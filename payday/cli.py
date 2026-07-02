@@ -119,11 +119,12 @@ def prompt_start_month(config: dict | None = None) -> int | None:
     """Prompt for contract start month. None means full tax year."""
     if config and "start_month" in config:
         val = config["start_month"]
+        if val is True:
+            print("Using value from payday.json: full year")
+            return None
         if val is not None:
             print(f"Using value from payday.json: {val}")
             return val
-        print("Using value from payday.json: full year")
-        return None
 
     while True:
         user_input = input("Contract start month [1-12], ENTER for full year: ").strip()
@@ -145,10 +146,11 @@ def prompt_existing_income(
     """Prompt for employment income already earned this tax year (partial year only)."""
     if config and "existing_income" in config:
         val = config["existing_income"]
+        if val is True:
+            return 0.0
         if val is not None:
             print(f"Using value from payday.json: {val}")
             return float(val)
-        return 0.0
     if start_month is None:
         return 0.0
     return prompt_float(
@@ -165,10 +167,11 @@ def prompt_existing_dividends(
     """Prompt for dividends already received this tax year (partial year only)."""
     if config and "existing_dividends" in config:
         val = config["existing_dividends"]
+        if val is True:
+            return 0.0
         if val is not None:
             print(f"Using value from payday.json: {val}")
             return float(val)
-        return 0.0
     if start_month is None:
         return 0.0
     return prompt_float(

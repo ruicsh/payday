@@ -71,28 +71,46 @@ class TestCLI(unittest.TestCase):
         result = prompt_start_month(config={"start_month": 4})
         self.assertEqual(result, 4)
 
-    def test_prompt_start_month_config_full_year(self):
+    def test_prompt_start_month_config_true_default(self):
+        from payday.cli import prompt_start_month
+        result = prompt_start_month(config={"start_month": True})
+        self.assertIsNone(result)
+
+    @patch("builtins.input", return_value="5")
+    def test_prompt_start_month_config_null_prompts(self, mock_input):
         from payday.cli import prompt_start_month
         result = prompt_start_month(config={"start_month": None})
-        self.assertIsNone(result)
+        self.assertEqual(result, 5)
+        mock_input.assert_called_once()
 
     def test_prompt_existing_income_config(self):
         result = prompt_existing_income(8, config={"existing_income": 30000})
         self.assertEqual(result, 30000)
 
-    def test_prompt_existing_income_config_default(self):
-        result = prompt_existing_income(8, config={"existing_income": None})
+    def test_prompt_existing_income_config_true_default(self):
+        result = prompt_existing_income(8, config={"existing_income": True})
         self.assertEqual(result, 0)
+
+    @patch("builtins.input", return_value="3000")
+    def test_prompt_existing_income_config_null_prompts(self, mock_input):
+        result = prompt_existing_income(8, config={"existing_income": None})
+        self.assertEqual(result, 3000)
 
     def test_prompt_existing_dividends_config(self):
         from payday.cli import prompt_existing_dividends
         result = prompt_existing_dividends(8, config={"existing_dividends": 15000})
         self.assertEqual(result, 15000)
 
-    def test_prompt_existing_dividends_config_default(self):
+    def test_prompt_existing_dividends_config_true_default(self):
+        from payday.cli import prompt_existing_dividends
+        result = prompt_existing_dividends(8, config={"existing_dividends": True})
+        self.assertEqual(result, 0)
+
+    @patch("builtins.input", return_value="5000")
+    def test_prompt_existing_dividends_config_null_prompts(self, mock_input):
         from payday.cli import prompt_existing_dividends
         result = prompt_existing_dividends(8, config={"existing_dividends": None})
-        self.assertEqual(result, 0)
+        self.assertEqual(result, 5000)
 
     # ── prompt_salary_sacrifice config tests ───────────────────────────
 
@@ -530,9 +548,9 @@ class TestCLI(unittest.TestCase):
         config = {
             "mode": "outside_ir35",
             "day_rate": 500,
-            "start_month": None,
-            "existing_income": None,
-            "existing_dividends": None,
+            "start_month": True,
+            "existing_income": True,
+            "existing_dividends": True,
             "days_off": 25,
             "working_days": 200,
         }
