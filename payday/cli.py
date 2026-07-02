@@ -231,7 +231,7 @@ def prompt_salary_sacrifice(
             else:
                 result = 0
             monthly = result // contract_months
-            print(f"Monthly salary sacrifice [ENTER=auto, or 'max'] (£): max")
+            print("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): max")
             return result
 
         if ms == "auto":
@@ -258,7 +258,7 @@ def prompt_salary_sacrifice(
             if result == 0:
                 print("Gross is already at or below cap — no sacrifice needed (payday.json).")
                 return 0
-            print(f"Monthly salary sacrifice [ENTER=auto, or 'max'] (£): auto")
+            print("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): auto")
             print(f"Income target: {format_gbp(cap)}")
             return result
 
