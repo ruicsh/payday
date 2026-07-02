@@ -200,6 +200,55 @@ class TestCLI(unittest.TestCase):
         output = mock_stdout.getvalue()
         self.assertIn("capped", output)
 
+    # ── prompt_salary_sacrifice — "max" keyword tests ─────────────────
+
+    @patch("builtins.input", side_effect=["y", "max"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_max_paye(self, mock_stdout, mock_input):
+        """Typing 'max' on PAYE with salary > 60k returns 60k (the cap)."""
+        result = prompt_salary_sacrifice(150_000, mode="paye")
+        self.assertEqual(result, 60_000)
+        output = mock_stdout.getvalue()
+        self.assertIn("Maximum sacrifice", output)
+        self.assertIn("£60,000/yr", output)
+        self.assertIn("£5,000/mo", output)
+
+    @patch("builtins.input", side_effect=["y", "max"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_max_paye_below_cap(self, mock_stdout, mock_input):
+        """Typing 'max' on PAYE with salary < 60k returns the full salary."""
+        result = prompt_salary_sacrifice(30_000, mode="paye")
+        self.assertEqual(result, 30_000)
+        output = mock_stdout.getvalue()
+        self.assertIn("Maximum sacrifice", output)
+
+    @patch("builtins.input", side_effect=["y", "MAX"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_max_case_insensitive(self, mock_stdout, mock_input):
+        """Typing 'MAX' (uppercase) also triggers max mode."""
+        result = prompt_salary_sacrifice(150_000, mode="paye")
+        self.assertEqual(result, 60_000)
+
+    @patch("builtins.input", side_effect=["y", "max"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_max_inside_ir35(self, mock_stdout, mock_input):
+        """Typing 'max' on Inside IR35 with enough budget returns 60k."""
+        result = prompt_salary_sacrifice(
+            144_000, mode="inside_ir35", annual_margin=1200
+        )
+        self.assertEqual(result, 60_000)
+        output = mock_stdout.getvalue()
+        self.assertIn("Maximum sacrifice", output)
+
+    @patch("builtins.input", side_effect=["y", "max"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_max_partial_year(self, mock_stdout, mock_input):
+        """Partial-year contract: annual max still 60k, monthly = 60k / contract_months."""
+        result = prompt_salary_sacrifice(150_000, mode="paye", start_month=8)
+        self.assertEqual(result, 60_000)
+        output = mock_stdout.getvalue()
+        self.assertIn("£7,500/mo", output)  # 60000 / 8 = 7500
+
     # ── run_once — mode 3 external IR35 tests ──────────────────────────
 
     @patch("payday.cli.OutsideIR35Calculator.calculate")

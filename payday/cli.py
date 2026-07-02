@@ -136,6 +136,10 @@ def prompt_salary_sacrifice(
     If the user enters an integer monthly amount, it's multiplied by
     contract months.
 
+    If the user types "max" (case-insensitive), the sacrifice is set to
+    the maximum allowed amount (capped at MAX_SALARY_SACRIFICE and by
+    available income/budget).
+
     If the user presses ENTER on the amount prompt, they enter auto-calc
     mode: they specify a taxable income cap and the optimal sacrifice
     is computed automatically.
@@ -152,7 +156,7 @@ def prompt_salary_sacrifice(
     contract_months = 12 if start_month is None else months_in_tax_year(start_month)
 
     while True:
-        user_input = input("Monthly salary sacrifice [ENTER=auto] (£): ").strip()
+        user_input = input("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): ").strip()
 
         if not user_input:
             cap = prompt_int(
@@ -194,6 +198,22 @@ def prompt_salary_sacrifice(
             print(
                 f"Auto-calculated: £{annual_sacrifice:,}/yr "
                 f"(£{monthly:,}/mo) sacrifice."
+            )
+            return annual_sacrifice
+
+        if user_input.lower() == "max":
+            if mode == "paye":
+                annual_sacrifice = min(gross, MAX_SALARY_SACRIFICE)
+            elif mode == "inside_ir35":
+                max_within_budget = max(0, gross - annual_margin - 1)
+                annual_sacrifice = min(max_within_budget, MAX_SALARY_SACRIFICE)
+            else:
+                annual_sacrifice = 0
+
+            monthly = annual_sacrifice // contract_months
+            print(
+                f"Maximum sacrifice: £{annual_sacrifice:,}/yr "
+                f"(£{monthly:,}/mo)."
             )
             return annual_sacrifice
 
