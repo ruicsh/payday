@@ -26,7 +26,12 @@ def prompt_int(
     default_fmt: callable = str,
     config_value: int | None = None,
 ) -> int:
-    """Prompt user for an integer with validation and optional default."""
+    """Prompt user for an integer with validation and optional default.
+
+    Note: unlike other prompt functions that receive the full ``config`` dict,
+    this function takes a single *pre-extracted* value via ``config_value``.
+    Callers extract the field from config before passing it in.
+    """
     if config_value is True and default is not None:
         print(f"{prompt} [{default_fmt(default)}]: {default}")
         return default
@@ -73,7 +78,12 @@ def prompt_float(
     default_fmt: callable = str,
     config_value: float | None = None,
 ) -> float:
-    """Prompt user for a number with validation and optional default."""
+    """Prompt user for a number with validation and optional default.
+
+    Note: unlike other prompt functions that receive the full ``config`` dict,
+    this function takes a single *pre-extracted* value via ``config_value``.
+    Callers extract the field from config before passing it in.
+    """
     if config_value is True and default is not None:
         print(f"{prompt} [{default_fmt(default)}]: {default}")
         return default
