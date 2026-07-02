@@ -180,22 +180,25 @@ class TestCLI(unittest.TestCase):
         result = prompt_salary_sacrifice(150_000, config=config)
         self.assertEqual(result, 60_000)
 
+    @patch("builtins.input", side_effect=[""])
     @patch("sys.stdout", new_callable=StringIO)
-    def test_prompt_salary_sacrifice_config_auto(self, mock_stdout):
+    def test_prompt_salary_sacrifice_config_auto(self, mock_stdout, mock_input):
         config = {"salary_sacrifice_enabled": True, "monthly_salary_sacrifice": "auto"}
         result = prompt_salary_sacrifice(150_000, config=config)
         self.assertEqual(result, 50_000)
 
+    @patch("builtins.input", side_effect=[""])
     @patch("sys.stdout", new_callable=StringIO)
-    def test_prompt_salary_sacrifice_config_true_triggers_auto(self, mock_stdout):
+    def test_prompt_salary_sacrifice_config_true_triggers_auto(self, mock_stdout, mock_input):
         config = {"salary_sacrifice_enabled": True, "monthly_salary_sacrifice": True}
         result = prompt_salary_sacrifice(150_000, config=config)
         self.assertEqual(result, 50_000)
         output = mock_stdout.getvalue()
         self.assertIn("auto", output)
 
+    @patch("builtins.input", side_effect=[""])
     @patch("sys.stdout", new_callable=StringIO)
-    def test_prompt_salary_sacrifice_config_auto_with_cap_true(self, mock_stdout):
+    def test_prompt_salary_sacrifice_config_auto_with_cap_true(self, mock_stdout, mock_input):
         config = {
             "salary_sacrifice_enabled": True,
             "monthly_salary_sacrifice": "auto",
@@ -203,6 +206,19 @@ class TestCLI(unittest.TestCase):
         }
         result = prompt_salary_sacrifice(150_000, config=config)
         self.assertEqual(result, 50_000)
+        mock_input.assert_called_once_with("Taxable income cap [£100,000]: ")
+
+    @patch("builtins.input", side_effect=["80000"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_config_auto_cap_none_prompts(self, mock_stdout, mock_input):
+        """Config with monthly_salary_sacrifice='auto' and no cap should prompt."""
+        config = {
+            "salary_sacrifice_enabled": True,
+            "monthly_salary_sacrifice": "auto",
+        }
+        result = prompt_salary_sacrifice(150_000, config=config)
+        self.assertEqual(result, 60_000)
+        mock_input.assert_called_once_with("Taxable income cap [£100,000]: ")
 
     # ── prompt_working_days config tests ───────────────────────────────
 
