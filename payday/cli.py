@@ -28,8 +28,11 @@ def prompt_int(
 ) -> int:
     """Prompt user for an integer with validation and optional default."""
     if config_value is True:
-        print(f"Using default from payday.json: {default}")
-        return default
+        if default is None:
+            pass
+        else:
+            print(f"Using default from payday.json: {default}")
+            return default
     if config_value is not None:
         val = config_value
         if min_val is not None and val < min_val:
@@ -78,8 +81,11 @@ def prompt_float(
 ) -> float:
     """Prompt user for a number with validation and optional default."""
     if config_value is True:
-        print(f"Using default from payday.json: {default}")
-        return default
+        if default is None:
+            pass
+        else:
+            print(f"Using default from payday.json: {default}")
+            return default
     if config_value is not None:
         val = float(config_value)
         if min_val is not None and val < min_val:
@@ -229,8 +235,8 @@ def prompt_salary_sacrifice(
             return result
 
         if ms == "auto":
-            raw = config.get("salary_sacrifice_cap")
-            cap = default_cap if raw is True or raw is None else raw
+            raw_cap = config.get("salary_sacrifice_cap")
+            cap = default_cap if raw_cap is True or raw_cap is None else raw_cap
             if mode == "paye":
                 result = calc_optimal_sacrifice_paye(gross, cap=cap)
             elif mode == "inside_ir35":
@@ -358,16 +364,16 @@ def prompt_working_days(
     )
 
     if config and config.get("working_days") is True:
-        raw = config.get("days_off")
-        days_off = 25 if raw is True or raw is None else raw
+        raw_days = config.get("days_off")
+        days_off = 25 if raw_days is True or raw_days is None else raw_days
         net = max(1, available - days_off)
         print(f"Using value from payday.json: auto ({net})")
         return net, days_off
 
     if config and config.get("working_days") is not None:
         net = config["working_days"]
-        raw = config.get("days_off")
-        days_off = 0 if raw is True or raw is None else raw
+        raw_days = config.get("days_off")
+        days_off = 0 if raw_days is True or raw_days is None else raw_days
         print(f"Using value from payday.json: {net}")
         return net, days_off
 
