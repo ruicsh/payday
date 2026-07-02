@@ -56,6 +56,14 @@ class TestCLI(unittest.TestCase):
         result = prompt_float("Enter amount", config_value=12345.67)
         self.assertEqual(result, 12345.67)
 
+    def test_prompt_int_config_true_uses_default(self):
+        result = prompt_int("Enter number", default=10, config_value=True)
+        self.assertEqual(result, 10)
+
+    def test_prompt_float_config_true_uses_default(self):
+        result = prompt_float("Enter amount", default=5.5, config_value=True)
+        self.assertEqual(result, 5.5)
+
     # ── prompt_start_month / prompt_existing_* config tests ────────────
 
     def test_prompt_start_month_config(self):

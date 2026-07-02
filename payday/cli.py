@@ -27,6 +27,8 @@ def prompt_int(
     config_value: int | None = None,
 ) -> int:
     """Prompt user for an integer with validation and optional default."""
+    if config_value is True:
+        return default
     if config_value is not None:
         val = config_value
         if min_val is not None and val < min_val:
@@ -74,6 +76,8 @@ def prompt_float(
     config_value: float | None = None,
 ) -> float:
     """Prompt user for a number with validation and optional default."""
+    if config_value is True:
+        return default
     if config_value is not None:
         val = float(config_value)
         if min_val is not None and val < min_val:
