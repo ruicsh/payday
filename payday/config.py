@@ -16,13 +16,13 @@ FIELD_TYPES = {
     "umbrella_margin": (int, bool, type(None)),
     "salary_sacrifice_enabled": (bool, type(None)),
     "monthly_salary_sacrifice": (int, str, bool, type(None)),
-    "salary_sacrifice_cap": (int, bool, type(None)),
+    "income_target": (int, bool, type(None)),
 }
 _ALL_FIELDS = [
     "mode", "salary", "day_rate", "start_month",
     "existing_income", "existing_dividends", "days_off",
     "working_days", "umbrella_margin", "salary_sacrifice_enabled",
-    "monthly_salary_sacrifice", "salary_sacrifice_cap",
+    "monthly_salary_sacrifice", "income_target",
 ]
 
 
@@ -74,9 +74,9 @@ def _validate_field(key: str, value) -> None:
                 f"{', '.join(sorted(VALID_SACRIFICE_KEYWORDS))}, got '{value}'"
             )
 
-    elif key == "salary_sacrifice_cap" and value is not None:
+    elif key == "income_target" and value is not None:
         if value < 1:
-            raise ValueError(f"'salary_sacrifice_cap': must be >= 1, got {value}")
+            raise ValueError(f"'income_target': must be >= 1, got {value}")
 
 
 def load_config(path: str) -> dict | None:

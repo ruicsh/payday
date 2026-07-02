@@ -160,7 +160,7 @@ All fields are optional. `null` or absent = prompt interactively (or use default
 | `umbrella_margin` | int or null | Weekly umbrella fee (≥ 0, IR35 only) |
 | `salary_sacrifice_enabled` | bool or null | Enable salary sacrifice |
 | `monthly_salary_sacrifice` | int or str or null | Monthly amount, `"max"`, or `"auto"` |
-| `salary_sacrifice_cap` | int, bool, or null | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively. |
+| `income_target` | int, bool, or null | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively. |
 
 ### Example
 

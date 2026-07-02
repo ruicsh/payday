@@ -235,8 +235,8 @@ def prompt_salary_sacrifice(
             return result
 
         if ms == "auto":
-            raw_cap = config.get("salary_sacrifice_cap")
-            if raw_cap is None or raw_cap is True:
+            raw_target = config.get("income_target")
+            if raw_target is None or raw_target is True:
                 cap = prompt_int(
                     "Taxable income cap",
                     default=default_cap,
@@ -244,7 +244,7 @@ def prompt_salary_sacrifice(
                     default_fmt=format_gbp,
                 )
             else:
-                cap = raw_cap
+                cap = raw_target
             if mode == "paye":
                 result = calc_optimal_sacrifice_paye(gross, cap=cap)
             elif mode == "inside_ir35":

@@ -202,7 +202,7 @@ class TestCLI(unittest.TestCase):
         config = {
             "salary_sacrifice_enabled": True,
             "monthly_salary_sacrifice": "auto",
-            "salary_sacrifice_cap": True,
+            "income_target": True,
         }
         result = prompt_salary_sacrifice(150_000, config=config)
         self.assertEqual(result, 50_000)
@@ -644,7 +644,7 @@ class TestCLI(unittest.TestCase):
             "umbrella_margin": 25,
             "salary_sacrifice_enabled": True,
             "monthly_salary_sacrifice": 2000,
-            "salary_sacrifice_cap": 60000,
+            "income_target": 60000,
         }
         run_once(config)
         mock_calc.assert_called_once()

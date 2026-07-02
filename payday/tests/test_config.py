@@ -23,7 +23,7 @@ class TestLoadConfig(unittest.TestCase):
             "umbrella_margin": 25,
             "salary_sacrifice_enabled": False,
             "monthly_salary_sacrifice": None,
-            "salary_sacrifice_cap": 100000,
+            "income_target": 100000,
         }
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False
@@ -55,7 +55,7 @@ class TestLoadConfig(unittest.TestCase):
             self.assertIsNone(result["start_month"])
             self.assertIsNone(result["working_days"])
             self.assertIsNone(result["umbrella_margin"])
-            self.assertIsNone(result["salary_sacrifice_cap"])
+            self.assertIsNone(result["income_target"])
         finally:
             os.unlink(path)
 
@@ -159,7 +159,7 @@ class TestLoadConfig(unittest.TestCase):
             path = f.name
         try:
             result = load_config(path)
-            self.assertIsNone(result["salary_sacrifice_cap"])
+            self.assertIsNone(result["income_target"])
         finally:
             os.unlink(path)
 
@@ -185,7 +185,7 @@ class TestLoadConfig(unittest.TestCase):
         fields_with_defaults = [
             "start_month", "existing_income", "existing_dividends",
             "days_off", "working_days", "umbrella_margin",
-            "monthly_salary_sacrifice", "salary_sacrifice_cap",
+            "monthly_salary_sacrifice", "income_target",
         ]
         for field in fields_with_defaults:
             data = {"mode": "paye", field: True}
@@ -208,7 +208,7 @@ class TestLoadConfig(unittest.TestCase):
         fields = [
             "start_month", "existing_income", "existing_dividends",
             "days_off", "working_days", "umbrella_margin",
-            "monthly_salary_sacrifice", "salary_sacrifice_cap",
+            "monthly_salary_sacrifice", "income_target",
             "salary", "day_rate",
         ]
         for field in fields:
