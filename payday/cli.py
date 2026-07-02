@@ -149,6 +149,7 @@ def prompt_existing_income(
     if config and "existing_income" in config:
         val = config["existing_income"]
         if val is True:
+            print("Using default from payday.json: 0")
             return 0.0
         if val is not None:
             print(f"Using value from payday.json: {val}")
@@ -170,6 +171,7 @@ def prompt_existing_dividends(
     if config and "existing_dividends" in config:
         val = config["existing_dividends"]
         if val is True:
+            print("Using default from payday.json: 0")
             return 0.0
         if val is not None:
             print(f"Using value from payday.json: {val}")

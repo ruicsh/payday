@@ -105,6 +105,13 @@ class TestCLI(unittest.TestCase):
         result = prompt_existing_income(8, config={"existing_income": True})
         self.assertEqual(result, 0)
 
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_existing_income_config_true_prints_message(self, mock_stdout):
+        prompt_existing_income(8, config={"existing_income": True})
+        output = mock_stdout.getvalue()
+        self.assertIn("payday.json", output)
+        self.assertIn("default", output.lower())
+
     @patch("builtins.input", return_value="3000")
     def test_prompt_existing_income_config_null_prompts(self, mock_input):
         result = prompt_existing_income(8, config={"existing_income": None})
@@ -119,6 +126,14 @@ class TestCLI(unittest.TestCase):
         from payday.cli import prompt_existing_dividends
         result = prompt_existing_dividends(8, config={"existing_dividends": True})
         self.assertEqual(result, 0)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_existing_dividends_config_true_prints_message(self, mock_stdout):
+        from payday.cli import prompt_existing_dividends
+        prompt_existing_dividends(8, config={"existing_dividends": True})
+        output = mock_stdout.getvalue()
+        self.assertIn("payday.json", output)
+        self.assertIn("default", output.lower())
 
     @patch("builtins.input", return_value="5000")
     def test_prompt_existing_dividends_config_null_prompts(self, mock_input):
