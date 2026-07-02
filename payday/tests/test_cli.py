@@ -5,6 +5,7 @@ from payday.cli import (
     prompt_int,
     prompt_existing_income,
     prompt_salary_sacrifice,
+    run_once,
 )
 
 
@@ -177,6 +178,54 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(result, 28_050)
         output = mock_stdout.getvalue()
         self.assertIn("Auto-calculated", output)
+
+
+    # ── run_once — mode 3 external IR35 tests ──────────────────────────
+
+    @patch("payday.cli.OutsideIR35Calculator.calculate")
+    @patch("builtins.input", side_effect=[
+        "3",       # mode: Outside IR35
+        "500",     # day rate
+        "",        # working days (default 240)
+        "8",       # start month (Aug → partial year)
+        "20000",   # existing income
+        "15000",   # existing dividends
+    ])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_mode3_passes_existing_dividends(
+        self, mock_stdout, mock_input, mock_calc
+    ):
+        """Mode 3 should prompt for existing dividends and pass them to the calculator."""
+        from payday.models import SalaryBreakdown
+        mock_calc.return_value = SalaryBreakdown(
+            mode="Outside IR35", inputs={}, steps=[], annual_take_home=0, display_take_home=0,
+        )
+        run_once()
+        mock_calc.assert_called_once()
+        _, kwargs = mock_calc.call_args
+        self.assertIn("existing_dividends", kwargs)
+        self.assertEqual(kwargs["existing_dividends"], 15000)
+
+    @patch("payday.cli.OutsideIR35Calculator.calculate")
+    @patch("builtins.input", side_effect=[
+        "3",       # mode: Outside IR35
+        "500",     # day rate
+        "",        # working days (default 240)
+        "",        # start month (full year → no existing prompts)
+    ])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_mode3_skips_existing_dividends_for_full_year(
+        self, mock_stdout, mock_input, mock_calc
+    ):
+        """Full year (no start_month) should skip the existing dividends prompt entirely."""
+        from payday.models import SalaryBreakdown
+        mock_calc.return_value = SalaryBreakdown(
+            mode="Outside IR35", inputs={}, steps=[], annual_take_home=0, display_take_home=0,
+        )
+        run_once()
+        mock_calc.assert_called_once()
+        _, kwargs = mock_calc.call_args
+        self.assertEqual(kwargs.get("existing_dividends"), 0)
 
 
 if __name__ == "__main__":

@@ -256,8 +256,10 @@ def run_once() -> None:
         )
         start_month = prompt_start_month()
         existing_income = prompt_existing_income(start_month)
+        existing_dividends = prompt_existing_dividends(start_month)
         breakdown = OutsideIR35Calculator.calculate(
-            day_rate, working_days, start_month, existing_income
+            day_rate, working_days, start_month, existing_income,
+            existing_dividends=existing_dividends,
         )
 
     else:
