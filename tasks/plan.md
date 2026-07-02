@@ -1,25 +1,30 @@
-# Plan: `true` = use default, `null` = prompt
+# Implementation Plan: Config Mode Income Cap Prompt
 
-## Task 1 — Schema + validation
-- `config.py`: add `bool` to `FIELD_TYPES` for all fields with defaults
-- `config.py`: validate `True` is rejected for fields without defaults (`salary`, `day_rate`, `mode`)
-- Tests: `True` accepted for each field with a default; `True` rejected for required-only fields
+## Overview
 
-## Task 2 — `prompt_int` / `prompt_float`
-- `cli.py`: `prompt_int` — `True` → use `default` param
-- `cli.py`: `prompt_float` — same pattern
-- Tests: `True` returns default; `null` prompts; explicit value works
+When running with `--config payday.json` and `monthly_salary_sacrifice: "auto"`, the user expects to be prompted for a "Taxable income cap" target when the config does not specify `salary_sacrifice_cap`. Currently, both `None` (not specified) and `True` (use default) silently fall back to £100,000 — the interactive prompt is only reached in the purely interactive (no-config) path.
 
-## Task 3 — `prompt_start_month`, `prompt_existing_income`, `prompt_existing_dividends`
-- `cli.py`: `True` → use default (full year / 0); `None` → prompt (breaking change)
-- Tests: `True` uses default; `null` prompts; explicit value works
+The fix: in the config "auto" path, when `salary_sacrifice_cap` is `None` or `True`, fall back to the existing `prompt_int("Taxable income cap", ...)` prompt instead of silently using the default.
 
-## Task 4 — `prompt_working_days`
-- `cli.py`: `working_days: True` → auto-compute from available - days_off (default 25)
-- `cli.py`: `days_off: True` → use default 25, auto-compute net
-- Tests: `True` for each path; `null` prompts
+## Architecture Decisions
 
-## Task 5 — `prompt_salary_sacrifice`
-- `cli.py`: `monthly_salary_sacrifice: True` → run optimal sacrifice calculation (auto)
-- `cli.py`: `salary_sacrifice_cap: True` → use `default_cap` (100,000)
-- Tests: `True` paths; `null` prompts
+- **Minimal change**: Only modify the config path in `prompt_salary_sacrifice` (`cli.py:237-254`). The interactive prompt already exists at lines 271-275 and works correctly.
+- **Consistent with config conventions**: `None` = "not specified, ask user", `True` = "use default, ask user" (matching how other config fields work — see `test_prompt_start_month_config_null_prompts`, etc.).
+- **Reuse existing prompt code**: Call the same `prompt_int` that the interactive path uses, rather than duplicating logic.
+
+## Task List
+
+- [ ] Task 1: Modify the config "auto" path to prompt when `raw_cap` is `None`/`True`, and pass the user-specified cap to the optimal-sacrifice calculators
+- [ ] Task 2: Update `test_prompt_salary_sacrifice_config_auto_with_cap_true` to expect interactive prompt behavior
+- [ ] Task 3: Add tests for the `None` fallback (config without `salary_sacrifice_cap` should prompt)
+
+## Files likely touched
+
+- `payday/cli.py` (the fix)
+- `payday/tests/test_cli.py` (test updates)
+
+## Verification
+
+- [ ] All existing tests pass
+- [ ] New tests verify prompt fallback for both `None` and `True` cap values
+- [ ] Manual smoke test with `--config payday.json` confirms prompt appears
