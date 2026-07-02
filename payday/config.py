@@ -20,10 +20,18 @@ FIELD_TYPES = {
     "director_pension": (int, bool, type(None)),
 }
 _ALL_FIELDS = [
-    "mode", "salary", "day_rate", "start_month",
-    "existing_income", "existing_dividends", "days_off",
-    "working_days", "umbrella_margin", "salary_sacrifice_enabled",
-    "monthly_salary_sacrifice", "income_target",
+    "mode",
+    "salary",
+    "day_rate",
+    "start_month",
+    "existing_income",
+    "existing_dividends",
+    "days_off",
+    "working_days",
+    "umbrella_margin",
+    "salary_sacrifice_enabled",
+    "monthly_salary_sacrifice",
+    "income_target",
     "director_pension",
 ]
 
@@ -36,7 +44,9 @@ def _validate_field(key: str, value) -> None:
         if value is False:
             raise ValueError(f"'{key}': use 'true' for default, or 'null' to prompt")
         if key in ("salary", "day_rate", "mode"):
-            raise ValueError(f"'{key}': true is not valid here — this field has no default")
+            raise ValueError(
+                f"'{key}': true is not valid here — this field has no default"
+            )
         return
     if not isinstance(value, allowed):
         raise ValueError(f"'{key}': expected {allowed}, got {type(value).__name__}")

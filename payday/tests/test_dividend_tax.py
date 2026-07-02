@@ -121,7 +121,6 @@ class TestDividendTax(unittest.TestCase):
         self.assertGreaterEqual(res.higher_band, 42300)
         self.assertLessEqual(res.higher_band, 42301)
 
-
     # ── existing_dividends tests ─────────────────────────────────────
 
     def test_dividend_tax_existing_dividends_consumes_allowance(self):

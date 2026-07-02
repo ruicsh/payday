@@ -117,13 +117,16 @@ def calc_dividend_tax(
             round(existing_dividends), total_employment, ani
         )
         result = {
-            "dividend_allowance": combined["dividend_allowance"] - existing["dividend_allowance"],
-            "taxable_dividends": combined["taxable_dividends"] - existing["taxable_dividends"],
+            "dividend_allowance": combined["dividend_allowance"]
+            - existing["dividend_allowance"],
+            "taxable_dividends": combined["taxable_dividends"]
+            - existing["taxable_dividends"],
             "basic_band": combined["basic_band"] - existing["basic_band"],
             "basic_tax": combined["basic_tax"] - existing["basic_tax"],
             "higher_band": combined["higher_band"] - existing["higher_band"],
             "higher_tax": combined["higher_tax"] - existing["higher_tax"],
-            "additional_band": combined["additional_band"] - existing["additional_band"],
+            "additional_band": combined["additional_band"]
+            - existing["additional_band"],
             "additional_tax": combined["additional_tax"] - existing["additional_tax"],
             "total_tax": combined["total_tax"] - existing["total_tax"],
         }

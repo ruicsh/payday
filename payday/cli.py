@@ -158,7 +158,9 @@ def prompt_existing_income(
             print("Existing employment income already earned this tax year (£) [0]: 0")
             return 0.0
         if val is not None:
-            print(f"Existing employment income already earned this tax year (£) [0]: {val}")
+            print(
+                f"Existing employment income already earned this tax year (£) [0]: {val}"
+            )
             return float(val)
     if start_month is None:
         return 0.0
@@ -249,14 +251,18 @@ def prompt_salary_sacrifice(
                 result = calc_optimal_sacrifice_paye(gross, cap=cap)
             elif mode == "inside_ir35":
                 result = calc_optimal_sacrifice_inside_ir35(
-                    gross, annual_margin, cap=cap,
+                    gross,
+                    annual_margin,
+                    cap=cap,
                     existing_income=existing_income,
                     existing_dividends=existing_dividends,
                 )
             else:
                 result = 0
             if result == 0:
-                print("Gross is already at or below cap — no sacrifice needed (payday.json).")
+                print(
+                    "Gross is already at or below cap — no sacrifice needed (payday.json)."
+                )
                 return 0
             print("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): auto")
             print(f"Income target: {format_gbp(cap)}")
@@ -274,7 +280,9 @@ def prompt_salary_sacrifice(
     contract_months = 12 if start_month is None else months_in_tax_year(start_month)
 
     while True:
-        user_input = input("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): ").strip()
+        user_input = input(
+            "Monthly salary sacrifice [ENTER=auto, or 'max'] (£): "
+        ).strip()
 
         if not user_input:
             cap = prompt_int(
@@ -330,10 +338,7 @@ def prompt_salary_sacrifice(
                 annual_sacrifice = 0
 
             monthly = annual_sacrifice // contract_months
-            print(
-                f"Maximum sacrifice: £{annual_sacrifice:,}/yr "
-                f"(£{monthly:,}/mo)."
-            )
+            print(f"Maximum sacrifice: £{annual_sacrifice:,}/yr (£{monthly:,}/mo).")
             return annual_sacrifice
 
         try:
@@ -388,7 +393,9 @@ def prompt_working_days(
     if config and config.get("working_days") is not None:
         net = config["working_days"]
         days_off = _resolve_days_off(config)
-        print(f"Press ENTER to accept {net} working days, or type a custom value: {net}")
+        print(
+            f"Press ENTER to accept {net} working days, or type a custom value: {net}"
+        )
         return net, days_off
 
     if config and config.get("days_off") is True:
@@ -462,7 +469,8 @@ def run_once(config: dict | None = None) -> None:
         print("  Regular PAYE")
         print("═══════════════════════════════════════")
         salary = prompt_int(
-            "Enter your annual gross salary (£)", min_val=0,
+            "Enter your annual gross salary (£)",
+            min_val=0,
             config_value=config.get("salary") if config else None,
         )
         salary_sacrifice = prompt_salary_sacrifice(salary, mode="paye", config=config)
@@ -473,7 +481,8 @@ def run_once(config: dict | None = None) -> None:
         print("  Inside IR35 (Umbrella Company)")
         print("═══════════════════════════════════════")
         day_rate = prompt_int(
-            "Enter your day rate (£)", min_val=1,
+            "Enter your day rate (£)",
+            min_val=1,
             config_value=config.get("day_rate") if config else None,
         )
         start_month = prompt_start_month(config)
@@ -482,7 +491,9 @@ def run_once(config: dict | None = None) -> None:
 
         net_working_days, _ = prompt_working_days(start_month, config)
         margin = prompt_int(
-            "Umbrella weekly margin (£)", default=25, min_val=0,
+            "Umbrella weekly margin (£)",
+            default=25,
+            min_val=0,
             config_value=config.get("umbrella_margin") if config else None,
         )
 
@@ -516,7 +527,8 @@ def run_once(config: dict | None = None) -> None:
         print("  Outside IR35 (Limited Company)")
         print("═══════════════════════════════════════")
         day_rate = prompt_int(
-            "Enter your day rate (£)", min_val=1,
+            "Enter your day rate (£)",
+            min_val=1,
             config_value=config.get("day_rate") if config else None,
         )
         start_month = prompt_start_month(config)

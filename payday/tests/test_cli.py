@@ -18,26 +18,31 @@ class TestCLI(unittest.TestCase):
     @patch("sys.stdout", new_callable=StringIO)
     def test_select_mode_interactive(self, mock_stdout, mock_input):
         from payday.cli import select_mode
+
         result = select_mode()
         self.assertEqual(result, 3)
 
     def test_select_mode_config_paye(self):
         from payday.cli import select_mode
+
         result = select_mode({"mode": "paye"})
         self.assertEqual(result, 1)
 
     def test_select_mode_config_inside_ir35_string(self):
         from payday.cli import select_mode
+
         result = select_mode({"mode": "inside_ir35"})
         self.assertEqual(result, 2)
 
     def test_select_mode_config_outside_ir35_int(self):
         from payday.cli import select_mode
+
         result = select_mode({"mode": 3})
         self.assertEqual(result, 3)
 
     def test_select_mode_config_none_shows_menu(self):
         from payday.cli import select_mode
+
         with patch("builtins.input", return_value="2"):
             result = select_mode(None)
         self.assertEqual(result, 2)
@@ -96,11 +101,13 @@ class TestCLI(unittest.TestCase):
 
     def test_prompt_start_month_config(self):
         from payday.cli import prompt_start_month
+
         result = prompt_start_month(config={"start_month": 4})
         self.assertEqual(result, 4)
 
     def test_prompt_start_month_config_out_of_range_raises(self):
         from payday.cli import prompt_start_month
+
         with self.assertRaises(ValueError):
             prompt_start_month(config={"start_month": 13})
         with self.assertRaises(ValueError):
@@ -108,12 +115,14 @@ class TestCLI(unittest.TestCase):
 
     def test_prompt_start_month_config_true_default(self):
         from payday.cli import prompt_start_month
+
         result = prompt_start_month(config={"start_month": True})
         self.assertIsNone(result)
 
     @patch("builtins.input", return_value="5")
     def test_prompt_start_month_config_null_prompts(self, mock_input):
         from payday.cli import prompt_start_month
+
         result = prompt_start_month(config={"start_month": None})
         self.assertEqual(result, 5)
         mock_input.assert_called_once()
@@ -130,7 +139,9 @@ class TestCLI(unittest.TestCase):
     def test_prompt_existing_income_config_true_prints_message(self, mock_stdout):
         prompt_existing_income(8, config={"existing_income": True})
         output = mock_stdout.getvalue()
-        self.assertIn("Existing employment income already earned this tax year (£) [0]: 0", output)
+        self.assertIn(
+            "Existing employment income already earned this tax year (£) [0]: 0", output
+        )
 
     @patch("builtins.input", return_value="3000")
     def test_prompt_existing_income_config_null_prompts(self, mock_input):
@@ -139,24 +150,30 @@ class TestCLI(unittest.TestCase):
 
     def test_prompt_existing_dividends_config(self):
         from payday.cli import prompt_existing_dividends
+
         result = prompt_existing_dividends(8, config={"existing_dividends": 15000})
         self.assertEqual(result, 15000)
 
     def test_prompt_existing_dividends_config_true_default(self):
         from payday.cli import prompt_existing_dividends
+
         result = prompt_existing_dividends(8, config={"existing_dividends": True})
         self.assertEqual(result, 0)
 
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_existing_dividends_config_true_prints_message(self, mock_stdout):
         from payday.cli import prompt_existing_dividends
+
         prompt_existing_dividends(8, config={"existing_dividends": True})
         output = mock_stdout.getvalue()
-        self.assertIn("Existing dividends already received this tax year (£) [0]: 0", output)
+        self.assertIn(
+            "Existing dividends already received this tax year (£) [0]: 0", output
+        )
 
     @patch("builtins.input", return_value="5000")
     def test_prompt_existing_dividends_config_null_prompts(self, mock_input):
         from payday.cli import prompt_existing_dividends
+
         result = prompt_existing_dividends(8, config={"existing_dividends": None})
         self.assertEqual(result, 5000)
 
@@ -189,7 +206,9 @@ class TestCLI(unittest.TestCase):
 
     @patch("builtins.input", side_effect=[""])
     @patch("sys.stdout", new_callable=StringIO)
-    def test_prompt_salary_sacrifice_config_true_triggers_auto(self, mock_stdout, mock_input):
+    def test_prompt_salary_sacrifice_config_true_triggers_auto(
+        self, mock_stdout, mock_input
+    ):
         config = {"salary_sacrifice_enabled": True, "monthly_salary_sacrifice": True}
         result = prompt_salary_sacrifice(150_000, config=config)
         self.assertEqual(result, 50_000)
@@ -198,7 +217,9 @@ class TestCLI(unittest.TestCase):
 
     @patch("builtins.input", side_effect=[""])
     @patch("sys.stdout", new_callable=StringIO)
-    def test_prompt_salary_sacrifice_config_auto_with_cap_true(self, mock_stdout, mock_input):
+    def test_prompt_salary_sacrifice_config_auto_with_cap_true(
+        self, mock_stdout, mock_input
+    ):
         config = {
             "salary_sacrifice_enabled": True,
             "monthly_salary_sacrifice": "auto",
@@ -210,7 +231,9 @@ class TestCLI(unittest.TestCase):
 
     @patch("builtins.input", side_effect=["80000"])
     @patch("sys.stdout", new_callable=StringIO)
-    def test_prompt_salary_sacrifice_config_auto_cap_none_prompts(self, mock_stdout, mock_input):
+    def test_prompt_salary_sacrifice_config_auto_cap_none_prompts(
+        self, mock_stdout, mock_input
+    ):
         """Config with monthly_salary_sacrifice='auto' and no cap should prompt."""
         config = {
             "salary_sacrifice_enabled": True,
@@ -225,6 +248,7 @@ class TestCLI(unittest.TestCase):
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_working_days_config_days_off(self, mock_stdout):
         from payday.cli import prompt_working_days
+
         result, days_off = prompt_working_days(None, config={"days_off": 10})
         self.assertEqual(days_off, 10)
         self.assertEqual(result, 242)
@@ -232,6 +256,7 @@ class TestCLI(unittest.TestCase):
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_working_days_config_override(self, mock_stdout):
         from payday.cli import prompt_working_days
+
         result, days_off = prompt_working_days(
             None, config={"days_off": 10, "working_days": 200}
         )
@@ -241,36 +266,38 @@ class TestCLI(unittest.TestCase):
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_working_days_config_days_off_true(self, mock_stdout):
         from payday.cli import prompt_working_days
-        result, days_off = prompt_working_days(
-            None, config={"days_off": True}
-        )
+
+        result, days_off = prompt_working_days(None, config={"days_off": True})
         self.assertEqual(days_off, 25)
         self.assertEqual(result, 227)
 
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_working_days_config_working_days_true(self, mock_stdout):
         from payday.cli import prompt_working_days
-        result, days_off = prompt_working_days(
-            None, config={"working_days": True}
-        )
+
+        result, days_off = prompt_working_days(None, config={"working_days": True})
         self.assertEqual(days_off, 25)
         self.assertEqual(result, 227)
         output = mock_stdout.getvalue()
-        self.assertIn("Days off you'll take (annual leave, sick, etc.) [25]: 25", output)
+        self.assertIn(
+            "Days off you'll take (annual leave, sick, etc.) [25]: 25", output
+        )
 
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_working_days_config_override_no_days_off(self, mock_stdout):
         """Explicit working_days with absent days_off should default to 25."""
         from payday.cli import prompt_working_days
-        result, days_off = prompt_working_days(
-            None, config={"working_days": 200}
-        )
+
+        result, days_off = prompt_working_days(None, config={"working_days": 200})
         self.assertEqual(result, 200)
         self.assertEqual(days_off, 25)
 
     @patch("sys.stdout", new_callable=StringIO)
-    def test_prompt_working_days_config_working_days_true_with_days_off(self, mock_stdout):
+    def test_prompt_working_days_config_working_days_true_with_days_off(
+        self, mock_stdout
+    ):
         from payday.cli import prompt_working_days
+
         result, days_off = prompt_working_days(
             None, config={"working_days": True, "days_off": 10}
         )
@@ -592,8 +619,11 @@ class TestCLI(unittest.TestCase):
         from payday.models import SalaryBreakdown
 
         mock_calc.return_value = SalaryBreakdown(
-            mode="PAYE", inputs={}, steps=[],
-            annual_take_home=0, display_take_home=0,
+            mode="PAYE",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         config = {"mode": "paye", "salary": 50000, "salary_sacrifice_enabled": False}
         run_once(config)
@@ -607,8 +637,11 @@ class TestCLI(unittest.TestCase):
         from payday.models import SalaryBreakdown
 
         mock_calc.return_value = SalaryBreakdown(
-            mode="Inside IR35", inputs={}, steps=[],
-            annual_take_home=0, display_take_home=0,
+            mode="Inside IR35",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         config = {
             "mode": "inside_ir35",
@@ -628,13 +661,18 @@ class TestCLI(unittest.TestCase):
     @patch("payday.cli.InsideIR35Calculator.calculate")
     @patch("builtins.input")
     @patch("sys.stdout", new_callable=StringIO)
-    def test_run_once_inside_ir35_config_salary_sacrifice(self, mock_stdout, mock_input, mock_calc):
+    def test_run_once_inside_ir35_config_salary_sacrifice(
+        self, mock_stdout, mock_input, mock_calc
+    ):
         """Inside IR35 config with salary sacrifice should use config value, not prompt."""
         from payday.models import SalaryBreakdown
 
         mock_calc.return_value = SalaryBreakdown(
-            mode="Inside IR35", inputs={}, steps=[],
-            annual_take_home=0, display_take_home=0,
+            mode="Inside IR35",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         config = {
             "mode": "inside_ir35",
@@ -653,20 +691,27 @@ class TestCLI(unittest.TestCase):
         kwargs = mock_calc.call_args[1] if len(mock_calc.call_args) > 1 else {}
         self.assertEqual(kwargs.get("salary_sacrifice"), 24000)
         output = mock_stdout.getvalue()
-        self.assertIn("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): 2000", output)
+        self.assertIn(
+            "Monthly salary sacrifice [ENTER=auto, or 'max'] (£): 2000", output
+        )
         # input() should NOT be called (no interactive prompts)
         mock_input.assert_not_called()
 
     @patch("payday.cli.OutsideIR35Calculator.calculate")
     @patch("builtins.input", side_effect=["n"])
     @patch("sys.stdout", new_callable=StringIO)
-    def test_run_once_outside_ir35_full_config(self, mock_stdout, mock_input, mock_calc):
+    def test_run_once_outside_ir35_full_config(
+        self, mock_stdout, mock_input, mock_calc
+    ):
         """Outside IR35 with full config should skip all prompts."""
         from payday.models import SalaryBreakdown
 
         mock_calc.return_value = SalaryBreakdown(
-            mode="Outside IR35", inputs={}, steps=[],
-            annual_take_home=0, display_take_home=0,
+            mode="Outside IR35",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         config = {
             "mode": "outside_ir35",
@@ -691,8 +736,11 @@ class TestCLI(unittest.TestCase):
         from payday.models import SalaryBreakdown
 
         mock_calc.return_value = SalaryBreakdown(
-            mode="Outside IR35", inputs={}, steps=[],
-            annual_take_home=0, display_take_home=0,
+            mode="Outside IR35",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         config = {
             "mode": "outside_ir35",
@@ -733,8 +781,11 @@ class TestCLI(unittest.TestCase):
         from payday.models import SalaryBreakdown
 
         mock_calc.return_value = SalaryBreakdown(
-            mode="Outside IR35", inputs={}, steps=[],
-            annual_take_home=0, display_take_home=0,
+            mode="Outside IR35",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         run_once()
         mock_calc.assert_called_once()
@@ -761,8 +812,11 @@ class TestCLI(unittest.TestCase):
         from payday.models import SalaryBreakdown
 
         mock_calc.return_value = SalaryBreakdown(
-            mode="Outside IR35", inputs={}, steps=[],
-            annual_take_home=0, display_take_home=0,
+            mode="Outside IR35",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         run_once()
         mock_calc.assert_called_once()
@@ -789,8 +843,11 @@ class TestCLI(unittest.TestCase):
         from payday.models import SalaryBreakdown
 
         mock_calc.return_value = SalaryBreakdown(
-            mode="Outside IR35", inputs={}, steps=[],
-            annual_take_home=0, display_take_home=0,
+            mode="Outside IR35",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         run_once()
         mock_calc.assert_called_once()
