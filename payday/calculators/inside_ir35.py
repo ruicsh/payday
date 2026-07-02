@@ -31,6 +31,7 @@ class InsideIR35Calculator:
 
         *existing_income* is income already earned in this tax year. It reduces
         the remaining Personal Allowance and rate bands available to this contract.
+        *existing_dividends* is dividends already received this tax year.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")

@@ -1,4 +1,5 @@
 import unittest
+from payday.constants import PERSONAL_ALLOWANCE
 from payday.calculators.outside_ir35 import OutsideIR35Calculator
 
 
@@ -148,7 +149,7 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         """Full year: year_taxable_income equals salary + dividends."""
         breakdown = OutsideIR35Calculator.calculate(500, 240)
         divs = self._find_step(breakdown, "Distributable Profit").amount
-        expected = 12570 + divs  # salary = PERSONAL_ALLOWANCE
+        expected = PERSONAL_ALLOWANCE + divs
         self.assertEqual(breakdown.year_taxable_income, expected)
         step = self._find_step(breakdown, "Year Taxable Income")
         self.assertEqual(step.amount, expected)
@@ -160,7 +161,7 @@ class TestOutsideIR35Calculator(unittest.TestCase):
             500, 240, start_month=8,
         )
         divs = self._find_step(breakdown, "Distributable Profit").amount
-        expected = 12570 + divs
+        expected = PERSONAL_ALLOWANCE + divs
         self.assertEqual(breakdown.year_taxable_income, expected)
         step = self._find_step(breakdown, "Year Taxable Income")
         self.assertEqual(step.amount, expected)
@@ -174,7 +175,7 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         self.assertIn("existing_dividends", breakdown.inputs)
         self.assertEqual(breakdown.inputs["existing_dividends"], 15000)
         divs = self._find_step(breakdown, "Distributable Profit").amount
-        expected = 12570 + divs + 20000 + 15000
+        expected = PERSONAL_ALLOWANCE + divs + 20000 + 15000
         self.assertEqual(breakdown.year_taxable_income, expected)
         step = self._find_step(breakdown, "Year Taxable Income")
         self.assertEqual(step.amount, expected)
