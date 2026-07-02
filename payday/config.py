@@ -8,15 +8,15 @@ FIELD_TYPES = {
     "mode": (str, int),
     "salary": (int, type(None)),
     "day_rate": (int, type(None)),
-    "start_month": (int, type(None)),
-    "existing_income": (float, int, type(None)),
-    "existing_dividends": (float, int, type(None)),
-    "days_off": (int, type(None)),
-    "working_days": (int, type(None)),
-    "umbrella_margin": (int, type(None)),
+    "start_month": (int, bool, type(None)),
+    "existing_income": (float, int, bool, type(None)),
+    "existing_dividends": (float, int, bool, type(None)),
+    "days_off": (int, bool, type(None)),
+    "working_days": (int, bool, type(None)),
+    "umbrella_margin": (int, bool, type(None)),
     "salary_sacrifice_enabled": (bool, type(None)),
-    "monthly_salary_sacrifice": (int, str, type(None)),
-    "salary_sacrifice_cap": (int, type(None)),
+    "monthly_salary_sacrifice": (int, str, bool, type(None)),
+    "salary_sacrifice_cap": (int, bool, type(None)),
 }
 _ALL_FIELDS = [
     "mode", "salary", "day_rate", "start_month",
@@ -30,6 +30,12 @@ def _validate_field(key: str, value) -> None:
     allowed = FIELD_TYPES[key]
     if isinstance(value, bool) and bool not in allowed:
         raise ValueError(f"'{key}': expected numeric type, got boolean")
+    if isinstance(value, bool) and key != "salary_sacrifice_enabled":
+        if value is False:
+            raise ValueError(f"'{key}': use 'true' for default, or 'null' to prompt")
+        if key in ("salary", "day_rate", "mode"):
+            raise ValueError(f"'{key}': true is not valid here — this field has no default")
+        return
     if not isinstance(value, allowed):
         raise ValueError(f"'{key}': expected {allowed}, got {type(value).__name__}")
 

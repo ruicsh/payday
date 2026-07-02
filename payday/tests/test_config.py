@@ -163,10 +163,56 @@ class TestLoadConfig(unittest.TestCase):
         finally:
             os.unlink(path)
 
-    def test_bool_rejected_for_numeric_field(self):
-        """JSON bool (true/false) should be rejected for int fields, not silently coerced."""
-        for field in ("salary", "day_rate", "days_off", "working_days"):
+    def test_bool_rejected_for_fields_without_defaults(self):
+        """JSON true should be rejected for fields that have no default value."""
+        for field in ("salary", "day_rate", "mode"):
+            data = {} if field == "mode" else {"mode": "paye", field: True}
+            if field == "mode":
+                data = {"mode": True}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                with self.assertRaises(ValueError):
+                    load_config(path)
+            finally:
+                os.unlink(path)
+
+    def test_true_accepted_for_fields_with_defaults(self):
+        """JSON true (use default) is valid for fields that have a default."""
+        fields_with_defaults = [
+            "start_month", "existing_income", "existing_dividends",
+            "days_off", "working_days", "umbrella_margin",
+            "monthly_salary_sacrifice", "salary_sacrifice_cap",
+        ]
+        for field in fields_with_defaults:
             data = {"mode": "paye", field: True}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                result = load_config(path)
+                self.assertIs(
+                    result[field], True,
+                    f"{field}: expected True, got {result[field]}",
+                )
+            finally:
+                os.unlink(path)
+
+    def test_false_rejected_for_non_boolean_fields(self):
+        """JSON false should be rejected for all fields except salary_sacrifice_enabled."""
+        fields = [
+            "start_month", "existing_income", "existing_dividends",
+            "days_off", "working_days", "umbrella_margin",
+            "monthly_salary_sacrifice", "salary_sacrifice_cap",
+            "salary", "day_rate",
+        ]
+        for field in fields:
+            data = {"mode": "paye", field: False}
             with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".json", delete=False
             ) as f:
