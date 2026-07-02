@@ -243,6 +243,16 @@ class TestCLI(unittest.TestCase):
         self.assertIn("Days off you'll take (annual leave, sick, etc.) [25]: 25", output)
 
     @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_working_days_config_override_no_days_off(self, mock_stdout):
+        """Explicit working_days with absent days_off should default to 25."""
+        from payday.cli import prompt_working_days
+        result, days_off = prompt_working_days(
+            None, config={"working_days": 200}
+        )
+        self.assertEqual(result, 200)
+        self.assertEqual(days_off, 25)
+
+    @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_working_days_config_working_days_true_with_days_off(self, mock_stdout):
         from payday.cli import prompt_working_days
         result, days_off = prompt_working_days(

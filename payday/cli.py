@@ -363,7 +363,7 @@ def prompt_working_days(
     if config and config.get("working_days") is not None:
         net = config["working_days"]
         raw_days = config.get("days_off")
-        days_off = 0 if raw_days is True or raw_days is None else raw_days
+        days_off = 25 if raw_days is True or raw_days is None else raw_days
         print(f"Press ENTER to accept {net} working days, or type a custom value: {net}")
         return net, days_off
 
