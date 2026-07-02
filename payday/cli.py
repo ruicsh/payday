@@ -203,6 +203,9 @@ def prompt_salary_sacrifice(
         contract_months = 12 if start_month is None else months_in_tax_year(start_month)
 
         ms = config.get("monthly_salary_sacrifice")
+        if ms is True:
+            ms = "auto"
+
         if isinstance(ms, int):
             annual = ms * contract_months
             result = min(annual, MAX_SALARY_SACRIFICE)
@@ -222,7 +225,8 @@ def prompt_salary_sacrifice(
             return result
 
         if ms == "auto":
-            cap = config.get("salary_sacrifice_cap") or default_cap
+            raw = config.get("salary_sacrifice_cap")
+            cap = default_cap if raw is True or raw is None else raw
             if mode == "paye":
                 result = calc_optimal_sacrifice_paye(gross, cap=cap)
             elif mode == "inside_ir35":

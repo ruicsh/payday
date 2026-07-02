@@ -138,6 +138,24 @@ class TestCLI(unittest.TestCase):
         result = prompt_salary_sacrifice(150_000, config=config)
         self.assertEqual(result, 50_000)
 
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_config_true_triggers_auto(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": True, "monthly_salary_sacrifice": True}
+        result = prompt_salary_sacrifice(150_000, config=config)
+        self.assertEqual(result, 50_000)
+        output = mock_stdout.getvalue()
+        self.assertIn("auto", output)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_config_auto_with_cap_true(self, mock_stdout):
+        config = {
+            "salary_sacrifice_enabled": True,
+            "monthly_salary_sacrifice": "auto",
+            "salary_sacrifice_cap": True,
+        }
+        result = prompt_salary_sacrifice(150_000, config=config)
+        self.assertEqual(result, 50_000)
+
     # ── prompt_working_days config tests ───────────────────────────────
 
     @patch("sys.stdout", new_callable=StringIO)
