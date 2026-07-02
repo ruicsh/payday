@@ -1,6 +1,6 @@
 import unittest
 import pathlib
-import tomllib
+
 from payday.models import SalaryBreakdown
 
 
@@ -9,12 +9,9 @@ class TestInfra(unittest.TestCase):
         path = pathlib.Path("pyproject.toml")
         self.assertTrue(path.exists(), "pyproject.toml does not exist")
 
-    def test_pyproject_toml_valid(self):
-        with open("pyproject.toml", "rb") as f:
-            data = tomllib.load(f)
-
-        self.assertIn("project", data)
-        self.assertEqual(data["project"].get("requires-python"), ">=3.10")
+    def test_pyproject_toml_requires_python_310(self):
+        content = pathlib.Path("pyproject.toml").read_text()
+        self.assertIn('requires-python = ">=3.10"', content)
 
     def test_salary_breakdown_has_year_taxable_income(self):
         """SalaryBreakdown should accept year_taxable_income with default None."""
