@@ -28,6 +28,7 @@ def prompt_int(
 ) -> int:
     """Prompt user for an integer with validation and optional default."""
     if config_value is True:
+        print(f"Using default from payday.json: {default}")
         return default
     if config_value is not None:
         val = config_value
@@ -77,6 +78,7 @@ def prompt_float(
 ) -> float:
     """Prompt user for a number with validation and optional default."""
     if config_value is True:
+        print(f"Using default from payday.json: {default}")
         return default
     if config_value is not None:
         val = float(config_value)

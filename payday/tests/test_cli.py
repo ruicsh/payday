@@ -64,6 +64,20 @@ class TestCLI(unittest.TestCase):
         result = prompt_float("Enter amount", default=5.5, config_value=True)
         self.assertEqual(result, 5.5)
 
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_int_config_true_prints_message(self, mock_stdout):
+        prompt_int("Enter number", default=10, config_value=True)
+        output = mock_stdout.getvalue()
+        self.assertIn("payday.json", output)
+        self.assertIn("10", output)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_float_config_true_prints_message(self, mock_stdout):
+        prompt_float("Enter amount", default=5.5, config_value=True)
+        output = mock_stdout.getvalue()
+        self.assertIn("payday.json", output)
+        self.assertIn("5.5", output)
+
     # ── prompt_start_month / prompt_existing_* config tests ────────────
 
     def test_prompt_start_month_config(self):
