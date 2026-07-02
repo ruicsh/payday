@@ -10,13 +10,13 @@ test:
 	python3 -m unittest discover -v -s payday/tests
 
 run:
-	python3 -m payday
+	python3 -m payday --config payday.json
 
 run-init:
 	python3 -m payday --init
 
-run-config:
-	python3 -m payday --config
+run-bar:
+	python3 -m payday
 
 check: lint format test
 	@echo "All checks passed."
