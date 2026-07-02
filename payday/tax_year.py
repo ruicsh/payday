@@ -1,3 +1,5 @@
+from datetime import date
+
 MONTH_NAMES: dict[int, str] = {
     1: "Jan",
     2: "Feb",
@@ -70,3 +72,24 @@ def contract_period_label(start_month: int, months: int) -> str:
     end_year = _TAX_YEAR_START_CALENDAR + 1
     suffix = "month" if months == 1 else "months"
     return f"{MONTH_NAMES[start_month]} {cal_year}–Apr {end_year} ({months} {suffix})"
+
+
+TAX_YEAR_START: date = date(2026, 4, 6)
+TAX_YEAR_END: date = date(2027, 4, 5)
+
+
+def contract_start_date(start_month: int) -> date:
+    """First calendar day of the contract month in the relevant year."""
+    cal_year = _TAX_YEAR_START_CALENDAR if start_month >= 4 else _TAX_YEAR_START_CALENDAR + 1
+    return date(cal_year, start_month, 1)
+
+
+def working_days_in_full_tax_year() -> int:
+    from payday.bank_holidays import working_days_in_range, ENGLAND_WALES_2026_27
+    return working_days_in_range(TAX_YEAR_START, TAX_YEAR_END, set(ENGLAND_WALES_2026_27))
+
+
+def working_days_in_contract_period(start_month: int) -> int:
+    from payday.bank_holidays import working_days_in_range, ENGLAND_WALES_2026_27
+    start = max(contract_start_date(start_month), TAX_YEAR_START)
+    return working_days_in_range(start, TAX_YEAR_END, set(ENGLAND_WALES_2026_27))

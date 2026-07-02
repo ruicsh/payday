@@ -1,9 +1,16 @@
 import unittest
+from datetime import date
+
 from payday.tax_year import (
+    TAX_YEAR_END,
+    TAX_YEAR_START,
     contract_period_label,
+    contract_start_date,
     months_in_tax_year,
     pro_rate_contract,
     pro_rate_days,
+    working_days_in_contract_period,
+    working_days_in_full_tax_year,
 )
 
 
@@ -97,6 +104,38 @@ class TestTaxYear(unittest.TestCase):
         self.assertEqual(months, 3)
         self.assertEqual(days, 60)
         self.assertEqual(label, "Jan 2027–Apr 2027 (3 months)")
+
+
+class TestTaxYearBounds(unittest.TestCase):
+    def test_tax_year_start(self):
+        self.assertEqual(TAX_YEAR_START, date(2026, 4, 6))
+
+    def test_tax_year_end(self):
+        self.assertEqual(TAX_YEAR_END, date(2027, 4, 5))
+
+    def test_contract_start_date_august(self):
+        self.assertEqual(contract_start_date(8), date(2026, 8, 1))
+
+    def test_contract_start_date_january(self):
+        self.assertEqual(contract_start_date(1), date(2027, 1, 1))
+
+    def test_contract_start_date_april(self):
+        self.assertEqual(contract_start_date(4), date(2026, 4, 1))
+
+    def test_working_days_full_year(self):
+        self.assertEqual(working_days_in_full_tax_year(), 252)
+
+    def test_working_days_contract_august(self):
+        self.assertEqual(working_days_in_contract_period(8), 170)
+
+    def test_working_days_contract_january(self):
+        self.assertEqual(working_days_in_contract_period(1), 64)
+
+    def test_working_days_contract_april_full_year(self):
+        self.assertEqual(working_days_in_contract_period(4), 252)
+
+    def test_working_days_contract_march(self):
+        self.assertEqual(working_days_in_contract_period(3), 24)
 
 
 if __name__ == "__main__":
