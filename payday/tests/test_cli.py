@@ -75,6 +75,7 @@ class TestCLI(unittest.TestCase):
     def test_prompt_existing_dividends_full_year_returns_zero(self):
         """Full year (start_month=None) never prompts."""
         from payday.cli import prompt_existing_dividends
+
         result = prompt_existing_dividends(None)
         self.assertEqual(result, 0)
 
@@ -82,6 +83,7 @@ class TestCLI(unittest.TestCase):
     def test_prompt_existing_dividends_partial_year(self, mock_input):
         """Partial year prompts and returns entered value."""
         from payday.cli import prompt_existing_dividends
+
         result = prompt_existing_dividends(8)
         self.assertEqual(result, 15000)
 
@@ -89,6 +91,7 @@ class TestCLI(unittest.TestCase):
     def test_prompt_existing_dividends_defaults_to_zero(self, mock_input):
         """Partial year with empty input defaults to 0."""
         from payday.cli import prompt_existing_dividends
+
         result = prompt_existing_dividends(8)
         self.assertEqual(result, 0)
 
@@ -117,6 +120,14 @@ class TestCLI(unittest.TestCase):
         """Entering 'y' then a monthly amount; result is annual (×12)."""
         result = prompt_salary_sacrifice(150_000)
         self.assertEqual(result, 60000)  # 5000 × 12
+
+    @patch("builtins.input", side_effect=["y", "6001"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_manual_capped_at_60k(self, mock_stdout, mock_input):
+        """Monthly amount exceeding £60k/yr gets capped at £60k with warning."""
+        result = prompt_salary_sacrifice(150_000)
+        self.assertEqual(result, 60_000)
+        self.assertIn("capped", mock_stdout.getvalue())
 
     @patch("builtins.input", side_effect=["y", "abc", "3000"])
     @patch("sys.stdout", new_callable=StringIO)
@@ -180,27 +191,43 @@ class TestCLI(unittest.TestCase):
         output = mock_stdout.getvalue()
         self.assertIn("Auto-calculated", output)
 
+    @patch("builtins.input", side_effect=["y", "", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_auto_calc_capped_at_60k(self, mock_stdout, mock_input):
+        """Auto-calc: 300k gross, 100k cap → capped at £60k with warning."""
+        result = prompt_salary_sacrifice(300_000, mode="paye")
+        self.assertEqual(result, 60_000)
+        output = mock_stdout.getvalue()
+        self.assertIn("capped", output)
 
     # ── run_once — mode 3 external IR35 tests ──────────────────────────
 
     @patch("payday.cli.OutsideIR35Calculator.calculate")
-    @patch("builtins.input", side_effect=[
-        "3",       # mode: Outside IR35
-        "500",     # day rate
-        "8",       # start month (Aug → partial year)
-        "20000",   # existing income
-        "15000",   # existing dividends
-        "",        # days off (default 25)
-        "",        # accept default working days
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "3",  # mode: Outside IR35
+            "500",  # day rate
+            "8",  # start month (Aug → partial year)
+            "20000",  # existing income
+            "15000",  # existing dividends
+            "",  # days off (default 25)
+            "",  # accept default working days
+        ],
+    )
     @patch("sys.stdout", new_callable=StringIO)
     def test_run_once_mode3_passes_existing_dividends(
         self, mock_stdout, mock_input, mock_calc
     ):
         """Mode 3 should prompt for existing dividends and pass them to the calculator."""
         from payday.models import SalaryBreakdown
+
         mock_calc.return_value = SalaryBreakdown(
-            mode="Outside IR35", inputs={}, steps=[], annual_take_home=0, display_take_home=0,
+            mode="Outside IR35",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         run_once()
         mock_calc.assert_called_once()
@@ -209,21 +236,29 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(kwargs["existing_dividends"], 15000)
 
     @patch("payday.cli.OutsideIR35Calculator.calculate")
-    @patch("builtins.input", side_effect=[
-        "3",       # mode: Outside IR35
-        "500",     # day rate
-        "",        # start month (full year → no existing prompts)
-        "",        # days off (default 25)
-        "",        # accept default working days
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "3",  # mode: Outside IR35
+            "500",  # day rate
+            "",  # start month (full year → no existing prompts)
+            "",  # days off (default 25)
+            "",  # accept default working days
+        ],
+    )
     @patch("sys.stdout", new_callable=StringIO)
     def test_run_once_mode3_skips_existing_dividends_for_full_year(
         self, mock_stdout, mock_input, mock_calc
     ):
         """Full year (no start_month) should skip the existing dividends prompt entirely."""
         from payday.models import SalaryBreakdown
+
         mock_calc.return_value = SalaryBreakdown(
-            mode="Outside IR35", inputs={}, steps=[], annual_take_home=0, display_take_home=0,
+            mode="Outside IR35",
+            inputs={},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
         )
         run_once()
         mock_calc.assert_called_once()

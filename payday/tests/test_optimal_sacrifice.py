@@ -22,14 +22,18 @@ class TestInverseSolveGrossSalary(unittest.TestCase):
         """Round-trip: solve_gross_salary(inverse(target)) ≈ target (low)."""
         for target in [0, 2500, 5000]:
             budget = inverse_solve_gross_salary(target, include_er_pension=False)
-            gross = InsideIR35Calculator.solve_gross_salary(budget, include_er_pension=False)
+            gross = InsideIR35Calculator.solve_gross_salary(
+                budget, include_er_pension=False
+            )
             self.assertEqual(gross, target)
 
     def test_inverse_round_trip_no_pension_mid(self):
         """Round-trip: solve_gross_salary(inverse(target)) ≈ target (mid)."""
         for target in [6000, 15000, 50000, 100000]:
             budget = inverse_solve_gross_salary(target, include_er_pension=False)
-            gross = InsideIR35Calculator.solve_gross_salary(budget, include_er_pension=False)
+            gross = InsideIR35Calculator.solve_gross_salary(
+                budget, include_er_pension=False
+            )
             self.assertEqual(gross, target)
 
     def test_inverse_include_pension_below_5000(self):
@@ -56,7 +60,9 @@ class TestInverseSolveGrossSalary(unittest.TestCase):
         """Round-trip with pension enabled."""
         for target in [4000, 8000, 25000, 60000]:
             budget = inverse_solve_gross_salary(target, include_er_pension=True)
-            gross = InsideIR35Calculator.solve_gross_salary(budget, include_er_pension=True)
+            gross = InsideIR35Calculator.solve_gross_salary(
+                budget, include_er_pension=True
+            )
             self.assertEqual(gross, target)
 
 
@@ -94,8 +100,19 @@ class TestCalcOptimalSacrificePAYE(unittest.TestCase):
     def test_default_cap_is_100k(self):
         """Default cap should be 100,000."""
         from inspect import signature
+
         sig = signature(calc_optimal_sacrifice_paye)
         self.assertEqual(sig.parameters["cap"].default, 100_000)
+
+    def test_sacrifice_capped_at_60k(self):
+        """Gross well above cap → sacrifice capped at £60k/year."""
+        result = calc_optimal_sacrifice_paye(300_000, cap=100_000)
+        self.assertEqual(result, 60_000)
+
+    def test_sacrifice_below_60k_is_not_capped(self):
+        """Sacrifice under £60k is returned as-is."""
+        result = calc_optimal_sacrifice_paye(150_000, cap=100_000)
+        self.assertEqual(result, 50_000)
 
 
 class TestCalcOptimalSacrificeInsideIR35(unittest.TestCase):
@@ -104,9 +121,7 @@ class TestCalcOptimalSacrificeInsideIR35(unittest.TestCase):
         # £200/day, 240 days, £25/week margin
         # assignment = 48000, margin = 1200 → budget ≈ 46800
         # gross ≈ (46800+750)/1.155 ≈ 41169 → ANI = 41169 < 100000
-        result = calc_optimal_sacrifice_inside_ir35(
-            48000, 1200, cap=100_000
-        )
+        result = calc_optimal_sacrifice_inside_ir35(48000, 1200, cap=100_000)
         self.assertEqual(result, 0)
 
     def test_above_cap_returns_calculated_sacrifice(self):
@@ -115,9 +130,7 @@ class TestCalcOptimalSacrificeInsideIR35(unittest.TestCase):
         # target_gross = 100000 (no existing income)
         # target_budget = 100000 * 1.155 - 750 = 114750
         # sacrifice = 144000 - 114750 - 1200 = 28050
-        result = calc_optimal_sacrifice_inside_ir35(
-            144_000, 1200, cap=100_000
-        )
+        result = calc_optimal_sacrifice_inside_ir35(144_000, 1200, cap=100_000)
         self.assertEqual(result, 28_050)
 
     def test_existing_income_reduces_sacrifice_needed(self):
@@ -143,17 +156,13 @@ class TestCalcOptimalSacrificeInsideIR35(unittest.TestCase):
         # target_gross = 80000
         # target_budget = 80000 * 1.155 - 750 = 91650
         # sacrifice = 144000 - 91650 - 1200 = 51150
-        result = calc_optimal_sacrifice_inside_ir35(
-            144_000, 1200, cap=80_000
-        )
+        result = calc_optimal_sacrifice_inside_ir35(144_000, 1200, cap=80_000)
         self.assertEqual(result, 51_150)
 
     def test_sacrifice_clamped_to_max_feasible(self):
         """When target budget pushes sacrifice beyond budget, clamp it."""
         # Very low cap → sacrifice tries to exceed budget, clamp
-        result = calc_optimal_sacrifice_inside_ir35(
-            50_000, 500, cap=1_000
-        )
+        result = calc_optimal_sacrifice_inside_ir35(50_000, 500, cap=1_000)
         # budget = 50000 - 500 = 49500
         # max feasible = 49500 - 1 = 49499
         # But target_gross = 1000, so budget = 1000*1.005 = 1005
@@ -165,8 +174,14 @@ class TestCalcOptimalSacrificeInsideIR35(unittest.TestCase):
     def test_default_cap_is_100k(self):
         """Default cap should be 100,000."""
         from inspect import signature
+
         sig = signature(calc_optimal_sacrifice_inside_ir35)
         self.assertEqual(sig.parameters["cap"].default, 100_000)
+
+    def test_sacrifice_capped_at_60k(self):
+        """Very high assignment → sacrifice capped at £60k."""
+        result = calc_optimal_sacrifice_inside_ir35(1_000_000, 0, cap=100_000)
+        self.assertEqual(result, 60_000)
 
 
 if __name__ == "__main__":

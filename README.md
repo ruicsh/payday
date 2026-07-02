@@ -15,7 +15,7 @@ For permanent employees on a fixed annual salary.
 | Input | Default | Description |
 |-------|---------|-------------|
 | Annual gross salary | — | Your full-year salary before deductions |
-| Salary sacrifice (monthly) | auto-calc | Reduces taxable income; auto-calc targets £100k ANI |
+| Salary sacrifice (monthly) | auto-calc | Reduces taxable income (capped at £60k/yr); auto-calc targets £100k ANI |
 
 **Flow:**
 ```
@@ -44,7 +44,7 @@ For contractors working through an umbrella company. The umbrella sits between t
 | Start month | None | Month contract starts (1–12) for mid-year proration |
 | Existing employment income | £0 | Income already earned this tax year |
 | Existing dividend income | £0 | Dividends already received this tax year |
-| Salary sacrifice (monthly) | auto-calc | Reduces taxable income; auto-calc targets £100k ANI |
+| Salary sacrifice (monthly) | auto-calc | Reduces taxable income (capped at £60k/yr); auto-calc targets £100k ANI |
 
 **Flow:**
 ```
@@ -124,7 +124,7 @@ python3 -m payday
 
 Follow the prompts to select a mode and enter your details. You'll be asked about salary sacrifice and existing income/dividends where applicable.
 
-For help choosing how much to sacrifice to avoid the Personal Allowance taper above £100k, see `payday/calculators/optimal_sacrifice.py`.
+Salary sacrifice is capped at £60,000 per year. For help choosing how much to sacrifice, see `payday/calculators/optimal_sacrifice.py`.
 
 ---
 
@@ -140,7 +140,7 @@ Or directly:
 python3 -m unittest discover -v -s payday/tests
 ```
 
-All tests pass (199 test cases and counting).
+All tests pass (256 test cases and counting).
 
 ---
 

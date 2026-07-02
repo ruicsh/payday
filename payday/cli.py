@@ -1,4 +1,5 @@
 import sys
+from payday.constants import MAX_SALARY_SACRIFICE
 from payday.calculators.optimal_sacrifice import (
     calc_optimal_sacrifice_inside_ir35,
     calc_optimal_sacrifice_paye,
@@ -179,6 +180,16 @@ def prompt_salary_sacrifice(
                 )
                 return 0
 
+            # Warn only if the cap actually constrained the result.
+            # PAYE: compare the unconstrained sacrifice against the limit.
+            # Inside IR35: use equality as a proxy for capping — this may
+            # produce a false positive if the optimal is exactly £60k.
+            was_capped = (
+                mode == "paye" and max(0, gross - cap) > MAX_SALARY_SACRIFICE
+            ) or (mode == "inside_ir35" and annual_sacrifice == MAX_SALARY_SACRIFICE)
+            if was_capped:
+                print(f"Note: Salary sacrifice capped at £{MAX_SALARY_SACRIFICE:,}/yr.")
+
             monthly = annual_sacrifice // contract_months
             print(
                 f"Auto-calculated: £{annual_sacrifice:,}/yr "
@@ -191,7 +202,14 @@ def prompt_salary_sacrifice(
             if val < 0:
                 print("Error: Value must be at least 0.")
                 continue
-            return val * contract_months
+            annual = val * contract_months
+            if annual > MAX_SALARY_SACRIFICE:
+                print(
+                    f"Note: Salary sacrifice capped at £{MAX_SALARY_SACRIFICE:,}/yr "
+                    f"(£{MAX_SALARY_SACRIFICE // contract_months:,}/mo)."
+                )
+                annual = MAX_SALARY_SACRIFICE
+            return annual
         except ValueError:
             print("Error: Please enter a whole number.")
 

@@ -1,4 +1,4 @@
-from payday.constants import NI_SECONDARY_THRESHOLD
+from payday.constants import MAX_SALARY_SACRIFICE, NI_SECONDARY_THRESHOLD
 
 
 def calc_optimal_sacrifice_paye(
@@ -13,7 +13,7 @@ def calc_optimal_sacrifice_paye(
     """
     if cap <= 0:
         return 0
-    return max(0, gross - cap)
+    return min(max(0, gross - cap), MAX_SALARY_SACRIFICE)
 
 
 def inverse_solve_gross_salary(
@@ -43,7 +43,7 @@ def inverse_solve_gross_salary(
 
     # include_er_pension = True
     # Below PENSION_TRIGGER (10,000) → Case B, employer pension not triggered
-    from payday.constants import PENSION_TRIGGER, PENSION_QUALIFYING_LOWER_LIMIT
+    from payday.constants import PENSION_TRIGGER
 
     if target_gross <= PENSION_TRIGGER:
         return round(target_gross * 1.155 - 750)
@@ -85,12 +85,11 @@ def calc_optimal_sacrifice_inside_ir35(
     if target_gross <= 500:
         return 0
 
-    target_budget = inverse_solve_gross_salary(
-        target_gross, include_er_pension=False
-    )
+    target_budget = inverse_solve_gross_salary(target_gross, include_er_pension=False)
 
     sacrifice = annual_assignment - target_budget - annual_margin
     # Clamp to feasible range: at least 0, at most budget − 1
     budget = annual_assignment - annual_margin
     sacrifice = max(0, min(sacrifice, budget - 1))
+    sacrifice = min(sacrifice, MAX_SALARY_SACRIFICE)
     return sacrifice
