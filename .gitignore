@@ -3,3 +3,4 @@ SPEC.md
 tasks/
 tasks/*
 __pycache__/
+payday.json
