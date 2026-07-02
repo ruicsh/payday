@@ -24,6 +24,7 @@ class InsideIR35Calculator:
         existing_income: float = 0,
         existing_dividends: float = 0,
         salary_sacrifice: int = 0,
+        effective_days: int | None = None,
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
@@ -32,13 +33,16 @@ class InsideIR35Calculator:
         *existing_income* is income already earned in this tax year. It reduces
         the remaining Personal Allowance and rate bands available to this contract.
         *existing_dividends* is dividends already received this tax year.
+        *effective_days* if provided, overrides the pro-rated working_days count.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
 
-        months, effective_days, period_label = pro_rate_contract(
+        months, prorated_days, period_label = pro_rate_contract(
             working_days, start_month
         )
+        if effective_days is None:
+            effective_days = prorated_days
 
         annual_assignment = day_rate * effective_days
 
@@ -169,11 +173,11 @@ class InsideIR35Calculator:
             "day_rate": day_rate,
             "working_days": working_days,
             "margin_weekly": umbrella_margin_weekly,
+            "effective_working_days": effective_days,
         }
         if period_label:
             inputs["start_month"] = start_month
             inputs["contract_months"] = months
-            inputs["effective_working_days"] = effective_days
             inputs["contract_period"] = period_label
         if existing_income:
             inputs["existing_income"] = existing_income

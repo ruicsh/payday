@@ -188,6 +188,34 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         )
         self.assertEqual(default.annual_take_home, explicit.annual_take_home)
 
+    def test_effective_days_on_partial_year(self):
+        """effective_days=170 overrides the pro-rated 160 for an Aug start."""
+        breakdown = OutsideIR35Calculator.calculate(
+            500, 240, start_month=8, effective_days=170
+        )
+        self.assertEqual(breakdown.inputs["effective_working_days"], 170)
+        self.assertEqual(
+            self._find_step(breakdown, "Company Revenue").amount, 85000
+        )
+
+    def test_effective_days_on_full_year(self):
+        """effective_days=252 on full year overrides working_days=240."""
+        breakdown = OutsideIR35Calculator.calculate(
+            500, 240, effective_days=252
+        )
+        self.assertEqual(breakdown.inputs["effective_working_days"], 252)
+        self.assertEqual(
+            self._find_step(breakdown, "Company Revenue").amount, 126000
+        )
+
+    def test_effective_days_defaults_to_none(self):
+        """Omitting effective_days keeps old pro-rate behavior."""
+        default = OutsideIR35Calculator.calculate(500, 240, start_month=8)
+        explicit_none = OutsideIR35Calculator.calculate(
+            500, 240, start_month=8, effective_days=None
+        )
+        self.assertEqual(default.annual_take_home, explicit_none.annual_take_home)
+
 
 if __name__ == "__main__":
     unittest.main()

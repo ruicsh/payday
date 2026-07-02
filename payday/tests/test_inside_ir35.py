@@ -396,6 +396,39 @@ class TestInsideIR35Calculator(unittest.TestCase):
         gross = self._find_step(breakdown, "Gross Salary").amount
         self.assertEqual(breakdown.year_taxable_income, gross)
 
+    def test_effective_days_on_partial_year(self):
+        """effective_days=170 overrides the pro-rated 160 for an Aug start."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, start_month=8, effective_days=170
+        )
+        self.assertEqual(breakdown.inputs["effective_working_days"], 170)
+        self.assertEqual(
+            self._find_step(breakdown, "Assignment Rate").amount, 85000
+        )
+        expected_display = round(breakdown.annual_take_home / 170 * 20)
+        self.assertEqual(breakdown.display_take_home, expected_display)
+
+    def test_effective_days_on_full_year(self):
+        """effective_days=252 on full year overrides working_days=240."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, effective_days=252
+        )
+        self.assertEqual(
+            self._find_step(breakdown, "Assignment Rate").amount, 126000
+        )
+
+    def test_effective_days_defaults_to_none(self):
+        """Omitting effective_days keeps old pro-rate behavior."""
+        default = InsideIR35Calculator.calculate(500, 240, 25, start_month=8)
+        explicit_none = InsideIR35Calculator.calculate(
+            500, 240, 25, start_month=8, effective_days=None
+        )
+        self.assertEqual(default.annual_take_home, explicit_none.annual_take_home)
+        self.assertEqual(
+            default.inputs["effective_working_days"],
+            explicit_none.inputs["effective_working_days"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
