@@ -64,6 +64,22 @@ class TestCLI(unittest.TestCase):
         result = prompt_float("Enter amount", default=5.5, config_value=True)
         self.assertEqual(result, 5.5)
 
+    def test_prompt_int_config_value_raises_on_min_violation(self):
+        with self.assertRaises(ValueError):
+            prompt_int("Enter number", min_val=10, config_value=5)
+
+    def test_prompt_int_config_value_raises_on_max_violation(self):
+        with self.assertRaises(ValueError):
+            prompt_int("Enter number", max_val=100, config_value=200)
+
+    def test_prompt_float_config_value_raises_on_min_violation(self):
+        with self.assertRaises(ValueError):
+            prompt_float("Enter amount", min_val=1.0, config_value=0.0)
+
+    def test_prompt_float_config_value_raises_on_max_violation(self):
+        with self.assertRaises(ValueError):
+            prompt_float("Enter amount", max_val=10.0, config_value=20.0)
+
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_int_config_true_prints_message(self, mock_stdout):
         prompt_int("Enter number", default=10, config_value=True)

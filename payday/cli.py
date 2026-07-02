@@ -35,11 +35,9 @@ def prompt_int(
         display = f"{prompt} [{default_fmt(default)}]: " if default is not None else f"{prompt}: "
         print(f"{display}{val}")
         if min_val is not None and val < min_val:
-            print(f"Error: Value must be at least {min_val}.")
-            return val
+            raise ValueError(f"{prompt}: config value {val} is below minimum {min_val}")
         if max_val is not None and val > max_val:
-            print(f"Error: Value must be no more {max_val}.")
-            return val
+            raise ValueError(f"{prompt}: config value {val} is above maximum {max_val}")
         return val
 
     while True:
@@ -84,11 +82,9 @@ def prompt_float(
         display = f"{prompt} [{default_fmt(default)}]: " if default is not None else f"{prompt}: "
         print(f"{display}{val}")
         if min_val is not None and val < min_val:
-            print(f"Error: Value must be at least {min_val}.")
-            return val
+            raise ValueError(f"{prompt}: config value {val} is below minimum {min_val}")
         if max_val is not None and val > max_val:
-            print(f"Error: Value must be no more {max_val}.")
-            return val
+            raise ValueError(f"{prompt}: config value {val} is above maximum {max_val}")
         return val
 
     while True:
