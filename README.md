@@ -128,6 +128,60 @@ Salary sacrifice is capped at £60,000 per year. For help choosing how much to s
 
 ---
 
+## Configuration
+
+Pre-fill prompts by passing a JSON config file with the `--config` flag. Configured values skip interactive input; absent fields default to null and prompt normally.
+
+```bash
+python3 -m payday --config myconfig.json
+```
+
+Generate a template to get started:
+
+```bash
+python3 -m payday --init              # writes payday.json
+python3 -m payday --init custom.json  # writes custom.json
+```
+
+### Schema
+
+All fields are optional. `null` or absent = prompt interactively (or use default).
+
+| Field | Type | Accepts |
+|-------|------|---------|
+| `mode` | string or int | `"paye"` / `"inside_ir35"` / `"outside_ir35"` or `1` / `2` / `3` |
+| `salary` | int or null | Annual gross salary (PAYE only) |
+| `day_rate` | int or null | Daily contract rate (IR35 only) |
+| `start_month` | int or null | 1–12, or null for full tax year |
+| `existing_income` | float, int, or null | Income already earned this tax year (≥ 0) |
+| `existing_dividends` | float, int, or null | Dividends already received (≥ 0) |
+| `days_off` | int or null | Non-working days (≥ 0) |
+| `working_days` | int or null | Net working days (≥ 1); if absent, auto-computed from days_off |
+| `umbrella_margin` | int or null | Weekly umbrella fee (≥ 0, IR35 only) |
+| `salary_sacrifice_enabled` | bool or null | Enable salary sacrifice |
+| `monthly_salary_sacrifice` | int or str or null | Monthly amount, `"max"`, or `"auto"` |
+| `salary_sacrifice_cap` | int or null | Annual cap override (≥ 1) |
+
+### Example
+
+```json
+{
+  "mode": "inside_ir35",
+  "day_rate": 600,
+  "start_month": 4,
+  "existing_income": 10000,
+  "existing_dividends": 5000,
+  "days_off": 25,
+  "umbrella_margin": 25,
+  "salary_sacrifice_enabled": true,
+  "monthly_salary_sacrifice": 2000
+}
+```
+
+> Config must be explicitly passed via `--config`. There is no auto-detection of `payday.json` in the working directory — this avoids surprise behaviour when switching directories.
+
+---
+
 ## Testing
 
 ```bash
@@ -140,7 +194,7 @@ Or directly:
 python3 -m unittest discover -v -s payday/tests
 ```
 
-All tests pass (256 test cases and counting).
+All tests pass (303 test cases and counting).
 
 ---
 
