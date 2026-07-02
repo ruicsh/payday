@@ -5,6 +5,7 @@ from payday.cli import (
     prompt_int,
     prompt_existing_income,
     prompt_salary_sacrifice,
+    prompt_working_days,
     run_once,
 )
 
@@ -186,10 +187,11 @@ class TestCLI(unittest.TestCase):
     @patch("builtins.input", side_effect=[
         "3",       # mode: Outside IR35
         "500",     # day rate
-        "",        # working days (default 240)
         "8",       # start month (Aug → partial year)
         "20000",   # existing income
         "15000",   # existing dividends
+        "",        # days off (default 25)
+        "",        # accept default working days
     ])
     @patch("sys.stdout", new_callable=StringIO)
     def test_run_once_mode3_passes_existing_dividends(
@@ -210,8 +212,9 @@ class TestCLI(unittest.TestCase):
     @patch("builtins.input", side_effect=[
         "3",       # mode: Outside IR35
         "500",     # day rate
-        "",        # working days (default 240)
         "",        # start month (full year → no existing prompts)
+        "",        # days off (default 25)
+        "",        # accept default working days
     ])
     @patch("sys.stdout", new_callable=StringIO)
     def test_run_once_mode3_skips_existing_dividends_for_full_year(
@@ -226,6 +229,51 @@ class TestCLI(unittest.TestCase):
         mock_calc.assert_called_once()
         _, kwargs = mock_calc.call_args
         self.assertEqual(kwargs.get("existing_dividends"), 0)
+
+
+class TestPromptWorkingDays(unittest.TestCase):
+    @patch("builtins.input", side_effect=["", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_full_year_defaults(self, mock_stdout, mock_input):
+        """Full year: 252 available, default 25 days-off → 227 net, accept."""
+        result, days_off = prompt_working_days(None)
+        self.assertEqual(result, 227)
+        self.assertEqual(days_off, 25)
+        output = mock_stdout.getvalue()
+        self.assertIn("252", output)
+
+    @patch("builtins.input", side_effect=["10", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_full_year_custom_days_off(self, mock_stdout, mock_input):
+        """Full year: 10 days-off → 242 net."""
+        result, days_off = prompt_working_days(None)
+        self.assertEqual(result, 242)
+        self.assertEqual(days_off, 10)
+
+    @patch("builtins.input", side_effect=["", "240"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_full_year_manual_override(self, mock_stdout, mock_input):
+        """Override at final prompt: enter 240 instead of default 227."""
+        result, days_off = prompt_working_days(None)
+        self.assertEqual(result, 240)
+        self.assertEqual(days_off, 25)
+
+    @patch("builtins.input", side_effect=["", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_august_start_shows_period_specific_count(self, mock_stdout, mock_input):
+        """Aug start: 170 available, -25 → 145 net."""
+        result, days_off = prompt_working_days(8)
+        self.assertEqual(result, 145)
+        output = mock_stdout.getvalue()
+        self.assertIn("170", output)
+
+    @patch("builtins.input", side_effect=["", "abc", "200"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_manual_override_invalid_then_valid(self, mock_stdout, mock_input):
+        """Non-numeric override retries, then accepts 200."""
+        result, days_off = prompt_working_days(None)
+        self.assertEqual(result, 200)
+        self.assertIn("Error: Please enter a whole number", mock_stdout.getvalue())
 
 
 if __name__ == "__main__":

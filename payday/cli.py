@@ -7,7 +7,13 @@ from payday.calculators.paye import PAYECalculator
 from payday.calculators.inside_ir35 import InsideIR35Calculator
 from payday.calculators.outside_ir35 import OutsideIR35Calculator
 from payday.formatters import format_breakdown, format_gbp
-from payday.tax_year import months_in_tax_year, pro_rate_contract
+from payday.tax_year import (
+    contract_period_label,
+    months_in_tax_year,
+    pro_rate_contract,
+    working_days_in_contract_period,
+    working_days_in_full_tax_year,
+)
 
 
 def prompt_int(
@@ -188,6 +194,50 @@ def prompt_salary_sacrifice(
             print("Error: Please enter a whole number.")
 
 
+def prompt_working_days(start_month: int | None) -> tuple[int, int]:
+    """Prompt for working days with holiday-aware defaults and manual override.
+
+    Returns (net_working_days, days_off_taken).
+    """
+    if start_month is None:
+        available = working_days_in_full_tax_year()
+        period = "2026/27"
+    else:
+        available = working_days_in_contract_period(start_month)
+        period = contract_period_label(start_month, months_in_tax_year(start_month))
+
+    print(
+        f"Working days available in {period} "
+        f"(Mon–Fri minus E&W bank holidays): {available}"
+    )
+
+    days_off = prompt_int(
+        "Days off you'll take (annual leave, sick, etc.)",
+        default=25,
+        min_val=0,
+    )
+
+    net = max(0, available - days_off)
+
+    while True:
+        user_input = input(
+            f"Press ENTER to accept {net} working days, or type a custom value: "
+        ).strip()
+        if not user_input:
+            return net, days_off
+        try:
+            val = int(user_input)
+            if val < 1:
+                print("Error: Value must be at least 1.")
+                continue
+            if val > 365:
+                print("Error: Value must be no more 365.")
+                continue
+            return val, days_off
+        except ValueError:
+            print("Error: Please enter a whole number.")
+
+
 def select_mode() -> int:
     """Display mode menu and return 1, 2, or 3."""
     print("\n╔═══════════════════════════════════════╗")
@@ -219,18 +269,17 @@ def run_once() -> None:
         print("  Inside IR35 (Umbrella Company)")
         print("═══════════════════════════════════════")
         day_rate = prompt_int("Enter your day rate (£)", min_val=1)
-        working_days = prompt_int(
-            "Working days per year", default=240, min_val=1, max_val=365
-        )
         start_month = prompt_start_month()
         existing_income = prompt_existing_income(start_month)
         existing_dividends = prompt_existing_dividends(start_month)
+
+        net_working_days, _ = prompt_working_days(start_month)
         margin = prompt_int("Umbrella weekly margin (£)", default=25, min_val=0)
 
-        months, effective_days, _ = pro_rate_contract(working_days, start_month)
-        annual_assignment = day_rate * effective_days
-        weeks = effective_days / 5
+        weeks = net_working_days / 5
         annual_margin = round(margin * weeks)
+
+        annual_assignment = day_rate * net_working_days
 
         salary_sacrifice = prompt_salary_sacrifice(
             annual_assignment,
@@ -241,9 +290,10 @@ def run_once() -> None:
             existing_dividends=existing_dividends,
         )
         breakdown = InsideIR35Calculator.calculate(
-            day_rate, working_days, margin, start_month, existing_income,
+            day_rate, net_working_days, margin, start_month, existing_income,
             existing_dividends=existing_dividends,
             salary_sacrifice=salary_sacrifice,
+            effective_days=net_working_days,
         )
 
     elif mode == 3:
@@ -251,15 +301,16 @@ def run_once() -> None:
         print("  Outside IR35 (Limited Company)")
         print("═══════════════════════════════════════")
         day_rate = prompt_int("Enter your day rate (£)", min_val=1)
-        working_days = prompt_int(
-            "Working days per year", default=240, min_val=1, max_val=365
-        )
         start_month = prompt_start_month()
         existing_income = prompt_existing_income(start_month)
         existing_dividends = prompt_existing_dividends(start_month)
+
+        net_working_days, _ = prompt_working_days(start_month)
+
         breakdown = OutsideIR35Calculator.calculate(
-            day_rate, working_days, start_month, existing_income,
+            day_rate, net_working_days, start_month, existing_income,
             existing_dividends=existing_dividends,
+            effective_days=net_working_days,
         )
 
     else:
