@@ -12,6 +12,12 @@ test:
 run:
 	python3 -m payday
 
+run-init:
+	python3 -m payday --init
+
+run-config:
+	python3 -m payday --config
+
 check: lint format test
 	@echo "All checks passed."
 
