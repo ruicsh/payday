@@ -156,6 +156,35 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(days_off, 10)
         self.assertEqual(result, 200)
 
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_working_days_config_days_off_true(self, mock_stdout):
+        from payday.cli import prompt_working_days
+        result, days_off = prompt_working_days(
+            None, config={"days_off": True}
+        )
+        self.assertEqual(days_off, 25)
+        self.assertEqual(result, 227)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_working_days_config_working_days_true(self, mock_stdout):
+        from payday.cli import prompt_working_days
+        result, days_off = prompt_working_days(
+            None, config={"working_days": True}
+        )
+        self.assertEqual(days_off, 25)
+        self.assertEqual(result, 227)
+        output = mock_stdout.getvalue()
+        self.assertIn("auto", output)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_working_days_config_working_days_true_with_days_off(self, mock_stdout):
+        from payday.cli import prompt_working_days
+        result, days_off = prompt_working_days(
+            None, config={"working_days": True, "days_off": 10}
+        )
+        self.assertEqual(days_off, 10)
+        self.assertEqual(result, 242)
+
     @patch("builtins.input", side_effect=["42"])
     def test_prompt_int_valid(self, mock_input):
         result = prompt_int("Enter number")

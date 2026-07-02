@@ -349,10 +349,24 @@ def prompt_working_days(
         f"(Mon–Fri minus E&W bank holidays): {available}"
     )
 
+    if config and config.get("working_days") is True:
+        raw = config.get("days_off")
+        days_off = 25 if raw is True or raw is None else raw
+        net = max(1, available - days_off)
+        print(f"Using value from payday.json: auto ({net})")
+        return net, days_off
+
     if config and config.get("working_days") is not None:
         net = config["working_days"]
-        days_off = config.get("days_off") or 0
+        raw = config.get("days_off")
+        days_off = 0 if raw is True or raw is None else raw
         print(f"Using value from payday.json: {net}")
+        return net, days_off
+
+    if config and config.get("days_off") is True:
+        days_off = 25
+        print(f"Using value from payday.json: {days_off}")
+        net = max(1, available - days_off)
         return net, days_off
 
     if config and config.get("days_off") is not None:
