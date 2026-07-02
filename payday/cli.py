@@ -259,6 +259,7 @@ def prompt_salary_sacrifice(
                 print("Gross is already at or below cap — no sacrifice needed (payday.json).")
                 return 0
             print(f"Monthly salary sacrifice [ENTER=auto, or 'max'] (£): auto")
+            print(f"Income target: {format_gbp(cap)}")
             return result
 
     answer = (
@@ -316,6 +317,7 @@ def prompt_salary_sacrifice(
                 f"Auto-calculated: £{annual_sacrifice:,}/yr "
                 f"(£{monthly:,}/mo) sacrifice."
             )
+            print(f"Income target: {format_gbp(cap)}")
             return annual_sacrifice
 
         if user_input.lower() == "max":
