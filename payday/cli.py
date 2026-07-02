@@ -1,4 +1,5 @@
 import sys
+from payday.config import VALID_MODES
 from payday.constants import MAX_SALARY_SACRIFICE
 from payday.calculators.optimal_sacrifice import (
     calc_optimal_sacrifice_inside_ir35,
@@ -197,7 +198,7 @@ def prompt_salary_sacrifice(
         ms = config.get("monthly_salary_sacrifice")
         if isinstance(ms, int):
             annual = ms * contract_months
-            result = min(annual, MAX_SALARY_SACRIFICE) if annual > MAX_SALARY_SACRIFICE else annual
+            result = min(annual, MAX_SALARY_SACRIFICE)
             print(f"Using value from payday.json: {ms}/mo ({result:,}/yr)")
             return result
 
@@ -385,8 +386,7 @@ def select_mode(config: dict | None = None) -> int:
     if config and config.get("mode") is not None:
         raw = config["mode"]
         if isinstance(raw, str):
-            mode_map = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3}
-            mode = mode_map[raw]
+            mode = VALID_MODES[raw]
         else:
             mode = raw
         mode_labels = {1: "PAYE", 2: "Inside IR35", 3: "Outside IR35"}
@@ -450,6 +450,7 @@ def run_once(config: dict | None = None) -> None:
             annual_margin=annual_margin,
             existing_income=existing_income,
             existing_dividends=existing_dividends,
+            config=config,
         )
         breakdown = InsideIR35Calculator.calculate(
             day_rate,

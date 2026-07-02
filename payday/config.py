@@ -26,9 +26,10 @@ _ALL_FIELDS = [
 ]
 
 
-
 def _validate_field(key: str, value) -> None:
     allowed = FIELD_TYPES[key]
+    if isinstance(value, bool) and bool not in allowed:
+        raise ValueError(f"'{key}': expected numeric type, got boolean")
     if not isinstance(value, allowed):
         raise ValueError(f"'{key}': expected {allowed}, got {type(value).__name__}")
 

@@ -33,7 +33,11 @@ if __name__ == "__main__":
 
     config = None
     if args.config:
-        cfg = load_config(args.config)
+        try:
+            cfg = load_config(args.config)
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
         if cfg is None:
             print(f"Config file not found: {args.config}")
             sys.exit(1)

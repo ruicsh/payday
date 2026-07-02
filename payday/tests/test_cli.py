@@ -476,6 +476,38 @@ class TestCLI(unittest.TestCase):
         kwargs = mock_calc.call_args[1] if len(mock_calc.call_args) > 1 else {}
         self.assertEqual(kwargs.get("existing_dividends"), 5000)
 
+    @patch("payday.cli.InsideIR35Calculator.calculate")
+    @patch("builtins.input")
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_run_once_inside_ir35_config_salary_sacrifice(self, mock_stdout, mock_input, mock_calc):
+        """Inside IR35 config with salary sacrifice should use config value, not prompt."""
+        from payday.models import SalaryBreakdown
+
+        mock_calc.return_value = SalaryBreakdown(
+            mode="Inside IR35", inputs={}, steps=[],
+            annual_take_home=0, display_take_home=0,
+        )
+        config = {
+            "mode": "inside_ir35",
+            "day_rate": 600,
+            "start_month": 4,
+            "existing_income": 10000,
+            "existing_dividends": 5000,
+            "days_off": 25,
+            "umbrella_margin": 25,
+            "salary_sacrifice_enabled": True,
+            "monthly_salary_sacrifice": 2000,
+            "salary_sacrifice_cap": 60000,
+        }
+        run_once(config)
+        mock_calc.assert_called_once()
+        kwargs = mock_calc.call_args[1] if len(mock_calc.call_args) > 1 else {}
+        self.assertEqual(kwargs.get("salary_sacrifice"), 24000)
+        output = mock_stdout.getvalue()
+        self.assertIn("Using value from payday.json", output)
+        # input() should NOT be called (no interactive prompts)
+        mock_input.assert_not_called()
+
     @patch("payday.cli.OutsideIR35Calculator.calculate")
     @patch("builtins.input", side_effect=["n"])
     @patch("sys.stdout", new_callable=StringIO)

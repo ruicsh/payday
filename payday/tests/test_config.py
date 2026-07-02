@@ -163,6 +163,21 @@ class TestLoadConfig(unittest.TestCase):
         finally:
             os.unlink(path)
 
+    def test_bool_rejected_for_numeric_field(self):
+        """JSON bool (true/false) should be rejected for int fields, not silently coerced."""
+        for field in ("salary", "day_rate", "days_off", "working_days"):
+            data = {"mode": "paye", field: True}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                with self.assertRaises(ValueError):
+                    load_config(path)
+            finally:
+                os.unlink(path)
+
 
 class TestGenerateTemplate(unittest.TestCase):
     def test_generates_valid_json_file(self):
@@ -182,8 +197,6 @@ class TestGenerateTemplate(unittest.TestCase):
             self.assertIsNone(data["day_rate"])
         finally:
             os.unlink(path)
-
-
 
 
 class TestMainModule(unittest.TestCase):
