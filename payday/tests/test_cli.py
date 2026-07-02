@@ -68,15 +68,13 @@ class TestCLI(unittest.TestCase):
     def test_prompt_int_config_true_prints_message(self, mock_stdout):
         prompt_int("Enter number", default=10, config_value=True)
         output = mock_stdout.getvalue()
-        self.assertIn("payday.json", output)
-        self.assertIn("10", output)
+        self.assertIn("Enter number [10]: 10", output)
 
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_float_config_true_prints_message(self, mock_stdout):
         prompt_float("Enter amount", default=5.5, config_value=True)
         output = mock_stdout.getvalue()
-        self.assertIn("payday.json", output)
-        self.assertIn("5.5", output)
+        self.assertIn("Enter amount [5.5]: 5.5", output)
 
     # ── prompt_start_month / prompt_existing_* config tests ────────────
 
@@ -109,8 +107,7 @@ class TestCLI(unittest.TestCase):
     def test_prompt_existing_income_config_true_prints_message(self, mock_stdout):
         prompt_existing_income(8, config={"existing_income": True})
         output = mock_stdout.getvalue()
-        self.assertIn("payday.json", output)
-        self.assertIn("default", output.lower())
+        self.assertIn("Existing employment income already earned this tax year (£) [0]: 0", output)
 
     @patch("builtins.input", return_value="3000")
     def test_prompt_existing_income_config_null_prompts(self, mock_input):
@@ -132,8 +129,7 @@ class TestCLI(unittest.TestCase):
         from payday.cli import prompt_existing_dividends
         prompt_existing_dividends(8, config={"existing_dividends": True})
         output = mock_stdout.getvalue()
-        self.assertIn("payday.json", output)
-        self.assertIn("default", output.lower())
+        self.assertIn("Existing dividends already received this tax year (£) [0]: 0", output)
 
     @patch("builtins.input", return_value="5000")
     def test_prompt_existing_dividends_config_null_prompts(self, mock_input):
@@ -221,7 +217,7 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(days_off, 25)
         self.assertEqual(result, 227)
         output = mock_stdout.getvalue()
-        self.assertIn("auto", output)
+        self.assertIn("Days off you'll take (annual leave, sick, etc.) [25]: 25", output)
 
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_working_days_config_working_days_true_with_days_off(self, mock_stdout):
@@ -606,7 +602,7 @@ class TestCLI(unittest.TestCase):
         kwargs = mock_calc.call_args[1] if len(mock_calc.call_args) > 1 else {}
         self.assertEqual(kwargs.get("salary_sacrifice"), 24000)
         output = mock_stdout.getvalue()
-        self.assertIn("Using value from payday.json", output)
+        self.assertIn("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): 2000", output)
         # input() should NOT be called (no interactive prompts)
         mock_input.assert_not_called()
 

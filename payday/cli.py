@@ -27,23 +27,19 @@ def prompt_int(
     config_value: int | None = None,
 ) -> int:
     """Prompt user for an integer with validation and optional default."""
-    if config_value is True:
-        if default is None:
-            pass
-        else:
-            print(f"Using default from payday.json: {default}")
-            return default
+    if config_value is True and default is not None:
+        print(f"{prompt} [{default_fmt(default)}]: {default}")
+        return default
     if config_value is not None:
         val = config_value
+        display = f"{prompt} [{default_fmt(default)}]: " if default is not None else f"{prompt}: "
+        print(f"{display}{val}")
         if min_val is not None and val < min_val:
-            print(f"Using value from payday.json: {config_value}")
             print(f"Error: Value must be at least {min_val}.")
             return val
         if max_val is not None and val > max_val:
-            print(f"Using value from payday.json: {config_value}")
             print(f"Error: Value must be no more {max_val}.")
             return val
-        print(f"Using value from payday.json: {config_value}")
         return val
 
     while True:
@@ -80,23 +76,19 @@ def prompt_float(
     config_value: float | None = None,
 ) -> float:
     """Prompt user for a number with validation and optional default."""
-    if config_value is True:
-        if default is None:
-            pass
-        else:
-            print(f"Using default from payday.json: {default}")
-            return default
+    if config_value is True and default is not None:
+        print(f"{prompt} [{default_fmt(default)}]: {default}")
+        return default
     if config_value is not None:
         val = float(config_value)
+        display = f"{prompt} [{default_fmt(default)}]: " if default is not None else f"{prompt}: "
+        print(f"{display}{val}")
         if min_val is not None and val < min_val:
-            print(f"Using value from payday.json: {config_value}")
             print(f"Error: Value must be at least {min_val}.")
             return val
         if max_val is not None and val > max_val:
-            print(f"Using value from payday.json: {config_value}")
             print(f"Error: Value must be no more {max_val}.")
             return val
-        print(f"Using value from payday.json: {config_value}")
         return val
 
     while True:
@@ -128,10 +120,10 @@ def prompt_start_month(config: dict | None = None) -> int | None:
     if config and "start_month" in config:
         val = config["start_month"]
         if val is True:
-            print("Using value from payday.json: full year")
+            print("Contract start month [1-12], ENTER for full year: full year")
             return None
         if val is not None:
-            print(f"Using value from payday.json: {val}")
+            print(f"Contract start month [1-12], ENTER for full year: {val}")
             return val
 
     while True:
@@ -155,10 +147,10 @@ def prompt_existing_income(
     if config and "existing_income" in config:
         val = config["existing_income"]
         if val is True:
-            print("Using default from payday.json: 0")
+            print("Existing employment income already earned this tax year (£) [0]: 0")
             return 0.0
         if val is not None:
-            print(f"Using value from payday.json: {val}")
+            print(f"Existing employment income already earned this tax year (£) [0]: {val}")
             return float(val)
     if start_month is None:
         return 0.0
@@ -177,10 +169,10 @@ def prompt_existing_dividends(
     if config and "existing_dividends" in config:
         val = config["existing_dividends"]
         if val is True:
-            print("Using default from payday.json: 0")
+            print("Existing dividends already received this tax year (£) [0]: 0")
             return 0.0
         if val is not None:
-            print(f"Using value from payday.json: {val}")
+            print(f"Existing dividends already received this tax year (£) [0]: {val}")
             return float(val)
     if start_month is None:
         return 0.0
@@ -219,7 +211,7 @@ def prompt_salary_sacrifice(
         if isinstance(ms, int):
             annual = ms * contract_months
             result = min(annual, MAX_SALARY_SACRIFICE)
-            print(f"Using value from payday.json: {ms}/mo ({result:,}/yr)")
+            print(f"Monthly salary sacrifice [ENTER=auto, or 'max'] (£): {ms}")
             return result
 
         if ms == "max":
@@ -231,7 +223,7 @@ def prompt_salary_sacrifice(
             else:
                 result = 0
             monthly = result // contract_months
-            print(f"Using value from payday.json: max ({result:,}/yr, £{monthly:,}/mo)")
+            print(f"Monthly salary sacrifice [ENTER=auto, or 'max'] (£): max")
             return result
 
         if ms == "auto":
@@ -250,7 +242,7 @@ def prompt_salary_sacrifice(
             if result == 0:
                 print("Gross is already at or below cap — no sacrifice needed (payday.json).")
                 return 0
-            print(f"Using value from payday.json: auto ({result:,}/yr)")
+            print(f"Monthly salary sacrifice [ENTER=auto, or 'max'] (£): auto")
             return result
 
     answer = (
@@ -367,25 +359,25 @@ def prompt_working_days(
         raw_days = config.get("days_off")
         days_off = 25 if raw_days is True or raw_days is None else raw_days
         net = max(1, available - days_off)
-        print(f"Using value from payday.json: auto ({net})")
+        print(f"Days off you'll take (annual leave, sick, etc.) [25]: {days_off}")
         return net, days_off
 
     if config and config.get("working_days") is not None:
         net = config["working_days"]
         raw_days = config.get("days_off")
         days_off = 0 if raw_days is True or raw_days is None else raw_days
-        print(f"Using value from payday.json: {net}")
+        print(f"Press ENTER to accept {net} working days, or type a custom value: {net}")
         return net, days_off
 
     if config and config.get("days_off") is True:
         days_off = 25
-        print(f"Using value from payday.json: {days_off}")
+        print(f"Days off you'll take (annual leave, sick, etc.) [25]: {days_off}")
         net = max(1, available - days_off)
         return net, days_off
 
     if config and config.get("days_off") is not None:
         days_off = config["days_off"]
-        print(f"Using value from payday.json: {days_off}")
+        print(f"Days off you'll take (annual leave, sick, etc.) [25]: {days_off}")
         net = max(1, available - days_off)
         return net, days_off
 
@@ -424,8 +416,7 @@ def select_mode(config: dict | None = None) -> int:
             mode = VALID_MODES[raw]
         else:
             mode = raw
-        mode_labels = {1: "PAYE", 2: "Inside IR35", 3: "Outside IR35"}
-        print(f"\nUsing mode from payday.json: {mode_labels[mode]}")
+        print(f"\nChoice [1/2/3]: {mode}")
         return mode
 
     print("\n╔═══════════════════════════════════════╗")
