@@ -85,7 +85,9 @@ def calc_optimal_sacrifice_inside_ir35(
     if target_gross <= 500:
         return 0
 
-    target_budget = inverse_solve_gross_salary(round(target_gross), include_er_pension=False)
+    target_budget = inverse_solve_gross_salary(
+        round(target_gross), include_er_pension=False
+    )
 
     sacrifice = annual_assignment - target_budget - annual_margin
     # Clamp to feasible range: at least 0, at most budget − 1

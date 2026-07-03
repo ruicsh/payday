@@ -129,9 +129,7 @@ def calc_income_tax(
     existing_taxable = max(0, existing_income - personal_allowance)
 
     # Tax on combined (existing + new) and on existing alone
-    bc, hc, ac, *_ = _tax_components(
-        total_taxable, basic_band_width, higher_band_limit
-    )
+    bc, hc, ac, *_ = _tax_components(total_taxable, basic_band_width, higher_band_limit)
     be, he, ae, *_ = _tax_components(
         existing_taxable, basic_band_width, higher_band_limit
     )
