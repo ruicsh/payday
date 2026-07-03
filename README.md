@@ -12,12 +12,13 @@ Run it via `make run` (defaults to `payday.json`) or `make run myconfig.json`. O
 
 For permanent employees on a fixed annual salary.
 
-| Input | Default | Description |
-|-------|---------|-------------|
-| Annual gross salary | — | Your full-year salary before deductions |
+| Input                      | Default   | Description                                                             |
+| -------------------------- | --------- | ----------------------------------------------------------------------- |
+| Annual gross salary        | —         | Your full-year salary before deductions                                 |
 | Salary sacrifice (monthly) | auto-calc | Reduces taxable income (capped at £60k/yr); auto-calc targets £100k ANI |
 
 **Flow:**
+
 ```
   Annual Gross Salary       £salary
     └─ Salary Sacrifice      -£N  (optional, monthly)
@@ -36,17 +37,18 @@ For permanent employees on a fixed annual salary.
 
 For contractors working through an umbrella company. The umbrella sits between the agency and the contractor, handling tax deductions.
 
-| Input | Default | Description |
-|-------|---------|-------------|
-| Day rate | — | Daily contract rate |
-| Working days/year | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
-| Umbrella weekly margin | £25 | Weekly umbrella company fee |
-| Start month | None | Month contract starts (1–12) for mid-year proration |
-| Existing employment income | £0 | Income already earned this tax year |
-| Existing dividend income | £0 | Dividends already received this tax year |
-| Salary sacrifice (monthly) | auto-calc | Reduces taxable income (capped at £60k/yr); auto-calc targets £100k ANI |
+| Input                      | Default               | Description                                                                                                                  |
+| -------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Day rate                   | —                     | Daily contract rate                                                                                                          |
+| Working days/year          | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
+| Umbrella weekly margin     | £25                   | Weekly umbrella company fee                                                                                                  |
+| Start month                | None                  | Month contract starts (1–12) for mid-year proration                                                                          |
+| Existing employment income | £0                    | Income already earned this tax year                                                                                          |
+| Existing dividend income   | £0                    | Dividends already received this tax year                                                                                     |
+| Salary sacrifice (monthly) | auto-calc             | Reduces taxable income (capped at £60k/yr); auto-calc targets £100k ANI                                                      |
 
 **Flow:**
+
 ```
   Assignment Rate         £day_rate × days
     ├─ Salary Sacrifice    -£N  (optional)
@@ -68,14 +70,15 @@ For contractors working through an umbrella company. The umbrella sits between t
 
 For contractors operating through their own limited company. The company receives revenue, pays Corporation Tax, and distributes the remaining profit as dividends.
 
-| Input | Default | Description |
-|-------|---------|-------------|
-| Day rate | — | Daily contract rate |
-| Working days/year | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
-| Existing employment income | £0 | Income already earned this tax year (consumes PA and rate bands) |
-| Director pension contribution | £0 | Annual company pension contribution to director's SIPP (≥ 0, max £60k); reduces Corporation Tax |
+| Input                         | Default               | Description                                                                                                                  |
+| ----------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Day rate                      | —                     | Daily contract rate                                                                                                          |
+| Working days/year             | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
+| Existing employment income    | £0                    | Income already earned this tax year (consumes PA and rate bands)                                                             |
+| Director pension contribution | £0                    | Annual company pension contribution to director's SIPP (≥ 0, max £60k); reduces Corporation Tax                              |
 
 **Flow:**
+
 ```
   Company Revenue         £day_rate × days
     ├─ Director Salary    -£N
@@ -150,21 +153,21 @@ python3 -m payday --init custom.json  # writes custom.json
 
 All fields are optional. `null` or absent = prompt interactively (or use default).
 
-| Field | Type | Accepts |
-|-------|------|---------|
-| `mode` | string or int | `"paye"` / `"inside_ir35"` / `"outside_ir35"` or `1` / `2` / `3` |
-| `salary` | int or null | Annual gross salary (PAYE only) |
-| `day_rate` | int or null | Daily contract rate (IR35 only) |
-| `start_month` | int or null | 1–12, or null for full tax year |
-| `existing_income` | float, int, or null | Income already earned this tax year (≥ 0) |
-| `existing_dividends` | float, int, or null | Dividends already received (≥ 0) |
-| `days_off` | int or null | Non-working days (≥ 0) |
-| `working_days` | int or null | Net working days (≥ 1); if absent, auto-computed from days_off |
-| `umbrella_margin` | int or null | Weekly umbrella fee (≥ 0, IR35 only) |
-| `salary_sacrifice_enabled` | bool or null | Enable salary sacrifice |
-| `monthly_salary_sacrifice` | int or str or null | Monthly amount, `"max"`, or `"auto"` |
-| `income_target` | int, bool, or null | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively. |
-| `director_pension` | int, bool, or null | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = use £0 default. |
+| Field                      | Type                | Accepts                                                                                          |
+| -------------------------- | ------------------- | ------------------------------------------------------------------------------------------------ |
+| `mode`                     | string or int       | `"paye"` / `"inside_ir35"` / `"outside_ir35"` or `1` / `2` / `3`                                 |
+| `salary`                   | int or null         | Annual gross salary (PAYE only)                                                                  |
+| `day_rate`                 | int or null         | Daily contract rate (IR35 only)                                                                  |
+| `start_month`              | int or null         | 1–12, or null for full tax year                                                                  |
+| `existing_income`          | float, int, or null | Income already earned this tax year (≥ 0)                                                        |
+| `existing_dividends`       | float, int, or null | Dividends already received (≥ 0)                                                                 |
+| `days_off`                 | int or null         | Non-working days (≥ 0)                                                                           |
+| `working_days`             | int or null         | Net working days (≥ 1); if absent, auto-computed from days_off                                   |
+| `umbrella_margin`          | int or null         | Weekly umbrella fee (≥ 0, IR35 only)                                                             |
+| `salary_sacrifice_enabled` | bool or null        | Enable salary sacrifice                                                                          |
+| `monthly_salary_sacrifice` | int or str or null  | Monthly amount, `"max"`, or `"auto"`                                                             |
+| `income_target`            | int, bool, or null  | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively.                     |
+| `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = use £0 default. |
 
 ### Example
 
