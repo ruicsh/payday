@@ -886,7 +886,7 @@ class TestPromptWorkingDays(unittest.TestCase):
     @patch("sys.stdout", new_callable=StringIO)
     def test_august_start_shows_period_specific_count(self, mock_stdout, mock_input):
         """Aug start: 170 available, -25 → 145 net."""
-        result, days_off = prompt_working_days(8)
+        result, _ = prompt_working_days(8)
         self.assertEqual(result, 145)
         output = mock_stdout.getvalue()
         self.assertIn("170", output)
@@ -895,7 +895,7 @@ class TestPromptWorkingDays(unittest.TestCase):
     @patch("sys.stdout", new_callable=StringIO)
     def test_manual_override_invalid_then_valid(self, mock_stdout, mock_input):
         """Non-numeric override retries, then accepts 200."""
-        result, days_off = prompt_working_days(None)
+        result, _ = prompt_working_days(None)
         self.assertEqual(result, 200)
         self.assertIn("Error: Please enter a whole number", mock_stdout.getvalue())
 

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any
 
 
 VALID_MODES = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3}
@@ -36,7 +37,7 @@ _ALL_FIELDS = [
 ]
 
 
-def _validate_field(key: str, value) -> None:
+def _validate_field(key: str, value: Any) -> None:
     allowed = FIELD_TYPES[key]
     if isinstance(value, bool) and bool not in allowed:
         raise ValueError(f"'{key}': expected numeric type, got boolean")

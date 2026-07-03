@@ -13,3 +13,4 @@ dependencies = []
 [tool.pyright]
 typeCheckingMode = "standard"
 reportMissingTypeStubs = false
+reportUnusedVariable = "error"
