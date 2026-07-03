@@ -9,3 +9,7 @@ authors = [
 license = { text = "MIT" }
 readme = "README.md"
 dependencies = []
+
+[tool.pyright]
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false

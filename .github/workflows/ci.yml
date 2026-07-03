@@ -30,13 +30,16 @@ jobs:
         run: uv sync
 
       - name: Install tools
-        run: uv pip install ruff
+        run: uv pip install ruff pyright
 
       - name: Lint
         run: uv run ruff check payday/
 
       - name: Check formatting
         run: uv run ruff format --check payday/
+
+      - name: Type check
+        run: uv run pyright payday/
 
       - name: Test
         run: uv run python -m unittest discover -v -s payday/tests
