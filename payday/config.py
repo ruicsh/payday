@@ -121,7 +121,7 @@ def load_config(path: str) -> dict | None:
 
 def generate_template(path: str) -> None:
     filepath = Path(path)
-    template = {field: None for field in _ALL_FIELDS}
+    template: dict[str, str | int | None] = {field: None for field in _ALL_FIELDS}
     template["mode"] = "paye"
     filepath.write_text(json.dumps(template, indent=2) + "\n")
     print(f"Template written to {filepath}")

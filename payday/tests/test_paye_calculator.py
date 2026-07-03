@@ -71,6 +71,11 @@ class TestPAYECalculator(unittest.TestCase):
         no_sac = PAYECalculator.calculate(50000)
         with_sac = PAYECalculator.calculate(50000, salary_sacrifice=5000)
 
+        assert with_sac.income_tax is not None
+        assert no_sac.income_tax is not None
+        assert with_sac.employee_ni is not None
+        assert no_sac.employee_ni is not None
+        assert with_sac.pension is not None
         self.assertLess(with_sac.income_tax.total_tax, no_sac.income_tax.total_tax)
         self.assertLess(with_sac.employee_ni.total_ni, no_sac.employee_ni.total_ni)
         self.assertEqual(with_sac.pension.employee_contribution, 0)
@@ -99,6 +104,7 @@ class TestPAYECalculator(unittest.TestCase):
     def test_salary_sacrifice_skips_auto_enrolment(self):
         """With sacrifice, auto-enrolment pension is skipped entirely."""
         breakdown = PAYECalculator.calculate(50000, salary_sacrifice=5000)
+        assert breakdown.pension is not None
         self.assertEqual(breakdown.pension.employee_contribution, 0)
         self.assertFalse(breakdown.pension.eligible)
         labels = {step.label for step in breakdown.steps}

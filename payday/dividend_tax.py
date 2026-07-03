@@ -19,7 +19,7 @@ _HIGHER_BAND_WIDTH = HIGHER_RATE_BAND_LIMIT - BASIC_RATE_BAND_LIMIT  # 74,870
 
 
 def _compute_dividend_tax_bands(
-    dividends: int, total_employment: int, ani: int
+    dividends: int, total_employment: float, ani: int
 ) -> dict:
     """Core dividend tax computation for a given dividend amount.
     Returns a dict with all band and tax values plus allowance breakdown.

@@ -31,6 +31,7 @@ class TestLoadConfig(unittest.TestCase):
             path = f.name
         try:
             result = load_config(path)
+            assert result is not None
             self.assertEqual(result["mode"], "paye")
             self.assertEqual(result["salary"], 50000)
             self.assertEqual(result["days_off"], 25)
@@ -47,6 +48,7 @@ class TestLoadConfig(unittest.TestCase):
             path = f.name
         try:
             result = load_config(path)
+            assert result is not None
             self.assertEqual(result["mode"], "inside_ir35")
             self.assertEqual(result["day_rate"], 600)
             self.assertIsNone(result["salary"])
@@ -86,6 +88,7 @@ class TestLoadConfig(unittest.TestCase):
             path = f.name
         try:
             result = load_config(path)
+            assert result is not None
             self.assertEqual(result["mode"], 2)
         finally:
             os.unlink(path)
@@ -133,6 +136,7 @@ class TestLoadConfig(unittest.TestCase):
                 path = f.name
             try:
                 result = load_config(path)
+                assert result is not None
                 self.assertEqual(result["monthly_salary_sacrifice"], kw)
             finally:
                 os.unlink(path)
@@ -144,6 +148,7 @@ class TestLoadConfig(unittest.TestCase):
             path = f.name
         try:
             result = load_config(path)
+            assert result is not None
             self.assertIsNone(result["income_target"])
         finally:
             os.unlink(path)
@@ -187,6 +192,7 @@ class TestLoadConfig(unittest.TestCase):
                 path = f.name
             try:
                 result = load_config(path)
+                assert result is not None
                 self.assertIs(
                     result[field],
                     True,
@@ -233,6 +239,7 @@ class TestLoadConfig(unittest.TestCase):
             path = f.name
         try:
             result = load_config(path)
+            assert result is not None
             self.assertEqual(result["director_pension"], 20000)
         finally:
             os.unlink(path)
@@ -245,6 +252,7 @@ class TestLoadConfig(unittest.TestCase):
             path = f.name
         try:
             result = load_config(path)
+            assert result is not None
             self.assertIs(result["director_pension"], True)
         finally:
             os.unlink(path)
@@ -257,6 +265,7 @@ class TestLoadConfig(unittest.TestCase):
             path = f.name
         try:
             result = load_config(path)
+            assert result is not None
             self.assertIsNone(result["director_pension"])
         finally:
             os.unlink(path)
@@ -293,6 +302,7 @@ class TestLoadConfig(unittest.TestCase):
             path = f.name
         try:
             result = load_config(path)
+            assert result is not None
             self.assertIs(result["director_pension"], True)
         finally:
             os.unlink(path)

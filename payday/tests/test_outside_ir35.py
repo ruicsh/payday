@@ -44,8 +44,10 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         self.assertGreater(breakdown.display_take_home, 0)
 
         # CT rate on 106294 should be > 19% (marginal relief band)
+        assert breakdown.corporation_tax is not None
+        ct = breakdown.corporation_tax
         self.assertAlmostEqual(
-            breakdown.corporation_tax.total_ct / breakdown.corporation_tax.profit,
+            ct.total_ct / ct.profit,
             0.23,  # ~23% effective
             delta=0.02,
         )
@@ -60,7 +62,7 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         # Revenue = 12000, less than salary 12570
         # Profit = 12000 - 12570 - 0(er_ni) = -570
         self.assertGreaterEqual(breakdown.annual_take_home, 0)
-        # Ensure dividend tax calculation handled the loss correctly
+        assert breakdown.dividend_tax is not None
         self.assertEqual(breakdown.dividend_tax.total_tax, 0)
         self.assertEqual(breakdown.dividend_tax.dividend_allowance, 0)
 
@@ -82,6 +84,7 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         # Revenue = 100800
         # Profit = 100800 - 12570 - er_ni = ~87000
         # 87000 is between 50000 and 250000 → marginal relief applies
+        assert breakdown.corporation_tax is not None
         self.assertGreater(breakdown.corporation_tax.marginal_relief, 0)
 
     def test_small_profits_ct_rate(self):
@@ -89,6 +92,7 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         breakdown = OutsideIR35Calculator.calculate(250, 240)
         # Revenue = 60000, Profit ≈ 46294
         # 46294 < 50000 → flat 19% CT (marginal relief should be zero)
+        assert breakdown.corporation_tax is not None
         self.assertLessEqual(breakdown.corporation_tax.profit, 50000)
         self.assertEqual(breakdown.corporation_tax.marginal_relief, 0)
 
@@ -140,6 +144,8 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         self.assertEqual(breakdown.inputs["existing_income"], 30000)
 
         without = OutsideIR35Calculator.calculate(500, 240, start_month=8)
+        assert breakdown.dividend_tax is not None
+        assert without.dividend_tax is not None
         self.assertGreater(
             breakdown.dividend_tax.total_tax, without.dividend_tax.total_tax
         )
@@ -245,6 +251,8 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         with_pension = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
         # The pension itself (20000) is not added; the difference is entirely
         # from reduced dividends due to lower profit/CT.
+        assert with_pension.year_taxable_income is not None
+        assert no_pension.year_taxable_income is not None
         self.assertLess(
             with_pension.year_taxable_income,
             no_pension.year_taxable_income,
@@ -271,6 +279,8 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         """Pension reduces profit, so CT should be lower."""
         no_pension = OutsideIR35Calculator.calculate(500, 240)
         with_pension = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
+        assert with_pension.corporation_tax is not None
+        assert no_pension.corporation_tax is not None
         self.assertLess(
             with_pension.corporation_tax.total_ct,
             no_pension.corporation_tax.total_ct,
@@ -297,6 +307,8 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         # Revenue = 12000, salary = 12570, er_ni = 0
         # Pension capped at 60000 (MAX_SALARY_SACRIFICE) → loss
         self.assertGreaterEqual(breakdown.annual_take_home, 0)
+        assert breakdown.dividend_tax is not None
+        assert breakdown.corporation_tax is not None
         self.assertEqual(breakdown.dividend_tax.total_tax, 0)
         self.assertEqual(breakdown.corporation_tax.total_ct, 0)
 
@@ -306,6 +318,7 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         # Profit without pension = 46294 (< 50000, already small profits)
         # With 10000 pension: profit = 36294 → still < 50000 → 19% CT
         breakdown = OutsideIR35Calculator.calculate(250, 240, director_pension=10000)
+        assert breakdown.corporation_tax is not None
         self.assertLessEqual(breakdown.corporation_tax.profit, 50000)
         self.assertEqual(breakdown.corporation_tax.marginal_relief, 0)
 
@@ -313,6 +326,8 @@ class TestOutsideIR35Calculator(unittest.TestCase):
         """Pension reduces profit but not Employer NI (which is on salary)."""
         no_pension = OutsideIR35Calculator.calculate(500, 240)
         with_pension = OutsideIR35Calculator.calculate(500, 240, director_pension=20000)
+        assert no_pension.employer_ni is not None
+        assert with_pension.employer_ni is not None
         self.assertEqual(
             no_pension.employer_ni.total_er_ni,
             with_pension.employer_ni.total_er_ni,

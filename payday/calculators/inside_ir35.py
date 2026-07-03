@@ -56,6 +56,8 @@ class InsideIR35Calculator:
         if salary_sacrifice >= budget:
             raise ValueError("salary_sacrifice exceeds available budget")
 
+        er_ni_saving = 0
+
         if salary_sacrifice:
             # Budget after sacrifice and margin: this must cover gross + ER NI + Levy
             sac_budget = annual_assignment - salary_sacrifice - annual_margin

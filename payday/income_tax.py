@@ -91,7 +91,7 @@ def calc_personal_allowance(adjusted_net_income: int | float) -> tuple[int, bool
     return pa, True
 
 
-def _tax_components(taxable: int, basic_band_width: int, higher_band_limit: int):
+def _tax_components(taxable: float, basic_band_width: int, higher_band_limit: int):
     """Compute tax band breakdown for a taxable income amount."""
     basic = min(taxable, basic_band_width)
     higher = max(0, min(taxable, higher_band_limit) - basic_band_width)

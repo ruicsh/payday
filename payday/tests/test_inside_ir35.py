@@ -209,6 +209,12 @@ class TestInsideIR35Calculator(unittest.TestCase):
         no_sac = InsideIR35Calculator.calculate(300, 240, 25)
         with_sac = InsideIR35Calculator.calculate(300, 240, 25, salary_sacrifice=15000)
 
+        assert with_sac.income_tax is not None
+        assert no_sac.income_tax is not None
+        assert with_sac.employee_ni is not None
+        assert no_sac.employee_ni is not None
+        assert with_sac.pension is not None
+        assert no_sac.pension is not None
         self.assertLess(with_sac.income_tax.total_tax, no_sac.income_tax.total_tax)
         self.assertLess(with_sac.employee_ni.total_ni, no_sac.employee_ni.total_ni)
         self.assertEqual(with_sac.pension.employee_contribution, 0)
@@ -237,6 +243,7 @@ class TestInsideIR35Calculator(unittest.TestCase):
     def test_salary_sacrifice_skips_auto_enrolment(self):
         """With sacrifice, auto-enrolment pension is skipped entirely."""
         breakdown = InsideIR35Calculator.calculate(200, 240, 25, salary_sacrifice=5000)
+        assert breakdown.pension is not None
         self.assertEqual(breakdown.pension.employee_contribution, 0)
         self.assertEqual(breakdown.pension.employer_contribution, 0)
         self.assertFalse(breakdown.pension.eligible)
@@ -260,6 +267,7 @@ class TestInsideIR35Calculator(unittest.TestCase):
             )
             gross = self._find_step(breakdown, "Gross Salary").amount
             sac_budget = rate * 240 - sacrifice - round(25 * 240 / 5)
+            assert breakdown.employer_ni is not None
             actual = (
                 gross
                 + breakdown.employer_ni.total_er_ni
@@ -307,6 +315,8 @@ class TestInsideIR35Calculator(unittest.TestCase):
 
         # Income tax should be higher than without existing income
         without = InsideIR35Calculator.calculate(500, 240, 25, start_month=8)
+        assert breakdown.income_tax is not None
+        assert without.income_tax is not None
         self.assertGreater(breakdown.income_tax.total_tax, without.income_tax.total_tax)
 
         # Take-home should be lower (more tax)
@@ -320,10 +330,12 @@ class TestInsideIR35Calculator(unittest.TestCase):
             600, 240, 25, start_month=8, existing_income=60000
         )
 
+        assert breakdown.income_tax is not None
         self.assertLess(breakdown.income_tax.personal_allowance, 12570)
         self.assertTrue(breakdown.income_tax.tapered)
 
         without = InsideIR35Calculator.calculate(600, 240, 25, start_month=8)
+        assert without.income_tax is not None
         self.assertFalse(without.income_tax.tapered)
 
     def test_existing_dividends_not_consuming_rate_bands(self):
@@ -336,6 +348,8 @@ class TestInsideIR35Calculator(unittest.TestCase):
         )
         self.assertIn("existing_dividends", mixed.inputs)
         self.assertEqual(mixed.inputs["existing_dividends"], 15000)
+        assert mixed.income_tax is not None
+        assert buggy.income_tax is not None
         self.assertLess(mixed.income_tax.total_tax, buggy.income_tax.total_tax)
 
     def test_existing_dividends_affect_pa_tapering(self):
@@ -348,6 +362,7 @@ class TestInsideIR35Calculator(unittest.TestCase):
             existing_income=10000,
             existing_dividends=200000,
         )
+        assert breakdown.income_tax is not None
         self.assertEqual(breakdown.income_tax.personal_allowance, 0)
         self.assertTrue(breakdown.income_tax.tapered)
 

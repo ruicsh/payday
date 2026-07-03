@@ -1,4 +1,5 @@
 import sys
+from collections.abc import Callable
 from payday.config import VALID_MODES
 from payday.constants import MAX_SALARY_SACRIFICE
 from payday.calculators.optimal_sacrifice import (
@@ -23,7 +24,7 @@ def prompt_int(
     default: int | None = None,
     min_val: int | None = None,
     max_val: int | None = None,
-    default_fmt: callable = str,
+    default_fmt: Callable = str,
     config_value: int | None = None,
 ) -> int:
     """Prompt user for an integer with validation and optional default.
@@ -75,7 +76,7 @@ def prompt_float(
     default: float | None = None,
     min_val: float | None = None,
     max_val: float | None = None,
-    default_fmt: callable = str,
+    default_fmt: Callable = str,
     config_value: float | None = None,
 ) -> float:
     """Prompt user for a number with validation and optional default.
