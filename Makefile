@@ -18,12 +18,6 @@ run:
 %:
 	@true
 
-run-init:
-	python3 -m payday --init
-
-run-bar:
-	python3 -m payday
-
 check: lint format typecheck test
 	@echo "All checks passed."
 
