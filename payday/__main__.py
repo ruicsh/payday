@@ -63,7 +63,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-if __name__ == "__main__":
+def main() -> None:
     args = parse_args()
 
     if args.init:
@@ -86,3 +86,7 @@ if __name__ == "__main__":
         config = select_contract()
 
     payday_main(config)
+
+
+if __name__ == "__main__":
+    main()
