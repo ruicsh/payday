@@ -1,7 +1,10 @@
 import unittest
 import json
 import os
+import shutil
 import tempfile
+from pathlib import Path
+from unittest.mock import patch
 from payday.config import load_config, generate_template
 
 
@@ -357,6 +360,81 @@ class TestMainModule(unittest.TestCase):
         args = parse_args(["--init", "--config", "c.json"])
         self.assertEqual(args.init, "payday.json")
         self.assertEqual(args.config, "c.json")
+
+
+class TestContractSelection(unittest.TestCase):
+    def setUp(self):
+        from payday import __main__
+
+        self._orig_dir = __main__.CONTRACTS_DIR
+        self._tmpdir = tempfile.mkdtemp()
+        __main__.CONTRACTS_DIR = Path(self._tmpdir)
+
+    def tearDown(self):
+        from payday import __main__
+
+        __main__.CONTRACTS_DIR = self._orig_dir
+        shutil.rmtree(self._tmpdir)
+
+    def _write_contract(self, name, data):
+        path = os.path.join(self._tmpdir, name)
+        with open(path, "w") as f:
+            json.dump(data, f)
+        return path
+
+    def test_list_contracts_missing_dir(self):
+        from payday import __main__
+
+        __main__.CONTRACTS_DIR = Path("/nonexistent/contracts/dir")
+        try:
+            self.assertEqual(__main__.list_contracts(), [])
+        finally:
+            __main__.CONTRACTS_DIR = self._orig_dir
+
+    def test_list_contracts_empty_dir(self):
+        from payday.__main__ import list_contracts
+
+        self.assertEqual(list_contracts(), [])
+
+    def test_list_contracts_sorted(self):
+        from payday.__main__ import list_contracts
+
+        self._write_contract("zeta.json", {"mode": "paye"})
+        self._write_contract("alpha.json", {"mode": "paye"})
+        names = [p.name for p in list_contracts()]
+        self.assertEqual(names, ["alpha.json", "zeta.json"])
+
+    def test_select_contract_no_contracts(self):
+        from payday.__main__ import select_contract
+
+        self.assertIsNone(select_contract())
+
+    def test_select_contract_manual_entry(self):
+        from payday.__main__ import select_contract
+
+        self._write_contract("alpha.json", {"mode": "paye"})
+        with patch("builtins.input", return_value="0"):
+            self.assertIsNone(select_contract())
+
+    def test_select_contract_picks_contract(self):
+        from payday.__main__ import select_contract
+
+        self._write_contract("alpha.json", {"mode": "paye", "salary": 50000})
+        with patch("builtins.input", return_value="1"):
+            config = select_contract()
+        self.assertIsNotNone(config)
+        assert config is not None
+        self.assertEqual(config["salary"], 50000)
+
+    def test_select_contract_invalid_then_valid(self):
+        from payday.__main__ import select_contract
+
+        self._write_contract("alpha.json", {"mode": "paye", "salary": 50000})
+        with patch("builtins.input", side_effect=["abc", "99", "1"]):
+            config = select_contract()
+        self.assertIsNotNone(config)
+        assert config is not None
+        self.assertEqual(config["salary"], 50000)
 
 
 if __name__ == "__main__":

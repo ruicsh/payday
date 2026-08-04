@@ -118,7 +118,7 @@ All rates, thresholds and formulas used in this project are sourced from the fol
 ## Usage
 
 ```bash
-make run              # uses payday.json
+make run              # shows a picker, or uses payday.json if it exists
 make run custom.json  # uses custom.json
 ```
 
@@ -127,6 +127,8 @@ Or directly:
 ```bash
 python3 -m payday --config payday.json
 ```
+
+When run without a valid `--config` (e.g. `make run` with no `payday.json` present), you'll be shown a list of contracts from `contracts/` and prompted to pick one. Selecting `[0] Manual entry` (or pressing Enter) skips the contract and prompts interactively.
 
 Follow the prompts to select a mode and enter your details. You'll be asked about salary sacrifice and existing income/dividends where applicable.
 
