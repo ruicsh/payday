@@ -30,7 +30,7 @@ jobs:
         run: uv sync
 
       - name: Install tools
-        run: uv pip install ruff pyright
+        run: uv pip install ruff==0.15.16 pyright==1.1.410
 
       - name: Lint
         run: uv run ruff check payday/
