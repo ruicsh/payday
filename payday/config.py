@@ -7,6 +7,8 @@ VALID_MODES = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3}
 VALID_SACRIFICE_KEYWORDS = {"max", "auto"}
 # Boolean fields accept both true and false as legitimate values.
 BOOLEAN_FIELDS = {"salary_sacrifice_enabled", "is_paystream"}
+# Fields where false is a sentinel meaning "off / no value".
+FALSE_SENTINEL_FIELDS = {"income_target"}
 FIELD_TYPES = {
     "mode": (str, int),
     "salary": (int, type(None)),
@@ -47,6 +49,8 @@ def _validate_field(key: str, value: Any) -> None:
         raise ValueError(f"'{key}': expected numeric type, got boolean")
     if isinstance(value, bool) and key not in BOOLEAN_FIELDS:
         if value is False:
+            if key in FALSE_SENTINEL_FIELDS:
+                return
             raise ValueError(f"'{key}': use 'true' for default, or 'null' to prompt")
         if key in ("salary", "day_rate", "mode"):
             raise ValueError(

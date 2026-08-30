@@ -244,6 +244,44 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(result, 60_000)
         mock_input.assert_called_once_with("Taxable income cap [£100,000]: ")
 
+    @patch("builtins.input", side_effect=[""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_config_auto_no_target_paye(
+        self, mock_stdout, mock_input
+    ):
+        """income_target=false with auto should max out pension (no prompt)."""
+        config = {
+            "salary_sacrifice_enabled": True,
+            "monthly_salary_sacrifice": "auto",
+            "income_target": False,
+        }
+        result = prompt_salary_sacrifice(150_000, config=config)
+        self.assertEqual(result, 60_000)
+        mock_input.assert_not_called()
+        output = mock_stdout.getvalue()
+        self.assertIn("Income target: none", output)
+
+    @patch("builtins.input", side_effect=[""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_config_auto_no_target_inside_ir35(
+        self, mock_stdout, mock_input
+    ):
+        """income_target=false with auto should max out within budget (IR35)."""
+        config = {
+            "salary_sacrifice_enabled": True,
+            "monthly_salary_sacrifice": "auto",
+            "income_target": False,
+        }
+        result = prompt_salary_sacrifice(
+            150_000,
+            mode="inside_ir35",
+            annual_margin=5_000,
+            admin_charge=1_000,
+            config=config,
+        )
+        self.assertEqual(result, 60_000)
+        mock_input.assert_not_called()
+
     # ── prompt_paystream tests ─────────────────────────────────────────
 
     def test_prompt_paystream_config_true(self):

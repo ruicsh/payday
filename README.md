@@ -172,7 +172,7 @@ All fields are optional. `null` or absent = prompt interactively (or use default
 | `is_paystream`             | bool or null        | `true` = PayStream umbrella (net-pay salary sacrifice + £7+VAT weekly admin charge). `false` = generic umbrella (direct gross reduction). |
 | `salary_sacrifice_enabled` | bool or null        | Enable salary sacrifice                                                                          |
 | `monthly_salary_sacrifice` | int or str or null  | Monthly amount, `"max"`, or `"auto"`                                                             |
-| `income_target`            | int, bool, or null  | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively.                     |
+| `income_target`            | int, bool, or null  | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively; `false` = no target (maxes pension). |
 | `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = use £0 default. |
 
 ### Example

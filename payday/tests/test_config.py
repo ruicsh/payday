@@ -215,7 +215,6 @@ class TestLoadConfig(unittest.TestCase):
             "working_days",
             "umbrella_margin",
             "monthly_salary_sacrifice",
-            "income_target",
             "salary",
             "day_rate",
             "director_pension",
@@ -232,6 +231,31 @@ class TestLoadConfig(unittest.TestCase):
                     load_config(path)
             finally:
                 os.unlink(path)
+
+    def test_income_target_false_accepted(self):
+        """income_target: false means 'no income target' (max pension)."""
+        data = {"mode": "paye", "income_target": False}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIs(result["income_target"], False)
+        finally:
+            os.unlink(path)
+
+    def test_income_target_zero_rejected(self):
+        """income_target: 0 is rejected (must be >= 1)."""
+        data = {"mode": "paye", "income_target": 0}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
+        finally:
+            os.unlink(path)
 
     # ── director_pension config tests ───────────────────────────────────
 

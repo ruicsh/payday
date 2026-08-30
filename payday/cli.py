@@ -194,6 +194,21 @@ def prompt_existing_dividends(
     )
 
 
+def _max_sacrifice(
+    gross: int,
+    mode: str,
+    annual_margin: int = 0,
+    admin_charge: int = 0,
+) -> int:
+    """Return the maximum feasible annual salary sacrifice for *mode*."""
+    if mode == "paye":
+        return min(gross, MAX_SALARY_SACRIFICE)
+    if mode == "inside_ir35":
+        max_within_budget = max(0, gross - annual_margin - admin_charge - 1)
+        return min(max_within_budget, MAX_SALARY_SACRIFICE)
+    return 0
+
+
 def prompt_salary_sacrifice(
     gross: int,
     *,
@@ -227,19 +242,18 @@ def prompt_salary_sacrifice(
             return result
 
         if ms == "max":
-            if mode == "paye":
-                result = min(gross, MAX_SALARY_SACRIFICE)
-            elif mode == "inside_ir35":
-                max_within_budget = max(0, gross - annual_margin - admin_charge - 1)
-                result = min(max_within_budget, MAX_SALARY_SACRIFICE)
-            else:
-                result = 0
+            result = _max_sacrifice(gross, mode, annual_margin, admin_charge)
             monthly = result // contract_months
             print("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): max")
             return result
 
         if ms == "auto":
             raw_target = config.get("income_target")
+            if raw_target is False:
+                result = _max_sacrifice(gross, mode, annual_margin, admin_charge)
+                print("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): auto")
+                print("Income target: none (maxing pension)")
+                return result
             if raw_target is None or raw_target is True:
                 cap = prompt_int(
                     "Taxable income cap",
