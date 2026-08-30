@@ -214,8 +214,10 @@ def prompt_salary_sacrifice(
     *,
     mode: str = "paye",
     start_month: int | None = None,
+    working_days: int | None = None,
     annual_margin: int = 0,
     admin_charge: int = 0,
+    is_paystream: bool = False,
     existing_income: float = 0,
     existing_dividends: float = 0,
     default_cap: int = 100_000,
@@ -224,6 +226,9 @@ def prompt_salary_sacrifice(
     """Prompt whether to make a salary sacrifice for a personal pension.
 
     Returns the *annual* sacrifice amount.
+
+    *working_days* is required to convert a daily sacrifice to annual.
+    *is_paystream* restricts the daily option to the PayStream umbrella.
     """
     if config:
         if not config.get("salary_sacrifice_enabled"):
@@ -231,27 +236,46 @@ def prompt_salary_sacrifice(
 
         contract_months = 12 if start_month is None else months_in_tax_year(start_month)
 
+        ds = config.get("daily_salary_sacrifice")
         ms = config.get("monthly_salary_sacrifice")
-        if ms is True:
-            ms = "auto"
+        if ds is not None and ms is not None:
+            raise ValueError(
+                "set either 'monthly_salary_sacrifice' or "
+                "'daily_salary_sacrifice', not both"
+            )
 
-        if isinstance(ms, int):
-            annual = ms * contract_months
+        is_daily = ds is not None
+        sac_val = ds if is_daily else ms
+        label = "Daily" if is_daily else "Monthly"
+        per_period = working_days if is_daily else contract_months
+
+        if is_daily and not is_paystream:
+            raise ValueError(
+                "'daily_salary_sacrifice' requires PayStream (is_paystream: true)"
+            )
+
+        if sac_val is True:
+            sac_val = "auto"
+
+        if isinstance(sac_val, int):
+            if per_period is None:
+                raise ValueError("daily_salary_sacrifice requires working days")
+            annual = sac_val * per_period
             result = min(annual, MAX_SALARY_SACRIFICE)
-            print(f"Monthly salary sacrifice [ENTER=auto, or 'max'] (£): {ms}")
+            print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): {sac_val}")
             return result
 
-        if ms == "max":
+        if sac_val == "max":
             result = _max_sacrifice(gross, mode, annual_margin, admin_charge)
             monthly = result // contract_months
-            print("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): max")
+            print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): max")
             return result
 
-        if ms == "auto":
+        if sac_val == "auto":
             raw_target = config.get("income_target")
             if raw_target is False:
                 result = _max_sacrifice(gross, mode, annual_margin, admin_charge)
-                print("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): auto")
+                print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): auto")
                 print("Income target: none (maxing pension)")
                 return result
             if raw_target is None or raw_target is True:
@@ -281,7 +305,7 @@ def prompt_salary_sacrifice(
                     "Gross is already at or below cap — no sacrifice needed (payday.json)."
                 )
                 return 0
-            print("Monthly salary sacrifice [ENTER=auto, or 'max'] (£): auto")
+            print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): auto")
             print(f"Income target: {format_gbp(cap)}")
             return result
 
@@ -539,8 +563,10 @@ def run_once(config: dict | None = None) -> None:
             annual_assignment,
             mode="inside_ir35",
             start_month=start_month,
+            working_days=net_working_days,
             annual_margin=annual_margin,
             admin_charge=annual_admin_charge,
+            is_paystream=is_paystream,
             existing_income=existing_income,
             existing_dividends=existing_dividends,
             config=config,
@@ -554,6 +580,11 @@ def run_once(config: dict | None = None) -> None:
             existing_dividends=existing_dividends,
             salary_sacrifice=salary_sacrifice,
             is_paystream=is_paystream,
+            sacrifice_frequency=(
+                "daily"
+                if config and config.get("daily_salary_sacrifice") is not None
+                else "monthly"
+            ),
             effective_days=net_working_days,
         )
 

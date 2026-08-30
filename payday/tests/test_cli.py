@@ -192,6 +192,122 @@ class TestCLI(unittest.TestCase):
         result = prompt_salary_sacrifice(100_000, config=config)
         self.assertEqual(result, 24000)
 
+    # ── prompt_salary_sacrifice daily config tests ────────────────────
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_daily_manual(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": True, "daily_salary_sacrifice": 50}
+        result = prompt_salary_sacrifice(
+            150_000,
+            mode="inside_ir35",
+            working_days=227,
+            is_paystream=True,
+            config=config,
+        )
+        self.assertEqual(result, 50 * 227)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_daily_capped_at_60k(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": True, "daily_salary_sacrifice": 300}
+        result = prompt_salary_sacrifice(
+            150_000,
+            mode="inside_ir35",
+            working_days=227,
+            is_paystream=True,
+            config=config,
+        )
+        self.assertEqual(result, 60_000)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_daily_requires_paystream(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": True, "daily_salary_sacrifice": 50}
+        with self.assertRaises(ValueError):
+            prompt_salary_sacrifice(
+                150_000,
+                mode="inside_ir35",
+                working_days=227,
+                is_paystream=False,
+                config=config,
+            )
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_daily_requires_working_days(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": True, "daily_salary_sacrifice": 50}
+        with self.assertRaises(ValueError):
+            prompt_salary_sacrifice(
+                150_000,
+                mode="inside_ir35",
+                is_paystream=True,
+                config=config,
+            )
+
+    @patch("builtins.input", side_effect=[""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_daily_auto(self, mock_stdout, mock_input):
+        config = {
+            "salary_sacrifice_enabled": True,
+            "daily_salary_sacrifice": "auto",
+            "income_target": False,
+        }
+        result = prompt_salary_sacrifice(
+            150_000,
+            mode="inside_ir35",
+            annual_margin=5_000,
+            admin_charge=1_000,
+            is_paystream=True,
+            config=config,
+        )
+        self.assertEqual(result, 60_000)
+        mock_input.assert_not_called()
+        output = mock_stdout.getvalue()
+        self.assertIn("Daily salary sacrifice", output)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_daily_max(self, mock_stdout):
+        config = {"salary_sacrifice_enabled": True, "daily_salary_sacrifice": "max"}
+        result = prompt_salary_sacrifice(
+            150_000,
+            mode="inside_ir35",
+            annual_margin=5_000,
+            admin_charge=1_000,
+            is_paystream=True,
+            config=config,
+        )
+        self.assertEqual(result, 60_000)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_daily_true_triggers_auto(self, mock_stdout):
+        config = {
+            "salary_sacrifice_enabled": True,
+            "daily_salary_sacrifice": True,
+            "income_target": False,
+        }
+        result = prompt_salary_sacrifice(
+            150_000,
+            mode="inside_ir35",
+            annual_margin=5_000,
+            admin_charge=1_000,
+            is_paystream=True,
+            config=config,
+        )
+        self.assertEqual(result, 60_000)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_salary_sacrifice_both_monthly_and_daily_conflict(self, mock_stdout):
+        config = {
+            "salary_sacrifice_enabled": True,
+            "monthly_salary_sacrifice": 2000,
+            "daily_salary_sacrifice": 50,
+        }
+        with self.assertRaises(ValueError):
+            prompt_salary_sacrifice(
+                150_000,
+                mode="inside_ir35",
+                working_days=227,
+                is_paystream=True,
+                config=config,
+            )
+
     @patch("sys.stdout", new_callable=StringIO)
     def test_prompt_salary_sacrifice_config_max(self, mock_stdout):
         config = {"salary_sacrifice_enabled": True, "monthly_salary_sacrifice": "max"}

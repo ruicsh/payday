@@ -26,6 +26,7 @@ class InsideIR35Calculator:
         existing_dividends: float = 0,
         salary_sacrifice: int = 0,
         is_paystream: bool = False,
+        sacrifice_frequency: str = "monthly",
         effective_days: int | None = None,
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.
@@ -40,6 +41,8 @@ class InsideIR35Calculator:
         (net-pay pot, employer-NI saving passed back as additional gross, plus
         a weekly admin charge). Otherwise a generic umbrella applies a direct
         gross reduction and retains the employer-cost saving.
+        *sacrifice_frequency* is ``"monthly"`` (default) or ``"daily"`` and only
+        affects the per-period breakdown line.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
@@ -140,13 +143,22 @@ class InsideIR35Calculator:
         remaining_pa = max(0, pa - existing_income)
         pa_label = "Personal Allowance" + (" (tapered)" if tapered else "")
 
+        if sacrifice_frequency == "daily":
+            sacrifice_label = "Daily Sacrifice"
+            sacrifice_divisor = effective_days
+        else:
+            sacrifice_label = "Monthly Sacrifice"
+            sacrifice_divisor = months
+
         if salary_sacrifice:
             if is_paystream:
                 steps = [
                     StepLine("Assignment Rate", annual_assignment),
                     StepLine("Salary Sacrifice", -salary_sacrifice, indent=1),
                     StepLine(
-                        "Monthly Sacrifice", -(salary_sacrifice // months), indent=2
+                        sacrifice_label,
+                        -(salary_sacrifice // sacrifice_divisor),
+                        indent=2,
                     ),
                     StepLine("Umbrella Margin", -annual_margin, indent=1),
                     StepLine("PayStream Admin Charge", -admin_charge, indent=1),
@@ -172,7 +184,9 @@ class InsideIR35Calculator:
                     StepLine("Assignment Rate", annual_assignment),
                     StepLine("Salary Sacrifice", -salary_sacrifice, indent=1),
                     StepLine(
-                        "Monthly Sacrifice", -(salary_sacrifice // months), indent=2
+                        sacrifice_label,
+                        -(salary_sacrifice // sacrifice_divisor),
+                        indent=2,
                     ),
                     StepLine("Umbrella Margin", -annual_margin, indent=1),
                     StepLine(

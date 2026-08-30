@@ -22,6 +22,7 @@ FIELD_TYPES = {
     "is_paystream": (bool, type(None)),
     "salary_sacrifice_enabled": (bool, type(None)),
     "monthly_salary_sacrifice": (int, str, bool, type(None)),
+    "daily_salary_sacrifice": (int, str, bool, type(None)),
     "income_target": (int, bool, type(None)),
     "director_pension": (int, bool, type(None)),
 }
@@ -38,6 +39,7 @@ _ALL_FIELDS = [
     "is_paystream",
     "salary_sacrifice_enabled",
     "monthly_salary_sacrifice",
+    "daily_salary_sacrifice",
     "income_target",
     "director_pension",
 ]
@@ -88,10 +90,12 @@ def _validate_field(key: str, value: Any) -> None:
         if value < 0:
             raise ValueError(f"'umbrella_margin': must be >= 0, got {value}")
 
-    elif key == "monthly_salary_sacrifice" and isinstance(value, str):
+    elif key in ("monthly_salary_sacrifice", "daily_salary_sacrifice") and isinstance(
+        value, str
+    ):
         if value not in VALID_SACRIFICE_KEYWORDS:
             raise ValueError(
-                f"'monthly_salary_sacrifice': string must be one of "
+                f"'{key}': string must be one of "
                 f"{', '.join(sorted(VALID_SACRIFICE_KEYWORDS))}, got '{value}'"
             )
 
@@ -124,6 +128,15 @@ def load_config(path: str) -> dict | None:
             raise ValueError(f"Unknown config key: '{key}'")
         _validate_field(key, raw[key])
         config[key] = raw[key]
+
+    if (
+        config.get("monthly_salary_sacrifice") is not None
+        and config.get("daily_salary_sacrifice") is not None
+    ):
+        raise ValueError(
+            "set either 'monthly_salary_sacrifice' or "
+            "'daily_salary_sacrifice', not both"
+        )
 
     return config
 

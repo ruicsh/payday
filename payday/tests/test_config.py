@@ -144,6 +144,59 @@ class TestLoadConfig(unittest.TestCase):
             finally:
                 os.unlink(path)
 
+    def test_daily_sacrifice_int_accepted(self):
+        data = {"mode": "inside_ir35", "daily_salary_sacrifice": 50}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertEqual(result["daily_salary_sacrifice"], 50)
+        finally:
+            os.unlink(path)
+
+    def test_daily_sacrifice_valid_keywords(self):
+        for kw in ("max", "auto"):
+            data = {"mode": "inside_ir35", "daily_salary_sacrifice": kw}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                result = load_config(path)
+                assert result is not None
+                self.assertEqual(result["daily_salary_sacrifice"], kw)
+            finally:
+                os.unlink(path)
+
+    def test_daily_sacrifice_invalid_keyword(self):
+        data = {"mode": "inside_ir35", "daily_salary_sacrifice": "invalid"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
+        finally:
+            os.unlink(path)
+
+    def test_both_monthly_and_daily_sacrifice_rejected(self):
+        data = {
+            "mode": "inside_ir35",
+            "monthly_salary_sacrifice": 2000,
+            "daily_salary_sacrifice": 50,
+        }
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
+        finally:
+            os.unlink(path)
+
     def test_salary_cap_none_when_not_present(self):
         data = {"mode": "paye", "salary_sacrifice_enabled": True}
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -184,6 +237,7 @@ class TestLoadConfig(unittest.TestCase):
             "umbrella_margin",
             "is_paystream",
             "monthly_salary_sacrifice",
+            "daily_salary_sacrifice",
             "income_target",
             "director_pension",
         ]
@@ -215,6 +269,7 @@ class TestLoadConfig(unittest.TestCase):
             "working_days",
             "umbrella_margin",
             "monthly_salary_sacrifice",
+            "daily_salary_sacrifice",
             "salary",
             "day_rate",
             "director_pension",
@@ -398,6 +453,7 @@ class TestGenerateTemplate(unittest.TestCase):
             self.assertIn("salary", data)
             self.assertIn("day_rate", data)
             self.assertIn("monthly_salary_sacrifice", data)
+            self.assertIn("daily_salary_sacrifice", data)
             self.assertIsNone(data["salary"])
             self.assertIsNone(data["day_rate"])
         finally:

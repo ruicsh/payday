@@ -46,7 +46,7 @@ For contractors working through an umbrella company. The umbrella sits between t
 | Start month                | None                  | Month contract starts (1–12) for mid-year proration                                                                          |
 | Existing employment income | £0                    | Income already earned this tax year                                                                                          |
 | Existing dividend income   | £0                    | Dividends already received this tax year                                                                                     |
-| Salary sacrifice (monthly) | auto-calc             | Reduces taxable income (capped at £60k/yr); auto-calc targets £100k ANI                                                      |
+| Salary sacrifice (monthly) | auto-calc             | Reduces taxable income (capped at £60k/yr); auto-calc targets £100k ANI. PayStream also supports a per-day sacrifice instead (see below). |
 
 **Flow:**
 
@@ -67,7 +67,7 @@ For contractors working through an umbrella company. The umbrella sits between t
   20-Day Take-Home         £N
 ```
 
-**PayStream (`is_paystream: true`):** salary sacrifice uses a net-pay pot — the sacrifice comes off the assignment before employer costs, so the employer NI saving is passed back to you and shown as an explicit `Employer NI saving (passed back)` line. A weekly admin charge of **£7.00 + 20% VAT (£8.40)** applies while sacrificing. A **generic umbrella** instead reduces gross directly by the sacrifice and retains the employer-cost saving.
+**PayStream (`is_paystream: true`):** salary sacrifice uses a net-pay pot — the sacrifice comes off the assignment before employer costs, so the employer NI saving is passed back to you and shown as an explicit `Employer NI saving (passed back)` line. A weekly admin charge of **£7.00 + 20% VAT (£8.40)** applies while sacrificing. PayStream also allows the sacrifice to be set as a fixed **per-day amount** (`daily_salary_sacrifice` in config, e.g. `"daily_salary_sacrifice": 50` → £50 × net working days); this is accepted only when `is_paystream` is true and cannot be combined with `monthly_salary_sacrifice`. A **generic umbrella** instead reduces gross directly by the sacrifice and retains the employer-cost saving.
 
 ### 3. Outside IR35 (Limited Company)
 
@@ -172,6 +172,7 @@ All fields are optional. `null` or absent = prompt interactively (or use default
 | `is_paystream`             | bool or null        | `true` = PayStream umbrella (net-pay salary sacrifice + £7+VAT weekly admin charge). `false` = generic umbrella (direct gross reduction). |
 | `salary_sacrifice_enabled` | bool or null        | Enable salary sacrifice                                                                          |
 | `monthly_salary_sacrifice` | int or str or null  | Monthly amount, `"max"`, or `"auto"`                                                             |
+| `daily_salary_sacrifice`   | int or str or null  | Per-day amount (PayStream only), `"max"`, or `"auto"`. Mutually exclusive with `monthly_salary_sacrifice`. |
 | `income_target`            | int, bool, or null  | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively; `false` = no target (maxes pension). |
 | `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = use £0 default. |
 
@@ -208,7 +209,7 @@ Or directly:
 python3 -m unittest discover -v -s payday/tests
 ```
 
-All tests pass (347 test cases and counting).
+All tests pass (393 test cases and counting).
 
 ---
 
