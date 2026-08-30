@@ -131,6 +131,14 @@ Or directly:
 python3 -m payday --config payday.json
 ```
 
+Or via the launcher (uses the project venv):
+
+```bash
+./payday.sh            # opens the contract picker (bare `python3 -m payday`)
+./payday.sh --config custom.json
+./payday.sh --init     # writes a payday.json template
+```
+
 When run without a valid `--config` (e.g. `make run` with no `payday.json` present), you'll be shown a list of contracts from `contracts/` and prompted to pick one. Selecting `[0] Manual entry` (or pressing Enter) skips the contract and prompts interactively.
 
 Follow the prompts to select a mode and enter your details. You'll be asked about salary sacrifice and existing income/dividends where applicable.
@@ -141,7 +149,7 @@ Salary sacrifice is capped at £60,000 per year. For help choosing how much to s
 
 ## Configuration
 
-Pre-fill prompts by passing a JSON config file with the `--config` flag. Configured values skip interactive input; absent fields default to null and prompt normally.
+Pre-fill prompts by passing a JSON config file with the `--config` flag. Configured values skip interactive input; absent fields default to `null` and prompt normally.
 
 ```bash
 python3 -m payday --config myconfig.json
@@ -154,46 +162,102 @@ python3 -m payday --init              # writes payday.json
 python3 -m payday --init custom.json  # writes custom.json
 ```
 
+### How config values behave
+
+Every field follows a three-state convention:
+
+| Value  | Meaning                                                                |
+| ------ | ---------------------------------------------------------------------- |
+| `null` / absent | Prompt interactively (or fall back to the field's default) |
+| `true` | Use the field's default / auto value (see per-field notes below)       |
+| `false` | Off / disabled — only valid for the fields that support it            |
+
+`false` is only meaningful for `salary_sacrifice_enabled`, `is_paystream`, and `income_target`. Every other field rejects a JSON `false` (use `true` for the default, or `null` to prompt). `mode`, `salary`, and `day_rate` accept neither — they have no default and must be given a real value or prompted.
+
 ### Schema
 
-All fields are optional. `null` or absent = prompt interactively (or use default).
+All fields are optional.
 
 | Field                      | Type                | Accepts                                                                                          |
 | -------------------------- | ------------------- | ------------------------------------------------------------------------------------------------ |
 | `mode`                     | string or int       | `"paye"` / `"inside_ir35"` / `"outside_ir35"` or `1` / `2` / `3`                                 |
 | `salary`                   | int or null         | Annual gross salary (PAYE only)                                                                  |
 | `day_rate`                 | int or null         | Daily contract rate (IR35 only)                                                                  |
-| `start_month`              | int or null         | 1–12, or null for full tax year                                                                  |
-| `existing_income`          | float, int, or null | Income already earned this tax year (≥ 0)                                                        |
-| `existing_dividends`       | float, int, or null | Dividends already received (≥ 0)                                                                 |
-| `days_off`                 | int or null         | Non-working days (≥ 0)                                                                           |
-| `working_days`             | int or null         | Net working days (≥ 1); if absent, auto-computed from days_off                                   |
-| `umbrella_margin`          | int or null         | Weekly umbrella fee (≥ 0, IR35 only)                                                                                         |
-| `is_paystream`             | bool or null        | `true` = PayStream umbrella (net-pay salary sacrifice + £7+VAT weekly admin charge). `false` = generic umbrella (direct gross reduction). |
-| `salary_sacrifice_enabled` | bool or null        | Enable salary sacrifice                                                                          |
-| `monthly_salary_sacrifice` | int or str or null  | Monthly amount, `"max"`, or `"auto"`                                                             |
-| `daily_salary_sacrifice`   | int or str or null  | Per-day amount (PayStream only), `"max"`, or `"auto"`. Mutually exclusive with `monthly_salary_sacrifice`. |
-| `income_target`            | int, bool, or null  | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively; `false` = no target (maxes pension). |
-| `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = use £0 default. |
+| `start_month`              | int or null         | `1`–`12`, or `null`/`true` for full tax year                                                      |
+| `existing_income`          | float, int, or null | Income already earned this tax year (≥ 0); `true` = £0                                           |
+| `existing_dividends`       | float, int, or null | Dividends already received (≥ 0); `true` = £0                                                    |
+| `days_off`                 | int or null         | Non-working days (≥ 0); `true` = default 25                                                      |
+| `working_days`             | int or null         | Net working days (≥ 1); `true` or absent = auto-computed from `days_off`                         |
+| `umbrella_margin`          | int or null         | Weekly umbrella fee (≥ 0, IR35 only); `true` = default £25                                       |
+| `is_paystream`             | bool or null        | `true` = PayStream umbrella (net-pay salary sacrifice + £7+VAT weekly admin charge). `false` = generic umbrella (direct gross reduction). `null` prompts. |
+| `salary_sacrifice_enabled` | bool or null        | `true` enables salary sacrifice. `false` *or* `null` skips sacrifice entirely — no prompt, £0.  |
+| `monthly_salary_sacrifice` | int or str or null  | Monthly amount, `"max"`, or `"auto"` (`true` = `"auto"`). Mutually exclusive with `daily_*`.     |
+| `daily_salary_sacrifice`   | int or str or null  | Per-day amount (PayStream only), `"max"`, or `"auto"` (`true` = `"auto"`). Mutually exclusive with `monthly_*`. |
+| `income_target`            | int, bool, or null  | Fixed cap (≥ 1); `null`/`true` = prompt for cap (default £100,000); `false` = no target (max out pension). Only relevant with `"auto"` sacrifice. |
+| `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = £0 (no contribution). |
 
-### Example
+### Examples
+
+**PAYE — auto sacrifice targeting £100,000 ANI:**
+
+```json
+{
+  "mode": "paye",
+  "salary": 125000,
+  "salary_sacrifice_enabled": true,
+  "monthly_salary_sacrifice": "auto",
+  "income_target": 100000
+}
+```
+
+**Inside IR35 via PayStream — fixed per-day sacrifice:**
 
 ```json
 {
   "mode": "inside_ir35",
-  "day_rate": 600,
-  "start_month": 4,
-  "existing_income": 10000,
-  "existing_dividends": 5000,
-  "days_off": 25,
-  "umbrella_margin": 25,
+  "day_rate": 750,
+  "days_off": 5,
   "is_paystream": true,
   "salary_sacrifice_enabled": true,
-  "monthly_salary_sacrifice": 2000
+  "daily_salary_sacrifice": 250
 }
 ```
 
-> Config must be explicitly passed via `--config`. There is no auto-detection of `payday.json` in the working directory — this avoids surprise behaviour when switching directories.
+**Inside IR35 — max out the pension (no income target):**
+
+```json
+{
+  "mode": "inside_ir35",
+  "day_rate": 750,
+  "is_paystream": true,
+  "salary_sacrifice_enabled": true,
+  "monthly_salary_sacrifice": "auto",
+  "income_target": false
+}
+```
+
+**Outside IR35 — mid-year start with a director pension:**
+
+```json
+{
+  "mode": "outside_ir35",
+  "day_rate": 800,
+  "start_month": 10,
+  "days_off": 20,
+  "existing_income": 15000,
+  "director_pension": 20000
+}
+```
+
+### Gotchas
+
+- **Sacrifice needs `salary_sacrifice_enabled: true`.** In config mode, a `null` or `false` value silently disables salary sacrifice (no prompt, £0). Only `true` runs the sacrifice logic.
+- **`daily_salary_sacrifice` requires `is_paystream: true`** and is rejected for generic umbrellas. It also needs `working_days` (or `days_off`) to convert per-day to annual.
+- **`monthly_*` and `daily_*` are mutually exclusive** — setting both fails validation.
+- **`income_target: false` is not an error** — it deliberately means "no cap, maximise the pension". Every other field's `false` is rejected.
+- `start_month`, `days_off`, `umbrella_margin`, `working_days`, `existing_*`, `director_pension`, and the sacrifice amounts all accept `true` as "use the default".
+
+> `make run` passes `--config payday.json` by default, so a `payday.json` in the working directory is picked up automatically when using `make run`. Running bare `python3 -m payday` — or `./payday.sh` with no arguments, which forwards args verbatim — skips `payday.json` entirely and opens the contract picker instead.
 
 ---
 
