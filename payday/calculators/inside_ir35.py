@@ -2,6 +2,7 @@ from payday.constants import (
     APPRENTICESHIP_LEVY_RATE,
     NI_EMPLOYER_RATE,
     PENSION_EMPLOYER_RATE,
+    PAYSTREAM_ADMIN_CHARGE_WEEKLY,
 )
 from payday.income_tax import (
     calc_adjusted_net_income,
@@ -24,6 +25,7 @@ class InsideIR35Calculator:
         existing_income: float = 0,
         existing_dividends: float = 0,
         salary_sacrifice: int = 0,
+        is_paystream: bool = False,
         effective_days: int | None = None,
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.
@@ -34,6 +36,10 @@ class InsideIR35Calculator:
         the remaining Personal Allowance and rate bands available to this contract.
         *existing_dividends* is dividends already received this tax year.
         *effective_days* if provided, overrides the pro-rated working_days count.
+        *is_paystream* selects the PayStream umbrella salary-sacrifice model
+        (net-pay pot, employer-NI saving passed back as additional gross, plus
+        a weekly admin charge). Otherwise a generic umbrella applies a direct
+        gross reduction and retains the employer-cost saving.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
@@ -53,28 +59,51 @@ class InsideIR35Calculator:
 
         budget = annual_assignment - annual_margin
 
-        if salary_sacrifice >= budget:
+        # PayStream salary-sacrifice administration charge (weekly, incl. VAT).
+        # Charged only when sacrificing through PayStream.
+        admin_charge = 0
+        if is_paystream and salary_sacrifice:
+            admin_charge = round(PAYSTREAM_ADMIN_CHARGE_WEEKLY * weeks)
+
+        if salary_sacrifice >= budget - admin_charge:
             raise ValueError("salary_sacrifice exceeds available budget")
 
         er_ni_saving = 0
+        ref_gross = 0
 
         if salary_sacrifice:
-            # Budget after sacrifice and margin: this must cover gross + ER NI + Levy
-            sac_budget = annual_assignment - salary_sacrifice - annual_margin
-            gross = InsideIR35Calculator.solve_gross_salary(
-                sac_budget, include_er_pension=False
-            )
+            if is_paystream:
+                # Net-pay pot: the sacrifice (and admin charge) come off the
+                # assignment before employer costs, so the employer NI reduction
+                # is passed back to the contractor as additional gross pay.
+                # G solves: A - S - M - admin = G + ER NI + Levy.
+                sac_budget = (
+                    annual_assignment - salary_sacrifice - annual_margin - admin_charge
+                )
+                gross = InsideIR35Calculator.solve_gross_salary(
+                    sac_budget, include_er_pension=False
+                )
+                # Reference gross (no sacrifice) so the passed-back ER NI saving
+                # can be shown as an explicit line.
+                ref_budget = annual_assignment - annual_margin - admin_charge
+                ref_gross = InsideIR35Calculator.solve_gross_salary(
+                    ref_budget, include_er_pension=False
+                )
+                er_ni_saving = (
+                    calc_employer_ni(ref_gross).total_er_ni
+                    - calc_employer_ni(gross).total_er_ni
+                )
+            else:
+                # Generic umbrella: a direct gross reduction. The employer NI
+                # (and levy) saving is retained by the umbrella, not passed back.
+                ref_gross = InsideIR35Calculator.solve_gross_salary(budget)
+                gross = max(0, ref_gross - salary_sacrifice)
 
             effective_gross = gross
             er_ni_result = calc_employer_ni(gross)
             levy = round(gross * APPRENTICESHIP_LEVY_RATE)
             er_pension_contribution = 0
             pension_result = PensionResult(False, 0, 0, 0)
-
-            # Informational: ER NI saving compared to what would have been paid
-            baseline_gross = InsideIR35Calculator.solve_gross_salary(budget)
-            baseline_er_ni = calc_employer_ni(baseline_gross).total_er_ni
-            er_ni_saving = baseline_er_ni - er_ni_result.total_er_ni
         else:
             gross = InsideIR35Calculator.solve_gross_salary(budget)
             effective_gross = gross
@@ -112,23 +141,52 @@ class InsideIR35Calculator:
         pa_label = "Personal Allowance" + (" (tapered)" if tapered else "")
 
         if salary_sacrifice:
-            steps = [
-                StepLine("Assignment Rate", annual_assignment),
-                StepLine("Salary Sacrifice", -salary_sacrifice, indent=1),
-                StepLine("Monthly Sacrifice", -(salary_sacrifice // months), indent=2),
-                StepLine("Umbrella Margin", -annual_margin, indent=1),
-                StepLine(
-                    f"Employer NI ({int(NI_EMPLOYER_RATE * 100)}%)",
-                    -er_ni_result.total_er_ni,
-                    indent=1,
-                ),
-                StepLine(
-                    f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE * 100}%)",
-                    -levy,
-                    indent=1,
-                ),
-                StepLine("Gross Salary", gross, is_subtotal=True),
-            ]
+            if is_paystream:
+                steps = [
+                    StepLine("Assignment Rate", annual_assignment),
+                    StepLine("Salary Sacrifice", -salary_sacrifice, indent=1),
+                    StepLine(
+                        "Monthly Sacrifice", -(salary_sacrifice // months), indent=2
+                    ),
+                    StepLine("Umbrella Margin", -annual_margin, indent=1),
+                    StepLine("PayStream Admin Charge", -admin_charge, indent=1),
+                    StepLine(
+                        f"Employer NI ({int(NI_EMPLOYER_RATE * 100)}%)",
+                        -calc_employer_ni(ref_gross).total_er_ni,
+                        indent=1,
+                    ),
+                    StepLine(
+                        "Employer NI saving (passed back)",
+                        er_ni_saving,
+                        indent=1,
+                    ),
+                    StepLine(
+                        f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE * 100}%)",
+                        -levy,
+                        indent=1,
+                    ),
+                    StepLine("Gross Salary", gross, is_subtotal=True),
+                ]
+            else:
+                steps = [
+                    StepLine("Assignment Rate", annual_assignment),
+                    StepLine("Salary Sacrifice", -salary_sacrifice, indent=1),
+                    StepLine(
+                        "Monthly Sacrifice", -(salary_sacrifice // months), indent=2
+                    ),
+                    StepLine("Umbrella Margin", -annual_margin, indent=1),
+                    StepLine(
+                        f"Employer NI ({int(NI_EMPLOYER_RATE * 100)}%)",
+                        -er_ni_result.total_er_ni,
+                        indent=1,
+                    ),
+                    StepLine(
+                        f"Apprenticeship Levy ({APPRENTICESHIP_LEVY_RATE * 100}%)",
+                        -levy,
+                        indent=1,
+                    ),
+                    StepLine("Gross Salary", gross, is_subtotal=True),
+                ]
         else:
             steps = [
                 StepLine("Assignment Rate", annual_assignment),
@@ -187,9 +245,14 @@ class InsideIR35Calculator:
             inputs["existing_income"] = existing_income
         if existing_dividends:
             inputs["existing_dividends"] = existing_dividends
+        if is_paystream:
+            inputs["is_paystream"] = True
+        if admin_charge:
+            inputs["admin_charge"] = admin_charge
         if salary_sacrifice:
             inputs["salary_sacrifice"] = salary_sacrifice
-            inputs["er_ni_saving"] = er_ni_saving
+            if is_paystream:
+                inputs["er_ni_saving"] = er_ni_saving
 
         return SalaryBreakdown(
             mode="Inside IR35",

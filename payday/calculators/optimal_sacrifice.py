@@ -65,12 +65,17 @@ def calc_optimal_sacrifice_inside_ir35(
     *,
     existing_income: float = 0,
     existing_dividends: float = 0,
+    admin_charge: int = 0,
 ) -> int:
     """Return the optimal annual salary sacrifice for an Inside IR35
     contractor so that adjusted net income ≤ *cap*.
 
     ANI = effective_gross + existing_income + existing_dividends.
     We want:  effective_gross ≤ cap − existing_income − existing_dividends.
+
+    *admin_charge* is the annual PayStream salary-sacrifice admin charge
+    (weekly £8.40 incl. VAT). It is deducted from the budget alongside the
+    margin, so the sacrifice fits within the reduced pot.
 
     If existing income already breaches the cap, return 0 (can't fix).
     Otherwise compute the target gross, find the required budget via
@@ -89,9 +94,9 @@ def calc_optimal_sacrifice_inside_ir35(
         round(target_gross), include_er_pension=False
     )
 
-    sacrifice = annual_assignment - target_budget - annual_margin
+    sacrifice = annual_assignment - target_budget - annual_margin - admin_charge
     # Clamp to feasible range: at least 0, at most budget − 1
-    budget = annual_assignment - annual_margin
+    budget = annual_assignment - annual_margin - admin_charge
     sacrifice = max(0, min(sacrifice, budget - 1))
     sacrifice = min(sacrifice, MAX_SALARY_SACRIFICE)
     return sacrifice

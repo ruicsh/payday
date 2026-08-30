@@ -1,7 +1,7 @@
 import sys
 from collections.abc import Callable
 from payday.config import VALID_MODES
-from payday.constants import MAX_SALARY_SACRIFICE
+from payday.constants import MAX_SALARY_SACRIFICE, PAYSTREAM_ADMIN_CHARGE_WEEKLY
 from payday.calculators.optimal_sacrifice import (
     calc_optimal_sacrifice_inside_ir35,
     calc_optimal_sacrifice_paye,
@@ -200,6 +200,7 @@ def prompt_salary_sacrifice(
     mode: str = "paye",
     start_month: int | None = None,
     annual_margin: int = 0,
+    admin_charge: int = 0,
     existing_income: float = 0,
     existing_dividends: float = 0,
     default_cap: int = 100_000,
@@ -229,7 +230,7 @@ def prompt_salary_sacrifice(
             if mode == "paye":
                 result = min(gross, MAX_SALARY_SACRIFICE)
             elif mode == "inside_ir35":
-                max_within_budget = max(0, gross - annual_margin - 1)
+                max_within_budget = max(0, gross - annual_margin - admin_charge - 1)
                 result = min(max_within_budget, MAX_SALARY_SACRIFICE)
             else:
                 result = 0
@@ -257,6 +258,7 @@ def prompt_salary_sacrifice(
                     cap=cap,
                     existing_income=existing_income,
                     existing_dividends=existing_dividends,
+                    admin_charge=admin_charge,
                 )
             else:
                 result = 0
@@ -301,6 +303,7 @@ def prompt_salary_sacrifice(
                     cap=cap,
                     existing_income=existing_income,
                     existing_dividends=existing_dividends,
+                    admin_charge=admin_charge,
                 )
             else:
                 annual_sacrifice = 0
@@ -333,7 +336,7 @@ def prompt_salary_sacrifice(
             if mode == "paye":
                 annual_sacrifice = min(gross, MAX_SALARY_SACRIFICE)
             elif mode == "inside_ir35":
-                max_within_budget = max(0, gross - annual_margin - 1)
+                max_within_budget = max(0, gross - annual_margin - admin_charge - 1)
                 annual_sacrifice = min(max_within_budget, MAX_SALARY_SACRIFICE)
             else:
                 annual_sacrifice = 0
@@ -357,6 +360,16 @@ def prompt_salary_sacrifice(
             return annual
         except ValueError:
             print("Error: Please enter a whole number.")
+
+
+def prompt_paystream(config: dict | None = None) -> bool:
+    """Ask whether the umbrella company is PayStream. True = PayStream."""
+    if config and config.get("is_paystream") is not None:
+        val = config["is_paystream"]
+        print(f"Is your umbrella company PayStream? [y/N]: {'yes' if val else 'no'}")
+        return bool(val)
+    answer = input("Is your umbrella company PayStream? [y/N]: ").strip().lower()
+    return answer == "y"
 
 
 def _resolve_days_off(config: dict, default: int = 25) -> int:
@@ -497,17 +510,23 @@ def run_once(config: dict | None = None) -> None:
             min_val=0,
             config_value=config.get("umbrella_margin") if config else None,
         )
+        is_paystream = prompt_paystream(config)
 
         weeks = net_working_days / 5
         annual_margin = round(margin * weeks)
 
         annual_assignment = day_rate * net_working_days
 
+        annual_admin_charge = (
+            round(PAYSTREAM_ADMIN_CHARGE_WEEKLY * weeks) if is_paystream else 0
+        )
+
         salary_sacrifice = prompt_salary_sacrifice(
             annual_assignment,
             mode="inside_ir35",
             start_month=start_month,
             annual_margin=annual_margin,
+            admin_charge=annual_admin_charge,
             existing_income=existing_income,
             existing_dividends=existing_dividends,
             config=config,
@@ -520,6 +539,7 @@ def run_once(config: dict | None = None) -> None:
             existing_income,
             existing_dividends=existing_dividends,
             salary_sacrifice=salary_sacrifice,
+            is_paystream=is_paystream,
             effective_days=net_working_days,
         )
 

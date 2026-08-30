@@ -5,6 +5,8 @@ from typing import Any
 
 VALID_MODES = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3}
 VALID_SACRIFICE_KEYWORDS = {"max", "auto"}
+# Boolean fields accept both true and false as legitimate values.
+BOOLEAN_FIELDS = {"salary_sacrifice_enabled", "is_paystream"}
 FIELD_TYPES = {
     "mode": (str, int),
     "salary": (int, type(None)),
@@ -15,6 +17,7 @@ FIELD_TYPES = {
     "days_off": (int, bool, type(None)),
     "working_days": (int, bool, type(None)),
     "umbrella_margin": (int, bool, type(None)),
+    "is_paystream": (bool, type(None)),
     "salary_sacrifice_enabled": (bool, type(None)),
     "monthly_salary_sacrifice": (int, str, bool, type(None)),
     "income_target": (int, bool, type(None)),
@@ -30,6 +33,7 @@ _ALL_FIELDS = [
     "days_off",
     "working_days",
     "umbrella_margin",
+    "is_paystream",
     "salary_sacrifice_enabled",
     "monthly_salary_sacrifice",
     "income_target",
@@ -41,7 +45,7 @@ def _validate_field(key: str, value: Any) -> None:
     allowed = FIELD_TYPES[key]
     if isinstance(value, bool) and bool not in allowed:
         raise ValueError(f"'{key}': expected numeric type, got boolean")
-    if isinstance(value, bool) and key != "salary_sacrifice_enabled":
+    if isinstance(value, bool) and key not in BOOLEAN_FIELDS:
         if value is False:
             raise ValueError(f"'{key}': use 'true' for default, or 'null' to prompt")
         if key in ("salary", "day_rate", "mode"):

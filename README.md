@@ -42,6 +42,7 @@ For contractors working through an umbrella company. The umbrella sits between t
 | Day rate                   | —                     | Daily contract rate                                                                                                          |
 | Working days/year          | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
 | Umbrella weekly margin     | £25                   | Weekly umbrella company fee                                                                                                  |
+| Is your umbrella PayStream? | No                   | PayStream uses a net-pay salary-sacrifice model: the employer NI saving is passed back as additional gross pay, and a weekly admin charge (£7 + VAT) applies when sacrificing. Generic umbrellas reduce gross directly and retain the saving. |
 | Start month                | None                  | Month contract starts (1–12) for mid-year proration                                                                          |
 | Existing employment income | £0                    | Income already earned this tax year                                                                                          |
 | Existing dividend income   | £0                    | Dividends already received this tax year                                                                                     |
@@ -65,6 +66,8 @@ For contractors working through an umbrella company. The umbrella sits between t
   Annual Take-Home         £N
   20-Day Take-Home         £N
 ```
+
+**PayStream (`is_paystream: true`):** salary sacrifice uses a net-pay pot — the sacrifice comes off the assignment before employer costs, so the employer NI saving is passed back to you and shown as an explicit `Employer NI saving (passed back)` line. A weekly admin charge of **£7.00 + 20% VAT (£8.40)** applies while sacrificing. A **generic umbrella** instead reduces gross directly by the sacrifice and retains the employer-cost saving.
 
 ### 3. Outside IR35 (Limited Company)
 
@@ -165,7 +168,8 @@ All fields are optional. `null` or absent = prompt interactively (or use default
 | `existing_dividends`       | float, int, or null | Dividends already received (≥ 0)                                                                 |
 | `days_off`                 | int or null         | Non-working days (≥ 0)                                                                           |
 | `working_days`             | int or null         | Net working days (≥ 1); if absent, auto-computed from days_off                                   |
-| `umbrella_margin`          | int or null         | Weekly umbrella fee (≥ 0, IR35 only)                                                             |
+| `umbrella_margin`          | int or null         | Weekly umbrella fee (≥ 0, IR35 only)                                                                                         |
+| `is_paystream`             | bool or null        | `true` = PayStream umbrella (net-pay salary sacrifice + £7+VAT weekly admin charge). `false` = generic umbrella (direct gross reduction). |
 | `salary_sacrifice_enabled` | bool or null        | Enable salary sacrifice                                                                          |
 | `monthly_salary_sacrifice` | int or str or null  | Monthly amount, `"max"`, or `"auto"`                                                             |
 | `income_target`            | int, bool, or null  | Target taxable income cap (≥ 1). `null` or `true` prompts you interactively.                     |
@@ -182,6 +186,7 @@ All fields are optional. `null` or absent = prompt interactively (or use default
   "existing_dividends": 5000,
   "days_off": 25,
   "umbrella_margin": 25,
+  "is_paystream": true,
   "salary_sacrifice_enabled": true,
   "monthly_salary_sacrifice": 2000
 }

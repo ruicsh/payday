@@ -51,3 +51,8 @@ PENSION_EMPLOYER_RATE: float = 0.03
 
 # Salary Sacrifice
 MAX_SALARY_SACRIFICE: int = 60_000
+
+# PayStream salary-sacrifice administration charge (weekly, incl. 20% VAT)
+# Source: PayStream "Salary Sacrifice — Contractor FAQs" (paystream-salary-sacrifice.pdf)
+# £7.00 + 20% VAT = £8.40/week; charged only when sacrificing through PayStream.
+PAYSTREAM_ADMIN_CHARGE_WEEKLY: float = 8.40

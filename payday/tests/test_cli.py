@@ -5,6 +5,7 @@ from payday.cli import (
     prompt_int,
     prompt_float,
     prompt_existing_income,
+    prompt_paystream,
     prompt_salary_sacrifice,
     prompt_working_days,
     run_once,
@@ -242,6 +243,37 @@ class TestCLI(unittest.TestCase):
         result = prompt_salary_sacrifice(150_000, config=config)
         self.assertEqual(result, 60_000)
         mock_input.assert_called_once_with("Taxable income cap [£100,000]: ")
+
+    # ── prompt_paystream tests ─────────────────────────────────────────
+
+    def test_prompt_paystream_config_true(self):
+        result = prompt_paystream(config={"is_paystream": True})
+        self.assertTrue(result)
+
+    def test_prompt_paystream_config_false(self):
+        result = prompt_paystream(config={"is_paystream": False})
+        self.assertFalse(result)
+
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_prompt_paystream_config_true_prints_message(self, mock_stdout):
+        prompt_paystream(config={"is_paystream": True})
+        output = mock_stdout.getvalue()
+        self.assertIn("Is your umbrella company PayStream? [y/N]: yes", output)
+
+    @patch("builtins.input", return_value="y")
+    def test_prompt_paystream_yes(self, mock_input):
+        result = prompt_paystream()
+        self.assertTrue(result)
+
+    @patch("builtins.input", return_value="n")
+    def test_prompt_paystream_no(self, mock_input):
+        result = prompt_paystream()
+        self.assertFalse(result)
+
+    @patch("builtins.input", return_value="")
+    def test_prompt_paystream_default_no(self, mock_input):
+        result = prompt_paystream()
+        self.assertFalse(result)
 
     # ── prompt_working_days config tests ───────────────────────────────
 
@@ -682,6 +714,7 @@ class TestCLI(unittest.TestCase):
             "existing_dividends": 5000,
             "days_off": 25,
             "umbrella_margin": 25,
+            "is_paystream": True,
             "salary_sacrifice_enabled": True,
             "monthly_salary_sacrifice": 2000,
             "income_target": 60000,

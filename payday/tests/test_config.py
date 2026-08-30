@@ -182,6 +182,7 @@ class TestLoadConfig(unittest.TestCase):
             "days_off",
             "working_days",
             "umbrella_margin",
+            "is_paystream",
             "monthly_salary_sacrifice",
             "income_target",
             "director_pension",
@@ -307,6 +308,56 @@ class TestLoadConfig(unittest.TestCase):
             result = load_config(path)
             assert result is not None
             self.assertIs(result["director_pension"], True)
+        finally:
+            os.unlink(path)
+
+    # ── is_paystream config tests ─────────────────────────────────────
+
+    def test_is_paystream_true_accepted(self):
+        data = {"mode": "inside_ir35", "is_paystream": True}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIs(result["is_paystream"], True)
+        finally:
+            os.unlink(path)
+
+    def test_is_paystream_false_accepted(self):
+        """false is a valid value (generic umbrella)."""
+        data = {"mode": "inside_ir35", "is_paystream": False}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIs(result["is_paystream"], False)
+        finally:
+            os.unlink(path)
+
+    def test_is_paystream_null_accepted(self):
+        data = {"mode": "inside_ir35", "is_paystream": None}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIsNone(result["is_paystream"])
+        finally:
+            os.unlink(path)
+
+    def test_is_paystream_string_rejected(self):
+        data = {"mode": "inside_ir35", "is_paystream": "yes"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
         finally:
             os.unlink(path)
 

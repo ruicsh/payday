@@ -252,21 +252,25 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertNotIn("Pension Contribution", labels)
 
     def test_salary_sacrifice_er_ni_saving_computed(self):
-        """With sacrifice, ER NI saving is positive and stored in inputs (not in waterfall)."""
-        breakdown = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
+        """With sacrifice through PayStream, ER NI saving is positive and stored."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, salary_sacrifice=5000, is_paystream=True
+        )
         self.assertIn("er_ni_saving", breakdown.inputs)
         self.assertGreater(breakdown.inputs["er_ni_saving"], 0)
 
     def test_salary_sacrifice_budget_round_trip(self):
-        """Budget = gross + er_ni + levy within ±1 rounding for sacrifice path."""
+        """PayStream net-pay: budget = gross + er_ni + levy within ±1 rounding."""
         from payday.constants import APPRENTICESHIP_LEVY_RATE
 
         for rate, sacrifice in [(300, 5000), (500, 15000), (800, 10000)]:
             breakdown = InsideIR35Calculator.calculate(
-                rate, 240, 25, salary_sacrifice=sacrifice
+                rate, 240, 25, salary_sacrifice=sacrifice, is_paystream=True
             )
             gross = self._find_step(breakdown, "Gross Salary").amount
-            sac_budget = rate * 240 - sacrifice - round(25 * 240 / 5)
+            weeks = 240 / 5
+            admin_charge = round(8.40 * weeks)
+            sac_budget = rate * 240 - sacrifice - round(25 * 240 / 5) - admin_charge
             assert breakdown.employer_ni is not None
             actual = (
                 gross
@@ -274,6 +278,79 @@ class TestInsideIR35Calculator(unittest.TestCase):
                 + round(gross * APPRENTICESHIP_LEVY_RATE)
             )
             self.assertAlmostEqual(actual, sac_budget, delta=1)
+
+    # ── is_paystream (PayStream umbrella) tests ─────────────────────────
+
+    def test_paystream_backward_compatible_default(self):
+        """Default (is_paystream=False) is identical to not passing it."""
+        default = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
+        explicit = InsideIR35Calculator.calculate(
+            500, 240, 25, salary_sacrifice=5000, is_paystream=False
+        )
+        self.assertEqual(default.annual_take_home, explicit.annual_take_home)
+        self.assertEqual(default.steps, explicit.steps)
+        self.assertNotIn("is_paystream", default.inputs)
+
+    def test_generic_sacrifice_direct_reduction(self):
+        """Generic umbrella: gross = baseline gross − sacrifice (saving retained)."""
+        no_sac = InsideIR35Calculator.calculate(500, 240, 25)
+        baseline_gross = self._find_step(no_sac, "Gross Salary").amount
+        breakdown = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
+        gross = self._find_step(breakdown, "Gross Salary").amount
+        self.assertEqual(gross, baseline_gross - 5000)
+        self.assertNotIn("er_ni_saving", breakdown.inputs)
+
+    def test_generic_sacrifice_umbrella_retains_saving(self):
+        """Generic take-home must be lower than the PayStream net-pay take-home."""
+        generic = InsideIR35Calculator.calculate(500, 240, 25, salary_sacrifice=5000)
+        paystream = InsideIR35Calculator.calculate(
+            500, 240, 25, salary_sacrifice=5000, is_paystream=True
+        )
+        self.assertLess(generic.annual_take_home, paystream.annual_take_home)
+
+    def test_paystream_explicit_er_ni_saving_line(self):
+        """PayStream waterfall shows the ER NI saving passed back as a line."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, salary_sacrifice=5000, is_paystream=True
+        )
+        saving = self._find_step(breakdown, "Employer NI saving (passed back)")
+        self.assertGreater(saving.amount, 0)
+        self.assertIn("er_ni_saving", breakdown.inputs)
+        self.assertEqual(breakdown.inputs["er_ni_saving"], saving.amount)
+
+    def test_paystream_waterfall_balances_to_gross(self):
+        """PayStream: Assignment − S − M − admin − ref ER NI + saving − levy = gross."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, salary_sacrifice=5000, is_paystream=True
+        )
+        gross = self._find_step(breakdown, "Gross Salary").amount
+        assignment = self._find_step(breakdown, "Assignment Rate").amount
+        sacrifice = -self._find_step(breakdown, "Salary Sacrifice").amount
+        margin = -self._find_step(breakdown, "Umbrella Margin").amount
+        admin = -self._find_step(breakdown, "PayStream Admin Charge").amount
+        er_ni = -self._find_step(breakdown, "Employer NI (15%)").amount
+        saving = self._find_step(breakdown, "Employer NI saving (passed back)").amount
+        levy = -self._find_step(breakdown, "Apprenticeship Levy (0.5%)").amount
+        self.assertEqual(
+            assignment - sacrifice - margin - admin - er_ni + saving - levy, gross
+        )
+        self.assertGreater(admin, 0)
+
+    def test_paystream_admin_charge_only_when_sacrificing(self):
+        """No admin charge without a salary sacrifice."""
+        breakdown = InsideIR35Calculator.calculate(500, 240, 25, is_paystream=True)
+        self.assertNotIn("admin_charge", breakdown.inputs)
+        labels = {step.label for step in breakdown.steps}
+        self.assertNotIn("PayStream Admin Charge", labels)
+
+    def test_paystream_admin_charge_recorded(self):
+        """With sacrifice, PayStream admin charge is recorded in inputs."""
+        breakdown = InsideIR35Calculator.calculate(
+            500, 240, 25, salary_sacrifice=5000, is_paystream=True
+        )
+        weeks = 240 / 5
+        self.assertIn("admin_charge", breakdown.inputs)
+        self.assertEqual(breakdown.inputs["admin_charge"], round(8.40 * weeks))
 
     def test_different_day_rates(self):
         # Just ensure all day rates produce reasonable results
