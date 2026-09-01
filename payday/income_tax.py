@@ -168,7 +168,7 @@ def _tax_components_scotland(
 
 
 def calc_income_tax(
-    salary: int,
+    salary: int | float,
     personal_allowance: int,
     existing_income: float = 0,
     region: str | None = None,
