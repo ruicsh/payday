@@ -1,6 +1,6 @@
 # Payday — UK Salary Calculator (2026/27)
 
-A command-line tool to calculate take-home pay under three different UK employment structures, using 2026/27 tax rates.
+A command-line tool to calculate take-home pay under four different UK employment structures, using 2026/27 tax rates.
 
 Run it via `make run` (defaults to `payday.json`) or `make run myconfig.json`. Or directly with `python3 -m payday`.
 
@@ -105,6 +105,38 @@ For contractors operating through their own limited company. The company receive
   20-Day Take-Home         £N
 ```
 
+### 4. Sole Trader (Self-Employed)
+
+For self-employed sole traders operating as an individual. The business receives turnover, deducts allowable expenses to arrive at trading profit, then pays Income Tax and Class 4 National Insurance via Self Assessment.
+
+| Input                              | Default               | Description                                                                                                                  |
+| ---------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Day rate                           | —                     | Daily contract rate                                                                                                          |
+| Working days/year                  | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
+| Business expenses                  | £0                    | Annual allowable expenses deducted from turnover before profit                                                               |
+| Personal pension contribution      | £0                    | Annual personal pension contribution (relief at source, ≥ 0, max £60k); reduces Income Tax but not Class 4 NI              |
+| Existing employment income         | £0                    | Income already earned this tax year (consumes PA and rate bands)                                                             |
+| Existing self-employment profit    | £0                    | Self-employment profit already earned this tax year (consumes PA, rate bands and Class 4 NI bands)                         |
+
+**Flow (Sole Trader — Self Assessment on trading profit; Class 2 treated as paid above £7,105, so only Class 4 is deducted):**
+
+```
+  Turnover              £day_rate × days
+    └─ Business Expenses -£N  (allowable expenses)
+  ────────────────────────────
+  Trading Profit         £N
+    └─ Personal Pension  -£N  (optional, max £60k; relief at source — reduces Income Tax, not Class 4 NI)
+  ────────────────────────────
+  Taxable Profit         £N
+    ├─ Income Tax        -£N  (0% / 20% / 40% / 45%; Scotland 19%/20%/21%/42%/45%/48%)
+    ├─ Class 4 NI        -£N  (0% / 6% / 2% via Self Assessment)
+    ├─ Student Loan      -£N  (9% on taxable profit + existing income/self-employment above plan threshold, optional)
+    └─ Postgraduate Loan -£N  (6% on taxable profit + existing income/self-employment above £21k, stacks with Student Loan)
+  ────────────────────────────
+  Annual Take-Home       £N
+  20-Day Take-Home       £N
+```
+
 ---
 
 ## Tax Rate References (2026/27)
@@ -120,6 +152,11 @@ All rates, thresholds and formulas used in this project are sourced from the fol
 | Corporation Tax (rates & Marginal Relief)        | [https://www.gov.uk/corporation-tax-rates](https://www.gov.uk/corporation-tax-rates)                                                                                                                                                                                                                             |
 | Dividend Tax (allowance & rates)                 | [https://www.gov.uk/tax-on-dividends](https://www.gov.uk/tax-on-dividends)                                                                                                                                                                                                                                       |
 | Student Loan Repayments (thresholds & rates)   | [https://www.gov.uk/repaying-your-student-loan/what-you-pay](https://www.gov.uk/repaying-your-student-loan/what-you-pay)                                                                                                                                                                                           |
+| Self-Employed National Insurance (Class 4)     | [https://www.gov.uk/self-employed-national-insurance-rates](https://www.gov.uk/self-employed-national-insurance-rates)                                                                                                                                                                                             |
+| Sole Trader / Self-Employment Setup            | [https://www.gov.uk/set-up-sole-trader](https://www.gov.uk/set-up-sole-trader)                                                                                                                                                                                                                                     |
+| Allowable Business Expenses (Self-Employed)    | [https://www.gov.uk/expenses-if-youre-self-employed](https://www.gov.uk/expenses-if-youre-self-employed)                                                                                                                                                                                                           |
+| Pension Tax Relief (Relief at Source)          | [https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief](https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief)                                                                                                                                                                           |
+| Pension Annual Allowance                       | [https://www.gov.uk/tax-on-your-private-pension/annual-allowance](https://www.gov.uk/tax-on-your-private-pension/annual-allowance)                                                                                                                                                                               |
 | IR35 / Off-Payroll Working Rules                 | [https://www.gov.uk/guidance/understanding-off-payroll-working-ir35](https://www.gov.uk/guidance/understanding-off-payroll-working-ir35)                                                                                                                                                                         |
 | Umbrella Company Guidance                        | [https://www.gov.uk/guidance/working-through-an-umbrella-company](https://www.gov.uk/guidance/working-through-an-umbrella-company)                                                                                                                                                                               |
 
@@ -187,12 +224,13 @@ All fields are optional.
 
 | Field                      | Type                | Accepts                                                                                          |
 | -------------------------- | ------------------- | ------------------------------------------------------------------------------------------------ |
-| `mode`                     | string or int       | `"paye"` / `"inside_ir35"` / `"outside_ir35"` or `1` / `2` / `3`                                 |
+| `mode`                     | string or int       | `"paye"` / `"inside_ir35"` / `"outside_ir35"` / `"sole_trader"` or `1` / `2` / `3` / `4`         |
 | `salary`                   | int or null         | Annual gross salary (PAYE only)                                                                  |
-| `day_rate`                 | int or null         | Daily contract rate (IR35 only)                                                                  |
+| `day_rate`                 | int or null         | Daily contract rate (IR35 / Sole Trader)                                                         |
 | `start_month`              | int or null         | `1`–`12`, or `null`/`true` for full tax year                                                      |
 | `existing_income`          | float, int, or null | Income already earned this tax year (≥ 0); `true` = £0                                           |
 | `existing_dividends`       | float, int, or null | Dividends already received (≥ 0); `true` = £0                                                    |
+| `existing_self_employment` | float, int, or null | Self-employment profit already earned (≥ 0, Sole Trader only); `true` = £0                      |
 | `days_off`                 | int or null         | Non-working days (≥ 0); `true` = default 25                                                      |
 | `working_days`             | int or null         | Net working days (≥ 1); `true` or absent = auto-computed from `days_off`                         |
 | `umbrella_margin`          | int or null         | Weekly umbrella fee (≥ 0, IR35 only); `true` = default £25                                       |
@@ -202,8 +240,10 @@ All fields are optional.
 | `daily_salary_sacrifice`   | int or str or null  | Per-day amount (PayStream only), `"max"`, or `"auto"` (`true` = `"auto"`). Mutually exclusive with `monthly_*`. |
 | `income_target`            | int, bool, or null  | Fixed cap (≥ 1); `null`/`true` = prompt for cap (default £100,000); `false` = no target (max out pension). Only relevant with `"auto"` sacrifice. |
 | `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = £0 (no contribution). |
+| `business_expenses`        | int, bool, or null  | Annual allowable business expenses (Sole Trader only, ≥ 0); `true` = £0                          |
+| `personal_pension`         | int, bool, or null  | Annual personal pension contribution (Sole Trader only, ≥ 0, max £60k); `true` = £0. Reduces Income Tax but not Class 4 NI. |
 | `region`                   | string or null      | `"scotland"` for Scottish Income Tax; `"england"`/`"wales"`/`"northern_ireland"`/`"rest_of_uk"` (or `null`) = rUK rates. Non-Scottish aliases are equivalent to `rest_of_uk`. |
-| `student_loan_plan`        | string or null      | Undergraduate plan: `"plan1"`, `"plan2"`, `"plan4"`, `"plan5"` (or `null` = no loan). All modes — PAYE/Inside IR35 via PAYE, Outside IR35 via Self Assessment on salary+dividends. |
+| `student_loan_plan`        | string or null      | Undergraduate plan: `"plan1"`, `"plan2"`, `"plan4"`, `"plan5"` (or `null` = no loan). All modes — PAYE/Inside IR35 via PAYE, Outside IR35 via Self Assessment on salary+dividends, Sole Trader via Self Assessment on taxable profit + existing. |
 | `postgraduate_loan`        | bool or null        | `true` = Postgraduate Loan (6% above £21,000); stacks on top of `student_loan_plan`. `false`/`null` = none. Independent — valid without an undergraduate plan. |
 
 ### Examples
@@ -270,14 +310,29 @@ All fields are optional.
 }
 ```
 
+**Sole Trader — with expenses, pension and existing self-employment:**
+
+```json
+{
+  "mode": "sole_trader",
+  "day_rate": 550,
+  "days_off": 20,
+  "business_expenses": 5000,
+  "personal_pension": 10000,
+  "existing_self_employment": 8000,
+  "existing_income": 5000
+}
+```
+
 ### Gotchas
 
 - **Sacrifice needs `salary_sacrifice_enabled: true`.** In config mode, a `null` or `false` value silently disables salary sacrifice (no prompt, £0). Only `true` runs the sacrifice logic.
 - **`daily_salary_sacrifice` requires `is_paystream: true`** and is rejected for generic umbrellas. It also needs `working_days` (or `days_off`) to convert per-day to annual.
 - **`monthly_*` and `daily_*` are mutually exclusive** — setting both fails validation.
 - **`income_target: false` is not an error** — it deliberately means "no cap, maximise the pension". Every other field's `false` is rejected.
-- `start_month`, `days_off`, `umbrella_margin`, `working_days`, `existing_*`, `director_pension`, and the sacrifice amounts all accept `true` as "use the default".
-- **Student loan collection differs by mode:** PAYE & Inside IR35 deduct via PAYE on gross salary; Outside IR35 collects via Self Assessment on total income (salary + dividends) — all post-CT dividends count, and the threshold is reduced by `existing_income` + `existing_dividends`. For PAYE/Inside IR35 the loan is calculated on income **after** salary sacrifice.
+- `start_month`, `days_off`, `umbrella_margin`, `working_days`, `existing_*`, `director_pension`, `business_expenses`, `personal_pension`, and the sacrifice amounts all accept `true` as "use the default".
+- **Student loan collection differs by mode:** PAYE & Inside IR35 deduct via PAYE on gross salary; Outside IR35 collects via Self Assessment on total income (salary + dividends) — all post-CT dividends count, and the threshold is reduced by `existing_income` + `existing_dividends`; Sole Trader collects via Self Assessment on taxable profit + existing income/self-employment. For PAYE/Inside IR35 the loan is calculated on income **after** salary sacrifice.
+- **Sole Trader pension vs expenses:** `personal_pension` reduces Income Tax (relief at source) but is **not** an allowable expense for Class 4 NI, which is charged on trading profit before pension. `business_expenses` reduce both.
 
 > `make run` passes `--config payday.json` by default, so a `payday.json` in the working directory is picked up automatically when using `make run`. Running bare `python3 -m payday` — or `./payday.sh` with no arguments, which forwards args verbatim — skips `payday.json` entirely and opens the contract picker instead.
 
@@ -295,7 +350,7 @@ Or directly:
 python3 -m unittest discover -v -s payday/tests
 ```
 
-All tests pass (393 test cases and counting).
+All tests pass (530 test cases and counting).
 
 ---
 

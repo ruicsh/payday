@@ -35,6 +35,7 @@ def _mode_title(breakdown: SalaryBreakdown) -> str:
         "PAYE": "PAYE Salary Breakdown — 2026/27",
         "Inside IR35": "Inside IR35 (Umbrella) — 2026/27",
         "Outside IR35": "Outside IR35 (Ltd Co) — 2026/27",
+        "Sole Trader": "Sole Trader (Self-Employed) — 2026/27",
     }
     title = titles.get(breakdown.mode, f"{breakdown.mode} — 2026/27")
     if breakdown.inputs.get("region") == "scotland":
@@ -69,9 +70,14 @@ def format_breakdown(breakdown: SalaryBreakdown) -> str:
 
         # Day rate context for assignment/revenue lines
         day_ctx = ""
-        if step.label in ("Assignment Rate", "Company Revenue") and breakdown.mode in (
+        if step.label in (
+            "Assignment Rate",
+            "Company Revenue",
+            "Turnover",
+        ) and breakdown.mode in (
             "Inside IR35",
             "Outside IR35",
+            "Sole Trader",
         ):
             day_ctx = _day_rate_context(breakdown)
 

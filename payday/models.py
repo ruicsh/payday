@@ -84,6 +84,16 @@ class StudentLoanResult:
 
 
 @dataclass
+class Class4NIResult:
+    below_lpl: int
+    main_band: int
+    main_ni: int
+    upper_band: int
+    upper_ni: int
+    total_ni: int
+
+
+@dataclass
 class StepLine:
     label: str
     amount: int | float
@@ -107,3 +117,4 @@ class SalaryBreakdown:
     pension: PensionResult | None = None
     student_loan: StudentLoanResult | None = None
     postgraduate_loan: StudentLoanResult | None = None
+    class4_ni: Class4NIResult | None = None

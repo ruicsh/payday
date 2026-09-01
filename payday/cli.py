@@ -9,6 +9,7 @@ from payday.calculators.optimal_sacrifice import (
 from payday.calculators.paye import PAYECalculator
 from payday.calculators.inside_ir35 import InsideIR35Calculator
 from payday.calculators.outside_ir35 import OutsideIR35Calculator
+from payday.calculators.sole_trader import SoleTraderCalculator
 from payday.formatters import format_breakdown, format_gbp
 from payday.tax_year import (
     contract_period_label,
@@ -205,6 +206,36 @@ def prompt_existing_dividends(
         return 0.0
     return prompt_float(
         "Existing dividends already received this tax year (£)",
+        default=0,
+        min_val=0,
+    )
+
+
+def prompt_existing_self_employment(
+    start_month: int | None,
+    config: dict | None = None,
+) -> float:
+    """Prompt for self-employment profit already earned this tax year (partial year only).
+
+    For sole traders this consumes both Income Tax bands and Class 4 NI bands.
+    See: https://www.gov.uk/self-employed-national-insurance-rates
+    """
+    if config and "existing_self_employment" in config:
+        val = config["existing_self_employment"]
+        if val is True:
+            print(
+                "Existing self-employment profit already earned this tax year (£) [0]: 0"
+            )
+            return 0.0
+        if val is not None:
+            print(
+                f"Existing self-employment profit already earned this tax year (£) [0]: {val}"
+            )
+            return float(val)
+    if start_month is None:
+        return 0.0
+    return prompt_float(
+        "Existing self-employment profit already earned this tax year (£)",
         default=0,
         min_val=0,
     )
@@ -615,14 +646,14 @@ def prompt_working_days(
 
 
 def select_mode(config: dict | None = None) -> int:
-    """Display mode menu and return 1, 2, or 3."""
+    """Display mode menu and return 1, 2, 3, or 4."""
     if config and config.get("mode") is not None:
         raw = config["mode"]
         if isinstance(raw, str):
             mode = VALID_MODES[raw]
         else:
             mode = raw
-        print(f"\nChoice [1/2/3]: {mode}")
+        print(f"\nChoice [1/2/3/4]: {mode}")
         return mode
 
     print("\n╔═══════════════════════════════════════╗")
@@ -633,8 +664,9 @@ def select_mode(config: dict | None = None) -> int:
     print("  [1] Regular PAYE")
     print("  [2] Inside IR35 (Umbrella)")
     print("  [3] Outside IR35 (Ltd Co)")
+    print("  [4] Sole Trader (Self-Employed)")
 
-    return prompt_int("\nChoice [1/2/3]", min_val=1, max_val=3)
+    return prompt_int("\nChoice [1/2/3/4]", min_val=1, max_val=4)
 
 
 def run_once(config: dict | None = None) -> None:
@@ -754,6 +786,51 @@ def run_once(config: dict | None = None) -> None:
             existing_dividends=existing_dividends,
             effective_days=net_working_days,
             director_pension=director_pension,
+            student_loan_plan=student_loan_plan,
+            postgraduate_loan=postgraduate_loan,
+        )
+
+    elif mode == 4:
+        print("\n═══════════════════════════════════════")
+        print("  Sole Trader (Self-Employed)")
+        print("═══════════════════════════════════════")
+        day_rate = prompt_int(
+            "Enter your day rate (£)",
+            min_val=1,
+            config_value=config.get("day_rate") if config else None,
+        )
+        start_month = prompt_start_month(config)
+        existing_income = prompt_existing_income(start_month, config)
+        existing_self_employment = prompt_existing_self_employment(start_month, config)
+
+        net_working_days, _ = prompt_working_days(start_month, config)
+
+        business_expenses = prompt_int(
+            "Annual business expenses (£)",
+            default=0,
+            min_val=0,
+            config_value=config.get("business_expenses") if config else None,
+        )
+        personal_pension = prompt_int(
+            "Personal pension contribution (£)",
+            default=0,
+            min_val=0,
+            max_val=MAX_SALARY_SACRIFICE,
+            config_value=config.get("personal_pension") if config else None,
+        )
+        region = prompt_region(config)
+        student_loan_plan, postgraduate_loan = prompt_student_loan(config)
+
+        breakdown = SoleTraderCalculator.calculate(
+            day_rate,
+            net_working_days,
+            start_month,
+            existing_income,
+            existing_self_employment=existing_self_employment,
+            business_expenses=business_expenses,
+            personal_pension=personal_pension,
+            effective_days=net_working_days,
+            region=region,
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
         )

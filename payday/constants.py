@@ -77,6 +77,21 @@ STUDENT_LOAN_POSTGRADUATE_THRESHOLD: int = 21_000
 STUDENT_LOAN_UNDERGRADUATE_RATE: float = 0.09
 STUDENT_LOAN_POSTGRADUATE_RATE: float = 0.06
 
+# National Insurance (Self-employed — Class 4)
+# Source: https://www.gov.uk/self-employed-national-insurance-rates
+# Source: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
+# Class 2 is treated as paid above the Small Profits Threshold (£7,105) since
+# 6 Apr 2024 — no compulsory charge, so take-home only includes Class 4.
+# Source: https://www.gov.uk/self-employed-national-insurance-rates
+NI_CLASS4_LOWER_PROFITS_LIMIT: int = 12_570
+NI_CLASS4_UPPER_PROFITS_LIMIT: int = 50_270
+NI_CLASS4_SMALL_PROFITS_THRESHOLD: int = 7_105
+NI_CLASS4_MAIN_RATE: float = 0.06
+NI_CLASS4_UPPER_RATE: float = 0.02
+NI_CLASS2_WEEKLY_RATE: float = (
+    3.65  # voluntary only below SPT; not charged in take-home
+)
+
 # PayStream salary-sacrifice administration charge (weekly, incl. 20% VAT)
 # Source: PayStream "Salary Sacrifice — Contractor FAQs" (paystream-salary-sacrifice.pdf)
 # £7.00 + 20% VAT = £8.40/week; charged only when sacrificing through PayStream.

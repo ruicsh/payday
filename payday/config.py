@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 
-VALID_MODES = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3}
+VALID_MODES = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3, "sole_trader": 4}
 VALID_SACRIFICE_KEYWORDS = {"max", "auto"}
 VALID_REGIONS = {"scotland", "england", "wales", "northern_ireland", "rest_of_uk"}
 VALID_STUDENT_LOAN_PLANS = {"plan1", "plan2", "plan4", "plan5"}
@@ -18,6 +18,7 @@ FIELD_TYPES = {
     "start_month": (int, bool, type(None)),
     "existing_income": (float, int, bool, type(None)),
     "existing_dividends": (float, int, bool, type(None)),
+    "existing_self_employment": (float, int, bool, type(None)),
     "days_off": (int, bool, type(None)),
     "working_days": (int, bool, type(None)),
     "umbrella_margin": (int, bool, type(None)),
@@ -27,6 +28,8 @@ FIELD_TYPES = {
     "daily_salary_sacrifice": (int, str, bool, type(None)),
     "income_target": (int, bool, type(None)),
     "director_pension": (int, bool, type(None)),
+    "business_expenses": (int, bool, type(None)),
+    "personal_pension": (int, bool, type(None)),
     "region": (str, type(None)),
     "student_loan_plan": (str, type(None)),
     "postgraduate_loan": (bool, type(None)),
@@ -38,6 +41,7 @@ _ALL_FIELDS = [
     "start_month",
     "existing_income",
     "existing_dividends",
+    "existing_self_employment",
     "days_off",
     "working_days",
     "umbrella_margin",
@@ -47,6 +51,8 @@ _ALL_FIELDS = [
     "daily_salary_sacrifice",
     "income_target",
     "director_pension",
+    "business_expenses",
+    "personal_pension",
     "region",
     "student_loan_plan",
     "postgraduate_loan",
@@ -75,14 +81,17 @@ def _validate_field(key: str, value: Any) -> None:
             raise ValueError(
                 f"'mode': must be one of {', '.join(VALID_MODES)}, got '{value}'"
             )
-        if isinstance(value, int) and value not in (1, 2, 3):
-            raise ValueError(f"'mode': must be 1, 2, or 3, got {value}")
+        if isinstance(value, int) and value not in (1, 2, 3, 4):
+            raise ValueError(f"'mode': must be 1, 2, 3, or 4, got {value}")
 
     elif key == "start_month" and value is not None:
         if not (1 <= value <= 12):
             raise ValueError(f"'start_month': must be 1-12 or null, got {value}")
 
-    elif key in ("existing_income", "existing_dividends") and value is not None:
+    elif (
+        key in ("existing_income", "existing_dividends", "existing_self_employment")
+        and value is not None
+    ):
         if value < 0:
             raise ValueError(f"'{key}': must be >= 0, got {value}")
 
@@ -114,6 +123,10 @@ def _validate_field(key: str, value: Any) -> None:
     elif key == "director_pension" and isinstance(value, int):
         if value < 0:
             raise ValueError(f"'director_pension': must be >= 0, got {value}")
+
+    elif key in ("business_expenses", "personal_pension") and isinstance(value, int):
+        if value < 0:
+            raise ValueError(f"'{key}': must be >= 0, got {value}")
 
     elif key == "region" and value is not None:
         if value not in VALID_REGIONS:
