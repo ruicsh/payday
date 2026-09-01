@@ -95,6 +95,9 @@ For contractors operating through their own limited company. The company receive
 | Director pension contribution | £0                    | Annual company pension contribution to director's SIPP (≥ 0, max £60k, tapered to £10k when threshold >£200k and adjusted >£260k); reduces Corporation Tax |
 | Retained profit               | £0                    | Profit retained in the company, not distributed; defers dividend tax (subject to CT)                                   |
 | Employment Allowance          | No                    | Claim £10,500 Employment Allowance against Employer NI; single-director companies (sole director as only employee) cannot claim |
+| VAT-registered                | No                    | Whether the company is VAT-registered (`vat_registered: true`); when not registered, `vat_scheme` is `none` (no VAT effect) |
+| VAT scheme                    | `none`                | `standard` (cash-neutral) or `flat_rate` (keeps 20% VAT minus flat-rate % of VAT-inclusive turnover as taxable profit — see [VAT Flat Rate Scheme](https://www.gov.uk/vat-flat-rate-scheme) and [BIM31585](https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim31585)); only applies when `vat_registered: true` |
+| Flat Rate VAT %               | 16.5%                 | Flat-rate % as decimal (e.g. `0.165` = 16.5% limited cost trader since 1 Apr 2017 per [VAT Notice 733 ¶4.4](https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2); sector rates 4%–14.5% otherwise); only applies when `vat_scheme: flat_rate` |
 | Region                        | rUK                   | `scotland` for Scottish Income Tax on salary; rUK otherwise (dividends always UK-rate)                                 |
 
 **Flow (Outside IR35 student loan is collected via Self Assessment on total income — salary + dividends):**
@@ -104,10 +107,11 @@ For contractors operating through their own limited company. The company receive
     ├─ Director Salary    -£N  (configurable, default £12,570)
     ├─ Employer NI        -£N
     │  └─ Employment Allowance  +£N  (opt-in, up to £10,500; see doc)
+    ├─ Flat Rate VAT Surplus +£N  (when vat_registered+flat_rate: 20% VAT minus flat% of VAT-inclusive turnover; taxable per BIM31585)
     ├─ Company Expenses   -£N  (optional)
     └─ Director Pension   -£N  (optional, reduces CT)
   ────────────────────────────
-  Company Profit           £N
+  Company Profit           £N  (includes VAT surplus; subject to CT)
     └─ Corporation Tax     -£N  (19% / 25% with Marginal Relief)
   ────────────────────────────
   Distributable Profit     £N
@@ -174,6 +178,10 @@ All rates, thresholds and formulas used in this project are sourced from the fol
 | Dividend Tax (allowance & rates)                 | [https://www.gov.uk/tax-on-dividends](https://www.gov.uk/tax-on-dividends)                                                                                                                                                                                                                                       |
 | Employment Allowance (£10,500, 2026/27)         | [https://www.gov.uk/claim-employment-allowance](https://www.gov.uk/claim-employment-allowance) · [https://www.gov.uk/government/publications/employment-allowance-more-detailed-guidance](https://www.gov.uk/government/publications/employment-allowance-more-detailed-guidance)                                                                                 |
 | Employment Allowance (Single-Director Rule)      | [https://www.gov.uk/government/publications/employment-allowance-more-detailed-guidance/single-director-companies-and-employment-allowance-further-employer-guidance](https://www.gov.uk/government/publications/employment-allowance-more-detailed-guidance/single-director-companies-and-employment-allowance-further-employer-guidance) · [https://www.gov.uk/hmrc-internal-manuals/national-insurance-manual/nim06545](https://www.gov.uk/hmrc-internal-manuals/national-insurance-manual/nim06545) |
+| VAT Flat Rate Scheme (FRS)                       | [https://www.gov.uk/vat-flat-rate-scheme](https://www.gov.uk/vat-flat-rate-scheme)                                                                                                                                                                                                                                     |
+| VAT Flat Rate — How Much You Pay                 | [https://www.gov.uk/vat-flat-rate-scheme/how-much-you-pay](https://www.gov.uk/vat-flat-rate-scheme/how-much-you-pay)                                                                                                                                                                                                   |
+| VAT Notice 733 (Flat Rate Scheme)                | [https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2](https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2)                                                                                                                                             |
+| BIM31585 (Trading Profits — Flat Rate VAT)       | [https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim31585](https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim31585)                                                                                                                                                                   |
 | Limited Company Expenses                         | [https://www.gov.uk/limited-company-expenses](https://www.gov.uk/limited-company-expenses)                                                                                                                                                                                                                          |
 | Student Loan Repayments (thresholds & rates)   | [https://www.gov.uk/repaying-your-student-loan/what-you-pay](https://www.gov.uk/repaying-your-student-loan/what-you-pay)                                                                                                                                                                                           |
 | Self-Employed National Insurance (Class 4)     | [https://www.gov.uk/self-employed-national-insurance-rates](https://www.gov.uk/self-employed-national-insurance-rates)                                                                                                                                                                                             |
@@ -243,7 +251,7 @@ Every field follows a three-state convention:
 | `true` | Use the field's default / auto value (see per-field notes below)       |
 | `false` | Off / disabled — only valid for the fields that support it            |
 
-`false` is only meaningful for `salary_sacrifice_enabled`, `is_paystream`, and `income_target`. Every other field rejects a JSON `false` (use `true` for the default, or `null` to prompt). `mode`, `salary`, and `day_rate` accept neither — they have no default and must be given a real value or prompted.
+`false` is only meaningful for `salary_sacrifice_enabled`, `is_paystream`, `employment_allowance`, `has_child_benefit`, `postgraduate_loan`, `vat_registered`, and `income_target`. Every other field rejects a JSON `false` (use `true` for the default, or `null` to prompt). `mode`, `salary`, and `day_rate` accept neither — they have no default and must be given a real value or prompted.
 
 ### Schema
 
@@ -274,6 +282,9 @@ All fields are optional.
 | `company_expenses`         | int, bool, or null  | Annual company running costs (Outside IR35 only, ≥ 0); `true` = £0. Reduces Corporation Tax. |
 | `retained_profit`          | int, bool, or null  | Profit retained in company (Outside IR35 only, ≥ 0); `true` = £0. Clamped to distributable profit; defers dividend tax. |
 | `employment_allowance`     | bool or null        | `true` = Claim £10,500 Employment Allowance against Employer NI (Outside IR35 only). `false`/`null` = not claimed. Single-director companies (sole director as only employee) cannot claim. |
+| `vat_registered`           | bool or null        | `true` = VAT-registered (Outside IR35 only). `false`/`null` = not registered (`vat_scheme: none`, no VAT effect). |
+| `vat_scheme`               | string or null      | `standard` (cash-neutral) or `flat_rate` (keeps 20% VAT minus flat-rate % of VAT-inclusive turnover as taxable profit; see [VAT Flat Rate Scheme](https://www.gov.uk/vat-flat-rate-scheme) and [BIM31585](https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim31585)) or `none`. Only when `vat_registered: true`; otherwise `none`. |
+| `vat_flat_rate`            | float or null       | Flat-rate % as decimal (e.g. `0.165` = 16.5% limited cost trader since 1 Apr 2017 per [VAT Notice 733 ¶4.4](https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2); sector rates 4%–14.5% otherwise). Only when `vat_scheme: flat_rate`; `true`/`null` = default 16.5%. |
 | `business_expenses`        | int, bool, or null  | Annual allowable business expenses (Sole Trader only, ≥ 0); `true` = £0                          |
 | `personal_pension`         | int, bool, or null  | Annual personal pension contribution (Sole Trader only, ≥ 0, max £60k, tapered to £10k when threshold >£200k and adjusted >£260k); `true` = £0. Reduces Income Tax but not Class 4 NI. |
 | `region`                   | string or null      | `"scotland"` for Scottish Income Tax; `"england"`/`"wales"`/`"northern_ireland"`/`"rest_of_uk"` (or `null`) = rUK rates. Non-Scottish aliases are equivalent to `rest_of_uk`. |
@@ -382,6 +393,18 @@ All fields are optional.
 }
 ```
 
+**Outside IR35 — Flat Rate VAT (16.5% limited cost trader):**
+
+```json
+{
+  "mode": "outside_ir35",
+  "day_rate": 650,
+  "vat_registered": true,
+  "vat_scheme": "flat_rate",
+  "vat_flat_rate": 0.165
+}
+```
+
 **Sole Trader — with expenses, pension and existing self-employment:**
 
 ```json
@@ -411,6 +434,7 @@ All fields are optional.
 - **Outside IR35 director salary:** defaults to £12,570 (the Primary Threshold / Personal Allowance). Below £5,000 incurs no Employer NI; above £12,570 incurs Income Tax and Employee NI on the salary itself (Scottish rates apply when `region: scotland`). Dividends always use UK rates.
 - **Outside IR35 retained profit:** clamped to distributable profit (CT still applies — only dividend tax is deferred). Retaining more than distributable simply results in zero dividends.
 - **Outside IR35 company expenses:** treated as allowable company running costs (accountancy, insurance, software) reducing profit before Corporation Tax — distinct from Sole Trader `business_expenses`.
+- **Outside IR35 VAT Flat Rate Scheme:** when `vat_registered: true` and `vat_scheme: flat_rate`, the surplus (20% VAT charged minus flat% of VAT-inclusive turnover) is **taxable trading income** added to Company Profit before Corporation Tax (per [BIM31585](https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim31585)). Shown as `Flat Rate VAT Surplus (X%)` in the waterfall. `standard` is cash-neutral (no profit effect). `vat_flat_rate` defaults to 16.5% (limited cost trader since 1 Apr 2017 per [VAT Notice 733 ¶4.4](https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2)); other sector rates 4%–14.5% can be set via `vat_flat_rate` (e.g. `0.145`).
 - **High Income Child Benefit Charge (HICBC):** from £60,000 ANI Child Benefit is clawed back at 1% per *complete* £200 (≈£60k–£80k, rounded *down* per ITEPA s.681C), 100% wiped at £80,000. Set `has_child_benefit: true` to enable HICBC advisory (`Child Benefit (HICBC XX%…)`) and to make auto sacrifice target £60k (saving ~47% effective for 1 child, ~56% for 3). Set `num_children` to scale the benefit (£1,354/£2,251/£3,148 for 1/2/3). ANI = employment + other taxable income − salary sacrifice (PAYE/Inside) or + dividends/self-employment as applicable.
 
 > `make run` passes `--config payday.json` by default, so a `payday.json` in the working directory is picked up automatically when using `make run`. Running bare `python3 -m payday` — or `./payday.sh` with no arguments, which forwards args verbatim — skips `payday.json` entirely and opens the contract picker instead.

@@ -108,6 +108,18 @@ NI_CLASS2_WEEKLY_RATE: float = (
 # and https://www.gov.uk/hmrc-internal-manuals/national-insurance-manual/nim06545
 EMPLOYMENT_ALLOWANCE: int = 10_500
 
+# VAT — Flat Rate Scheme (FRS) (2026/27)
+# Source: https://www.gov.uk/vat-flat-rate-scheme
+# Source: https://www.gov.uk/vat-flat-rate-scheme/how-much-you-pay
+# Source: https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2
+# Standard VAT rate charged to clients is 20%. Under FRS the company pays
+# HMRC a lower flat-rate % of its VAT-inclusive turnover (gross = net × 1.2)
+# and keeps the difference as taxable trading income (see BIM31585).
+# Limited cost trader rate is 16.5% since 1 April 2017 (VAT Notice 733 ¶4.4);
+# other sector rates range 4%–14.5% for non-limited-cost businesses.
+VAT_STANDARD_RATE: float = 0.20
+VAT_FLAT_RATE_DEFAULT: float = 0.165  # limited cost trader (16.5%)
+
 # PayStream salary-sacrifice administration charge (weekly, incl. 20% VAT)
 # Source: PayStream "Salary Sacrifice — Contractor FAQs" (paystream-salary-sacrifice.pdf)
 # £7.00 + 20% VAT = £8.40/week; charged only when sacrificing through PayStream.

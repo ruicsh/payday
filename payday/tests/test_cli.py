@@ -917,6 +917,7 @@ class TestCLI(unittest.TestCase):
             "",  # director pension (default 0)
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # VAT registered? → no
             "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan
@@ -958,6 +959,7 @@ class TestCLI(unittest.TestCase):
             "",  # director pension (default 0)
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # VAT registered? → no
             "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan
@@ -1168,6 +1170,7 @@ class TestCLI(unittest.TestCase):
             "",  # director pension (default 0)
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # VAT registered? → no
             "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan
@@ -1208,6 +1211,7 @@ class TestCLI(unittest.TestCase):
             "20000",  # director pension
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # VAT registered? → no
             "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan
@@ -1248,6 +1252,7 @@ class TestCLI(unittest.TestCase):
             "60000",  # max director pension
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # VAT registered? → no
             "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan

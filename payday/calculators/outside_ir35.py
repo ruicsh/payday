@@ -6,6 +6,8 @@ from payday.constants import (
     EMPLOYMENT_ALLOWANCE,
     MAX_SALARY_SACRIFICE,
     PERSONAL_ALLOWANCE,
+    VAT_FLAT_RATE_DEFAULT,
+    VAT_STANDARD_RATE,
 )
 from payday.hicbc import apply_hicbc_inputs, hicbc_result_and_steps
 from payday.income_tax import (
@@ -36,6 +38,9 @@ class OutsideIR35Calculator:
         company_expenses: int = 0,
         retained_profit: int = 0,
         employment_allowance: bool = False,
+        vat_registered: bool = False,
+        vat_scheme: str | None = None,
+        vat_flat_rate: float | None = None,
         region: str | None = None,
         student_loan_plan: str | None = None,
         postgraduate_loan: bool = False,
@@ -54,6 +59,10 @@ class OutsideIR35Calculator:
         Corporation Tax: https://www.gov.uk/corporation-tax-rates
         Dividend Tax: https://www.gov.uk/tax-on-dividends
         Student Loan: https://www.gov.uk/repaying-your-student-loan/what-you-pay
+        VAT Flat Rate Scheme: https://www.gov.uk/vat-flat-rate-scheme
+        VAT Flat Rate — how much you pay: https://www.gov.uk/vat-flat-rate-scheme/how-much-you-pay
+        VAT Notice 733 (Flat Rate Scheme): https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2
+        BIM31585 (Computation of trading profits — flat rate): https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim31585
 
         *director_salary* is the annual director salary (default £12,570 —
         the Primary Threshold). Values above the threshold incur Income Tax
@@ -68,6 +77,16 @@ class OutsideIR35Calculator:
         *employment_allowance* when True reduces Employer NI by up to
         £10,500 (2026/27). Single-director companies (sole director as only
         employee) cannot claim. See single-director guidance above.
+        *vat_registered* when True enables VAT modelling. *vat_scheme* is
+        ``"standard"`` (cash-neutral, no profit effect), ``"flat_rate"``
+        (charges 20% VAT to client, pays *vat_flat_rate* on VAT-inclusive
+        turnover to HMRC, keeps the difference as taxable trading income —
+        see BIM31585), or ``"none"`` (default, not VAT-registered). When
+        *vat_scheme* is ``"flat_rate"``, *vat_flat_rate* is the flat-rate
+        % as a decimal (default 0.165 = 16.5% limited cost trader since
+        1 Apr 2017 per VAT Notice 733 ¶4.4; sector rates 4%–14.5% otherwise).
+        The flat-rate surplus is taxable for Corporation Tax and flows into
+        Company Profit before CT (BIM31585).
         *region* is ``"scotland"`` for Scottish Income Tax on the salary
         slice; dividends always use UK rates.
         *existing_income* is income already earned in this tax year. It reduces
@@ -89,6 +108,14 @@ class OutsideIR35Calculator:
             raise ValueError("company_expenses must be >= 0")
         if retained_profit < 0:
             raise ValueError("retained_profit must be >= 0")
+        if vat_scheme is not None and vat_scheme not in (
+            "standard",
+            "flat_rate",
+            "none",
+        ):
+            raise ValueError("vat_scheme must be 'standard', 'flat_rate', or 'none'")
+        if vat_flat_rate is not None and not (0 < float(vat_flat_rate) < 1):
+            raise ValueError("vat_flat_rate must be between 0 and 1")
 
         months, prorated_days, period_label = pro_rate_contract(
             working_days, start_month
@@ -97,6 +124,30 @@ class OutsideIR35Calculator:
             effective_days = prorated_days
 
         revenue = day_rate * effective_days
+
+        # VAT Flat Rate Scheme — profit from keeping the difference between
+        # 20% VAT charged to client and the lower flat-rate % paid to HMRC
+        # on VAT-inclusive turnover (gross = revenue × 1.2).
+        # Only when vat_registered + flat_rate; standard scheme is cash-neutral.
+        # Surplus = VAT charged (revenue × 20%) − flat payment (gross × flat_rate)
+        #         = revenue × 0.20 − revenue × 1.2 × flat_rate
+        #         = gross × (1/6 − flat_rate). Taxable as trading income
+        # per BIM31585 (turnover = net + surplus; e.g. gross 84k, VAT 14k,
+        # flat 6% → payment 5,040, turnover 78,960 = 70k net + 8,960 surplus).
+        # See https://www.gov.uk/vat-flat-rate-scheme/how-much-you-pay
+        # and BIM31585 (flat_rate VAT is taxable trading income).
+        flat_rate = (
+            VAT_FLAT_RATE_DEFAULT if vat_flat_rate is None else float(vat_flat_rate)
+        )
+        if vat_registered and vat_scheme == "flat_rate":
+            vat_profit = round(
+                revenue * VAT_STANDARD_RATE
+                - revenue * (1 + VAT_STANDARD_RATE) * flat_rate
+            )
+            # Surplus can be small (e.g. 16.5% limited cost → £240 on £120k)
+            # or even negative if flat_rate > 16.666%; negative reduces profit.
+        else:
+            vat_profit = 0
 
         # Director salary — default is £12,570 (Primary Threshold / Personal Allowance),
         # the tax-optimal salary for a single-director Ltd. Configurable via
@@ -127,7 +178,9 @@ class OutsideIR35Calculator:
                 cached = thr_cache.get(p)
                 if cached is not None:
                     return cached
-                prof = revenue - salary - er_ni_total - p - company_expenses
+                prof = (
+                    revenue + vat_profit - salary - er_ni_total - p - company_expenses
+                )
                 if prof <= 0:
                     divs = 0
                 else:
@@ -159,6 +212,9 @@ class OutsideIR35Calculator:
                     company_expenses=company_expenses,
                     retained_profit=retained_profit,
                     employment_allowance=employment_allowance,
+                    vat_registered=vat_registered,
+                    vat_scheme=vat_scheme,
+                    vat_flat_rate=flat_rate,
                     region=region,
                     student_loan_plan=student_loan_plan,
                     postgraduate_loan=postgraduate_loan,
@@ -174,7 +230,7 @@ class OutsideIR35Calculator:
         # are allowable expenses reducing profit before Corporation Tax.
         expenses = company_expenses
 
-        profit = revenue - salary - er_ni_total - pension - expenses
+        profit = revenue + vat_profit - salary - er_ni_total - pension - expenses
         ct_result = calc_corporation_tax(profit)
 
         post_tax_profit = profit - ct_result.total_ct
@@ -266,6 +322,12 @@ class OutsideIR35Calculator:
         ]
         if ea_used:
             steps.append(StepLine("Employment Allowance", ea_used, indent=1))
+        if vat_profit:
+            steps.append(
+                StepLine(
+                    f"Flat Rate VAT Surplus ({flat_rate:.1%})", vat_profit, indent=1
+                )
+            )
         if expenses:
             steps.append(StepLine("Company Expenses", -expenses, indent=1))
         if pension:
@@ -331,6 +393,12 @@ class OutsideIR35Calculator:
             inputs["employment_allowance"] = True
             if ea_used:
                 inputs["employment_allowance_used"] = ea_used
+        if vat_registered:
+            inputs["vat_registered"] = True
+            inputs["vat_scheme"] = vat_scheme or "none"
+            if vat_scheme == "flat_rate":
+                inputs["vat_flat_rate"] = flat_rate
+                inputs["vat_profit"] = vat_profit
         if region == "scotland":
             inputs["region"] = "scotland"
         if period_label:

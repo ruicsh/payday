@@ -7,6 +7,7 @@ VALID_MODES = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3, "sole_trader": 4}
 VALID_SACRIFICE_KEYWORDS = {"max", "auto"}
 VALID_REGIONS = {"scotland", "england", "wales", "northern_ireland", "rest_of_uk"}
 VALID_STUDENT_LOAN_PLANS = {"plan1", "plan2", "plan4", "plan5"}
+VALID_VAT_SCHEMES = {"standard", "flat_rate", "none"}
 # Boolean fields accept both true and false as legitimate values.
 BOOLEAN_FIELDS = {
     "salary_sacrifice_enabled",
@@ -14,6 +15,7 @@ BOOLEAN_FIELDS = {
     "postgraduate_loan",
     "employment_allowance",
     "has_child_benefit",
+    "vat_registered",
 }
 # Fields where false is a sentinel meaning "off / no value".
 FALSE_SENTINEL_FIELDS = {"income_target"}
@@ -39,6 +41,9 @@ FIELD_TYPES = {
     "company_expenses": (int, bool, type(None)),
     "retained_profit": (int, bool, type(None)),
     "employment_allowance": (bool, type(None)),
+    "vat_registered": (bool, type(None)),
+    "vat_scheme": (str, type(None)),
+    "vat_flat_rate": (float, int, bool, type(None)),
     "business_expenses": (int, bool, type(None)),
     "personal_pension": (int, bool, type(None)),
     "region": (str, type(None)),
@@ -69,6 +74,9 @@ _ALL_FIELDS = [
     "company_expenses",
     "retained_profit",
     "employment_allowance",
+    "vat_registered",
+    "vat_scheme",
+    "vat_flat_rate",
     "business_expenses",
     "personal_pension",
     "region",
@@ -180,6 +188,24 @@ def _validate_field(key: str, value: Any) -> None:
             pass  # True means default 1
         elif not isinstance(value, int) or value < 1:
             raise ValueError(f"'num_children': must be >= 1, got {value}")
+
+    elif key == "vat_scheme" and value is not None:
+        if value not in VALID_VAT_SCHEMES:
+            raise ValueError(
+                f"'vat_scheme': must be one of {', '.join(sorted(VALID_VAT_SCHEMES))}, got '{value}'"
+            )
+
+    elif key == "vat_flat_rate" and value is not None:
+        if value is True:
+            pass  # True means default 0.165
+        elif not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise ValueError(
+                f"'vat_flat_rate': must be a number between 0 and 1, got {value}"
+            )
+        elif not (0 < float(value) < 1):
+            raise ValueError(
+                f"'vat_flat_rate': must be between 0 and 1 (e.g. 0.165 for 16.5%), got {value}"
+            )
 
 
 def load_config(path: str) -> dict | None:

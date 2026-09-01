@@ -726,6 +726,106 @@ def prompt_employment_allowance(config: dict | None = None) -> bool:
     return answer == "y"
 
 
+def prompt_vat_registered(config: dict | None = None) -> bool:
+    """Ask whether the company is VAT-registered.
+
+    When ``vat_registered`` is true the Flat Rate Scheme may apply.
+    See https://www.gov.uk/vat-flat-rate-scheme
+    """
+    if config and config.get("vat_registered") is not None:
+        val = config["vat_registered"]
+        print(f"Is your company VAT-registered? [y/N]: {'yes' if val else 'no'}")
+        return bool(val)
+    if config is not None:
+        # Config-file mode but vat_registered absent/null → default not registered
+        return False
+    answer = input("Is your company VAT-registered? [y/N]: ").strip().lower()
+    return answer == "y"
+
+
+def prompt_vat_scheme(
+    config: dict | None = None, *, vat_registered: bool = False
+) -> str:
+    """Ask which VAT scheme applies.
+
+    Returns ``"standard"`` (cash-neutral), ``"flat_rate"`` (keeps
+    VAT flat-rate surplus as taxable profit — see BIM31585), or
+    ``"none"`` (not VAT-registered). Only prompts when
+    *vat_registered* is True.
+
+    See https://www.gov.uk/vat-flat-rate-scheme
+    and https://www.gov.uk/vat-flat-rate-scheme/how-much-you-pay
+    """
+    if not vat_registered:
+        return "none"
+    if config and config.get("vat_scheme") is not None:
+        raw = config["vat_scheme"]
+        print(f"VAT scheme [standard/flat_rate/none]: {raw}")
+        if raw not in ("standard", "flat_rate", "none"):
+            raise ValueError(
+                f"vat_scheme: must be standard, flat_rate, or none, got {raw}"
+            )
+        return str(raw)
+    if config is not None and config.get("vat_scheme") is None:
+        # Config-file mode with vat_registered true but no scheme: default standard without prompt
+        # to preserve existing behaviour (cash-neutral) unless user opts in.
+        return "standard"
+    while True:
+        raw = input("VAT scheme [standard/flat_rate/none] [standard]: ").strip().lower()
+        if not raw or raw == "standard":
+            return "standard"
+        if raw in ("flat_rate", "flat-rate", "flat", "frs"):
+            return "flat_rate"
+        if raw == "none":
+            return "none"
+        print("Error: Enter 'standard', 'flat_rate', or 'none'.")
+
+
+def prompt_vat_flat_rate(
+    config: dict | None = None, *, vat_scheme: str = "none"
+) -> float | None:
+    """Ask for the Flat Rate VAT % (as decimal) when scheme is flat_rate.
+
+    Default is 0.165 (16.5% limited cost trader since 1 Apr 2017 per
+    VAT Notice 733 ¶4.4). Sector rates otherwise 4%–14.5%.
+
+    See https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2
+    """
+    from payday.constants import VAT_FLAT_RATE_DEFAULT
+
+    if vat_scheme != "flat_rate":
+        return None
+    if config and config.get("vat_flat_rate") is not None:
+        raw = config["vat_flat_rate"]
+        if raw is True:
+            print("Flat Rate VAT % [16.5]: 16.5")
+            return VAT_FLAT_RATE_DEFAULT
+        print(f"Flat Rate VAT % [16.5]: {float(raw) * 100:.1f}")
+        val = float(raw)
+        if not (0 < val < 1):
+            raise ValueError(f"vat_flat_rate: must be between 0 and 1, got {val}")
+        return val
+    if config is not None and config.get("vat_flat_rate") is None:
+        # Config-file mode but flat_rate scheme without explicit rate → default
+        return VAT_FLAT_RATE_DEFAULT
+    while True:
+        raw = input("Flat Rate VAT % [16.5]: ").strip()
+        if not raw:
+            return VAT_FLAT_RATE_DEFAULT
+        try:
+            # Accept "16.5", "16.5%", "0.165"
+            cleaned = raw.replace("%", "").strip()
+            val = float(cleaned)
+            if val > 1:
+                val = val / 100
+            if not (0 < val < 1):
+                print("Error: Enter a percentage between 0 and 100 (e.g. 16.5).")
+                continue
+            return val
+        except ValueError:
+            print("Error: Enter a percentage (e.g. 16.5 for 16.5%).")
+
+
 def prompt_region(config: dict | None = None) -> str:
     """Ask whether the taxpayer is a Scottish taxpayer.
 
@@ -1063,6 +1163,9 @@ def run_once(config: dict | None = None) -> None:
             config_value=config.get("retained_profit") if config else None,
         )
         employment_allowance = prompt_employment_allowance(config)
+        vat_registered = prompt_vat_registered(config)
+        vat_scheme = prompt_vat_scheme(config, vat_registered=vat_registered)
+        vat_flat_rate = prompt_vat_flat_rate(config, vat_scheme=vat_scheme)
         has_child_benefit = prompt_has_child_benefit(config)
         num_children = prompt_num_children(config, has_child_benefit=has_child_benefit)
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
@@ -1080,6 +1183,9 @@ def run_once(config: dict | None = None) -> None:
             company_expenses=company_expenses,
             retained_profit=retained_profit,
             employment_allowance=employment_allowance,
+            vat_registered=vat_registered,
+            vat_scheme=vat_scheme,
+            vat_flat_rate=vat_flat_rate,
             region=region,
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
