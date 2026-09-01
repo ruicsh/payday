@@ -503,6 +503,29 @@ def prompt_paystream(config: dict | None = None) -> bool:
     return answer == "y"
 
 
+def prompt_employment_allowance(config: dict | None = None) -> bool:
+    """Ask whether the company can claim Employment Allowance.
+
+    Single-director companies (sole director as only employee) cannot claim.
+    See https://www.gov.uk/claim-employment-allowance and
+    https://www.gov.uk/government/publications/employment-allowance-more-detailed-guidance/single-director-companies-and-employment-allowance-further-employer-guidance
+    """
+    if config and config.get("employment_allowance") is not None:
+        val = config["employment_allowance"]
+        print(
+            f"Can your company claim Employment Allowance? [y/N]: {'yes' if val else 'no'}"
+        )
+        return bool(val)
+    answer = (
+        input(
+            "Can your company claim Employment Allowance? (single-director companies cannot) [y/N]: "
+        )
+        .strip()
+        .lower()
+    )
+    return answer == "y"
+
+
 def prompt_region(config: dict | None = None) -> str:
     """Ask whether the taxpayer is a Scottish taxpayer.
 
@@ -769,6 +792,19 @@ def run_once(config: dict | None = None) -> None:
 
         net_working_days, _ = prompt_working_days(start_month, config)
 
+        region = prompt_region(config)
+        director_salary = prompt_int(
+            "Director salary (£)",
+            default=12_570,
+            min_val=0,
+            config_value=config.get("director_salary") if config else None,
+        )
+        company_expenses = prompt_int(
+            "Annual company expenses (accountancy, insurance, etc.) (£)",
+            default=0,
+            min_val=0,
+            config_value=config.get("company_expenses") if config else None,
+        )
         director_pension = prompt_int(
             "Director pension contribution (£)",
             default=0,
@@ -776,6 +812,13 @@ def run_once(config: dict | None = None) -> None:
             max_val=MAX_SALARY_SACRIFICE,
             config_value=config.get("director_pension") if config else None,
         )
+        retained_profit = prompt_int(
+            "Profit retained in company (£)",
+            default=0,
+            min_val=0,
+            config_value=config.get("retained_profit") if config else None,
+        )
+        employment_allowance = prompt_employment_allowance(config)
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
 
         breakdown = OutsideIR35Calculator.calculate(
@@ -785,7 +828,12 @@ def run_once(config: dict | None = None) -> None:
             existing_income,
             existing_dividends=existing_dividends,
             effective_days=net_working_days,
+            director_salary=director_salary,
             director_pension=director_pension,
+            company_expenses=company_expenses,
+            retained_profit=retained_profit,
+            employment_allowance=employment_allowance,
+            region=region,
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
         )

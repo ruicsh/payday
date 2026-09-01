@@ -900,7 +900,12 @@ class TestCLI(unittest.TestCase):
             "15000",  # existing dividends
             "",  # days off (default 25)
             "",  # accept default working days
+            "n",  # region Scotland? [y/N] → no
+            "",  # director salary (default £12,570)
+            "",  # company expenses (default 0)
             "",  # director pension (default 0)
+            "",  # retained profit (default 0)
+            "n",  # employment allowance
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],
@@ -934,7 +939,12 @@ class TestCLI(unittest.TestCase):
             "",  # start month (full year → no existing prompts)
             "",  # days off (default 25)
             "",  # accept default working days
+            "n",  # region Scotland? [y/N] → no
+            "",  # director salary (default £12,570)
+            "",  # company expenses (default 0)
             "",  # director pension (default 0)
+            "",  # retained profit (default 0)
+            "n",  # employment allowance
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],
@@ -1077,7 +1087,11 @@ class TestCLI(unittest.TestCase):
             "existing_dividends": True,
             "days_off": 25,
             "working_days": 200,
+            "director_salary": True,
+            "company_expenses": True,
             "director_pension": True,
+            "retained_profit": True,
+            "employment_allowance": False,
         }
         run_once(config)
         mock_calc.assert_called_once()
@@ -1106,7 +1120,11 @@ class TestCLI(unittest.TestCase):
             "existing_dividends": True,
             "days_off": 25,
             "working_days": 200,
+            "director_salary": True,
+            "company_expenses": True,
             "director_pension": 25000,
+            "retained_profit": True,
+            "employment_allowance": False,
         }
         run_once(config)
         mock_calc.assert_called_once()
@@ -1126,7 +1144,12 @@ class TestCLI(unittest.TestCase):
             "",  # start month (full year)
             "",  # days off (default 25)
             "",  # accept default working days
+            "n",  # region Scotland? [y/N] → no
+            "",  # director salary (default £12,570)
+            "",  # company expenses (default 0)
             "",  # director pension (default 0)
+            "",  # retained profit (default 0)
+            "n",  # employment allowance
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],
@@ -1159,7 +1182,12 @@ class TestCLI(unittest.TestCase):
             "",  # start month (full year)
             "",  # days off (default 25)
             "",  # accept default working days
+            "n",  # region Scotland? [y/N] → no
+            "",  # director salary (default £12,570)
+            "",  # company expenses (default 0)
             "20000",  # director pension
+            "",  # retained profit (default 0)
+            "n",  # employment allowance
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],
@@ -1192,7 +1220,12 @@ class TestCLI(unittest.TestCase):
             "",  # start month (full year)
             "",  # days off (default 25)
             "",  # accept default working days
+            "n",  # region Scotland? [y/N] → no
+            "",  # director salary (default £12,570)
+            "",  # company expenses (default 0)
             "60000",  # max director pension
+            "",  # retained profit (default 0)
+            "n",  # employment allowance
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],

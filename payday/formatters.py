@@ -85,8 +85,13 @@ def format_breakdown(breakdown: SalaryBreakdown) -> str:
         extra = ""
         if step.label == "Take-Home" and breakdown.mode == "Outside IR35":
             salary = breakdown.inputs.get("salary", 12570)
-            net_divs = breakdown.annual_take_home - salary
+            net_divs = breakdown.inputs.get("net_dividends")
+            if net_divs is None:
+                net_divs = breakdown.annual_take_home - salary
             extra = f"    (Salary: {format_gbp(salary)}  |  Dividends: {format_gbp(net_divs)})"
+            retained = breakdown.inputs.get("retained_profit")
+            if retained:
+                extra += f"  |  Retained: {format_gbp(retained)}"
 
         # Calculate padding to right-align the amount
         content = amount + day_ctx

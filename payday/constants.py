@@ -92,6 +92,15 @@ NI_CLASS2_WEEKLY_RATE: float = (
     3.65  # voluntary only below SPT; not charged in take-home
 )
 
+# Employment Allowance (2026/27)
+# Source: https://www.gov.uk/claim-employment-allowance
+# Source: https://www.gov.uk/government/publications/employment-allowance-more-detailed-guidance
+# Raised from £5,000 to £10,500 from April 2025; unchanged for 2026/27.
+# Single-director companies (sole director as only employee) cannot claim:
+# See https://www.gov.uk/government/publications/employment-allowance-more-detailed-guidance/single-director-companies-and-employment-allowance-further-employer-guidance
+# and https://www.gov.uk/hmrc-internal-manuals/national-insurance-manual/nim06545
+EMPLOYMENT_ALLOWANCE: int = 10_500
+
 # PayStream salary-sacrifice administration charge (weekly, incl. 20% VAT)
 # Source: PayStream "Salary Sacrifice — Contractor FAQs" (paystream-salary-sacrifice.pdf)
 # £7.00 + 20% VAT = £8.40/week; charged only when sacrificing through PayStream.

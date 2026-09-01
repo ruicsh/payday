@@ -8,7 +8,12 @@ VALID_SACRIFICE_KEYWORDS = {"max", "auto"}
 VALID_REGIONS = {"scotland", "england", "wales", "northern_ireland", "rest_of_uk"}
 VALID_STUDENT_LOAN_PLANS = {"plan1", "plan2", "plan4", "plan5"}
 # Boolean fields accept both true and false as legitimate values.
-BOOLEAN_FIELDS = {"salary_sacrifice_enabled", "is_paystream", "postgraduate_loan"}
+BOOLEAN_FIELDS = {
+    "salary_sacrifice_enabled",
+    "is_paystream",
+    "postgraduate_loan",
+    "employment_allowance",
+}
 # Fields where false is a sentinel meaning "off / no value".
 FALSE_SENTINEL_FIELDS = {"income_target"}
 FIELD_TYPES = {
@@ -27,7 +32,11 @@ FIELD_TYPES = {
     "monthly_salary_sacrifice": (int, str, bool, type(None)),
     "daily_salary_sacrifice": (int, str, bool, type(None)),
     "income_target": (int, bool, type(None)),
+    "director_salary": (int, bool, type(None)),
     "director_pension": (int, bool, type(None)),
+    "company_expenses": (int, bool, type(None)),
+    "retained_profit": (int, bool, type(None)),
+    "employment_allowance": (bool, type(None)),
     "business_expenses": (int, bool, type(None)),
     "personal_pension": (int, bool, type(None)),
     "region": (str, type(None)),
@@ -50,7 +59,11 @@ _ALL_FIELDS = [
     "monthly_salary_sacrifice",
     "daily_salary_sacrifice",
     "income_target",
+    "director_salary",
     "director_pension",
+    "company_expenses",
+    "retained_profit",
+    "employment_allowance",
     "business_expenses",
     "personal_pension",
     "region",
@@ -120,9 +133,17 @@ def _validate_field(key: str, value: Any) -> None:
         if value < 1:
             raise ValueError(f"'income_target': must be >= 1, got {value}")
 
+    elif key == "director_salary" and isinstance(value, int):
+        if value < 0:
+            raise ValueError(f"'director_salary': must be >= 0, got {value}")
+
     elif key == "director_pension" and isinstance(value, int):
         if value < 0:
             raise ValueError(f"'director_pension': must be >= 0, got {value}")
+
+    elif key in ("company_expenses", "retained_profit") and isinstance(value, int):
+        if value < 0:
+            raise ValueError(f"'{key}': must be >= 0, got {value}")
 
     elif key in ("business_expenses", "personal_pension") and isinstance(value, int):
         if value < 0:
