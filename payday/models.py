@@ -13,6 +13,19 @@ class IncomeTaxResult:
     additional_band: int
     additional_tax: int
     total_tax: int
+    # Scotland-specific bands (0 for rUK; populated when region == "scotland").
+    # basic/higher are shared labels (Scot basic 20% == rUK basic 20%,
+    # Scot higher 42% != rUK higher 40%). additional stays 0 for Scotland;
+    # advanced/top replace it there.
+    region: str = "rest_of_uk"
+    starter_band: int = 0
+    starter_tax: int = 0
+    intermediate_band: int = 0
+    intermediate_tax: int = 0
+    advanced_band: int = 0
+    advanced_tax: int = 0
+    top_band: int = 0
+    top_tax: int = 0
 
 
 @dataclass

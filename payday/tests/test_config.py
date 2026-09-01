@@ -440,6 +440,56 @@ class TestLoadConfig(unittest.TestCase):
         finally:
             os.unlink(path)
 
+    # ── region config tests ────────────────────────────────────────────
+
+    def test_region_scotland_accepted(self):
+        for val in ("scotland", "england", "wales", "northern_ireland", "rest_of_uk"):
+            data = {"mode": "paye", "region": val}
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                result = load_config(path)
+                assert result is not None
+                self.assertEqual(result["region"], val)
+            finally:
+                os.unlink(path)
+
+    def test_region_null_accepted(self):
+        data = {"mode": "paye", "region": None}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIsNone(result["region"])
+        finally:
+            os.unlink(path)
+
+    def test_region_invalid_rejected(self):
+        data = {"mode": "paye", "region": "france"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
+        finally:
+            os.unlink(path)
+
+    def test_region_absent_is_none(self):
+        data = {"mode": "paye"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIsNone(result["region"])
+        finally:
+            os.unlink(path)
+
 
 class TestGenerateTemplate(unittest.TestCase):
     def test_generates_valid_json_file(self):
@@ -454,8 +504,10 @@ class TestGenerateTemplate(unittest.TestCase):
             self.assertIn("day_rate", data)
             self.assertIn("monthly_salary_sacrifice", data)
             self.assertIn("daily_salary_sacrifice", data)
+            self.assertIn("region", data)
             self.assertIsNone(data["salary"])
             self.assertIsNone(data["day_rate"])
+            self.assertIsNone(data["region"])
         finally:
             os.unlink(path)
 

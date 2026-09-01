@@ -7,8 +7,25 @@ from payday.constants import (
     BASIC_RATE,
     HIGHER_RATE,
     ADDITIONAL_RATE,
+    SCOTTISH_STARTER_BAND_LIMIT,
+    SCOTTISH_BASIC_BAND_LIMIT,
+    SCOTTISH_INTERMEDIATE_BAND_LIMIT,
+    SCOTTISH_HIGHER_BAND_LIMIT,
+    SCOTTISH_ADVANCED_BAND_LIMIT,
+    SCOTTISH_STARTER_RATE,
+    SCOTTISH_BASIC_RATE,
+    SCOTTISH_INTERMEDIATE_RATE,
+    SCOTTISH_HIGHER_RATE,
+    SCOTTISH_ADVANCED_RATE,
+    SCOTTISH_TOP_RATE,
 )
 from payday.models import IncomeTaxResult
+
+
+def _normalise_region(region: str | None) -> str:
+    if region == "scotland":
+        return "scotland"
+    return "rest_of_uk"
 
 
 def calc_adjusted_net_income(
@@ -102,48 +119,155 @@ def _tax_components(taxable: float, basic_band_width: int, higher_band_limit: in
     return basic, higher, additional, basic_tax, higher_tax, additional_tax
 
 
+# Scottish thresholds expressed as taxable-income widths (threshold − PERSONAL_ALLOWANCE).
+# Source: https://www.gov.uk/scottish-income-tax
+_SCOT_STARTER_WIDTH = SCOTTISH_STARTER_BAND_LIMIT - PERSONAL_ALLOWANCE  # 3,967
+_SCOT_BASIC_WIDTH = SCOTTISH_BASIC_BAND_LIMIT - SCOTTISH_STARTER_BAND_LIMIT  # 12,989
+_SCOT_INTERMEDIATE_WIDTH = (
+    SCOTTISH_INTERMEDIATE_BAND_LIMIT - SCOTTISH_BASIC_BAND_LIMIT
+)  # 14,136
+_SCOT_HIGHER_WIDTH = (
+    SCOTTISH_HIGHER_BAND_LIMIT - SCOTTISH_INTERMEDIATE_BAND_LIMIT
+)  # 31,338
+_SCOT_ADVANCED_WIDTH = (
+    SCOTTISH_ADVANCED_BAND_LIMIT - SCOTTISH_HIGHER_BAND_LIMIT
+)  # 50,140
+# Cumulative taxable-income upper bounds (inclusive widths).
+# Source: https://www.gov.uk/scottish-income-tax
+_SCOT_STARTER_UPPER = _SCOT_STARTER_WIDTH  # 3,967
+_SCOT_BASIC_UPPER = _SCOT_STARTER_UPPER + _SCOT_BASIC_WIDTH  # 16,956
+_SCOT_INTERMEDIATE_UPPER = _SCOT_BASIC_UPPER + _SCOT_INTERMEDIATE_WIDTH  # 31,092
+_SCOT_HIGHER_UPPER = _SCOT_INTERMEDIATE_UPPER + _SCOT_HIGHER_WIDTH  # 62,430
+_SCOT_ADVANCED_UPPER = _SCOT_HIGHER_UPPER + _SCOT_ADVANCED_WIDTH  # 112,570
+
+
+def _tax_components_scotland(
+    taxable: float,
+) -> tuple[float, float, float, float, float, float]:
+    """Scottish 6-band breakdown for a taxable income amount.
+    Source: https://www.gov.uk/scottish-income-tax
+
+    Bands (taxable income, i.e. income − PA):
+      Starter 19%  : 0–3,967
+      Basic 20%    : 3,968–16,956
+      Intermediate : 16,957–31,092
+      Higher 42%   : 31,093–62,430
+      Advanced 45% : 62,431–112,570
+      Top 48%      : >112,570
+
+    Returns only band widths — the caller computes tax on the
+    *difference* band (combined − existing) to avoid double rounding.
+    """
+    starter = min(taxable, _SCOT_STARTER_UPPER)
+    basic = max(0, min(taxable, _SCOT_BASIC_UPPER) - _SCOT_STARTER_UPPER)
+    intermediate = max(0, min(taxable, _SCOT_INTERMEDIATE_UPPER) - _SCOT_BASIC_UPPER)
+    higher = max(0, min(taxable, _SCOT_HIGHER_UPPER) - _SCOT_INTERMEDIATE_UPPER)
+    advanced = max(0, min(taxable, _SCOT_ADVANCED_UPPER) - _SCOT_HIGHER_UPPER)
+    top = max(0, taxable - _SCOT_ADVANCED_UPPER)
+    return starter, basic, intermediate, higher, advanced, top
+
+
 def calc_income_tax(
-    salary: int, personal_allowance: int, existing_income: float = 0
+    salary: int,
+    personal_allowance: int,
+    existing_income: float = 0,
+    region: str | None = None,
 ) -> IncomeTaxResult:
     """Compute full IncomeTaxResult for a given salary and PA.
     Income Tax: https://www.gov.uk/income-tax-rates
+    Scottish Income Tax: https://www.gov.uk/scottish-income-tax
 
     *existing_income* accounts for income already earned in this tax year.
     It reduces the remaining Personal Allowance and rate bands available
     for *salary*.
+    *region* is ``"scotland"`` for Scottish rates, anything else (or None)
+    for rest-of-UK (England/Wales/NI). Aliases ``england``/``wales``/
+    ``northern_ireland`` normalise to rest_of_uk.
 
-    Bands (2026/27):
+    rUK Bands (2026/27):
       - 0%: £0 to personal_allowance
       - 20%: personal_allowance+1 to £50,270
       - 40%: £50,271 to £125,140
       - 45%: above £125,140
 
+    Scotland Bands (2026/27, non-savings non-dividend income):
+      - 0%:        up to £12,570
+      - 19% Starter:       £12,571–£16,537
+      - 20% Basic:         £16,538–£29,526
+      - 21% Intermediate:  £29,527–£43,662
+      - 42% Higher:        £43,663–£75,000
+      - 45% Advanced:      £75,001–£125,140
+      - 48% Top:           over £125,140
+
     >>> res = calc_income_tax(50000, 12570)
     >>> res.total_tax
     7486
     """
-    basic_band_width = BASIC_RATE_BAND_LIMIT - PERSONAL_ALLOWANCE  # 37,700
-    higher_band_limit = HIGHER_RATE_BAND_LIMIT  # 125,140
+    region = _normalise_region(region)
+    is_scotland = region == "scotland"
 
     total_taxable = max(0, salary + existing_income - personal_allowance)
     existing_taxable = max(0, existing_income - personal_allowance)
 
-    # Tax on combined (existing + new) and on existing alone
-    bc, hc, ac, *_ = _tax_components(total_taxable, basic_band_width, higher_band_limit)
-    be, he, ae, *_ = _tax_components(
-        existing_taxable, basic_band_width, higher_band_limit
-    )
+    if is_scotland:
+        sc, bc, ic, hc, ac, tc = _tax_components_scotland(total_taxable)
+        se, be, ie, he, ae, te = _tax_components_scotland(existing_taxable)
 
-    # Band breakdown for the new salary only (difference of combined vs existing)
-    basic_band = bc - be
-    higher_band = hc - he
-    additional_band = ac - ae
-    basic_tax = round(basic_band * BASIC_RATE)
-    higher_tax = round(higher_band * HIGHER_RATE)
-    additional_tax = round(additional_band * ADDITIONAL_RATE)
+        starter_band = sc - se
+        basic_band = bc - be
+        intermediate_band = ic - ie
+        higher_band = hc - he
+        advanced_band = ac - ae
+        top_band = tc - te
 
-    # Total derived from band sum, consistent with per-band rounding
-    total_tax = basic_tax + higher_tax + additional_tax
+        starter_tax = round(starter_band * SCOTTISH_STARTER_RATE)
+        basic_tax = round(basic_band * SCOTTISH_BASIC_RATE)
+        intermediate_tax = round(intermediate_band * SCOTTISH_INTERMEDIATE_RATE)
+        higher_tax = round(higher_band * SCOTTISH_HIGHER_RATE)
+        advanced_tax = round(advanced_band * SCOTTISH_ADVANCED_RATE)
+        top_tax = round(top_band * SCOTTISH_TOP_RATE)
+
+        total_tax = (
+            starter_tax
+            + basic_tax
+            + intermediate_tax
+            + higher_tax
+            + advanced_tax
+            + top_tax
+        )
+        # For rUK fields, basic/higher map to Scottish basic (20%) / higher (42%);
+        # additional is unused for Scotland.
+        additional_band = 0
+        additional_tax = 0
+    else:
+        basic_band_width = BASIC_RATE_BAND_LIMIT - PERSONAL_ALLOWANCE  # 37,700
+        higher_band_limit = HIGHER_RATE_BAND_LIMIT  # 125,140
+
+        bc, hc, ac, *_ = _tax_components(
+            total_taxable, basic_band_width, higher_band_limit
+        )
+        be, he, ae, *_ = _tax_components(
+            existing_taxable, basic_band_width, higher_band_limit
+        )
+
+        basic_band = bc - be
+        higher_band = hc - he
+        additional_band = ac - ae
+        basic_tax = round(basic_band * BASIC_RATE)
+        higher_tax = round(higher_band * HIGHER_RATE)
+        additional_tax = round(additional_band * ADDITIONAL_RATE)
+
+        total_tax = basic_tax + higher_tax + additional_tax
+
+        # Scotland-specific fields stay 0 for rUK.
+        starter_band = 0
+        starter_tax = 0
+        intermediate_band = 0
+        intermediate_tax = 0
+        advanced_band = 0
+        advanced_tax = 0
+        top_band = 0
+        top_tax = 0
 
     # Remaining PA for display
     remaining_pa = max(0, personal_allowance - existing_income)
@@ -154,10 +278,19 @@ def calc_income_tax(
         tapered=(personal_allowance < PERSONAL_ALLOWANCE),
         taxable_income=round(taxable_income),
         basic_band=round(basic_band),
-        higher_band=round(higher_band),
-        additional_band=round(additional_band),
         basic_tax=basic_tax,
+        higher_band=round(higher_band),
         higher_tax=higher_tax,
+        additional_band=round(additional_band),
         additional_tax=additional_tax,
         total_tax=total_tax,
+        region=region,
+        starter_band=round(starter_band) if is_scotland else 0,
+        starter_tax=starter_tax if is_scotland else 0,
+        intermediate_band=round(intermediate_band) if is_scotland else 0,
+        intermediate_tax=intermediate_tax if is_scotland else 0,
+        advanced_band=round(advanced_band) if is_scotland else 0,
+        advanced_tax=advanced_tax if is_scotland else 0,
+        top_band=round(top_band) if is_scotland else 0,
+        top_tax=top_tax if is_scotland else 0,
     )

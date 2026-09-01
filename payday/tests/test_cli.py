@@ -429,6 +429,45 @@ class TestCLI(unittest.TestCase):
         result = prompt_paystream()
         self.assertFalse(result)
 
+    # ── prompt_region tests ────────────────────────────────────────────
+
+    @patch("builtins.input", return_value="y")
+    def test_prompt_region_yes(self, mock_input):
+        from payday.cli import prompt_region
+
+        self.assertEqual(prompt_region(), "scotland")
+
+    @patch("builtins.input", return_value="n")
+    def test_prompt_region_no(self, mock_input):
+        from payday.cli import prompt_region
+
+        self.assertEqual(prompt_region(), "rest_of_uk")
+
+    @patch("builtins.input", return_value="")
+    def test_prompt_region_default_no(self, mock_input):
+        from payday.cli import prompt_region
+
+        self.assertEqual(prompt_region(), "rest_of_uk")
+
+    def test_prompt_region_config_scotland(self):
+        from payday.cli import prompt_region
+
+        with patch("sys.stdout", new_callable=StringIO):
+            self.assertEqual(prompt_region(config={"region": "scotland"}), "scotland")
+
+    def test_prompt_region_config_alias_normalises(self):
+        from payday.cli import prompt_region
+
+        for alias in ("england", "wales", "northern_ireland", "rest_of_uk"):
+            with patch("sys.stdout", new_callable=StringIO):
+                self.assertEqual(prompt_region(config={"region": alias}), "rest_of_uk")
+
+    def test_prompt_region_config_absent_defaults(self):
+        from payday.cli import prompt_region
+
+        self.assertEqual(prompt_region(config={"region": None}), "rest_of_uk")
+        self.assertEqual(prompt_region(config={}), "rest_of_uk")
+
     # ── prompt_working_days config tests ───────────────────────────────
 
     @patch("sys.stdout", new_callable=StringIO)
@@ -813,7 +852,9 @@ class TestCLI(unittest.TestCase):
         )
         config = {"mode": "paye", "salary": 50000, "salary_sacrifice_enabled": False}
         run_once(config)
-        mock_calc.assert_called_once_with(50000, salary_sacrifice=0)
+        mock_calc.assert_called_once_with(
+            50000, salary_sacrifice=0, region="rest_of_uk"
+        )
 
     @patch("payday.cli.InsideIR35Calculator.calculate")
     @patch("builtins.input", side_effect=["n"])

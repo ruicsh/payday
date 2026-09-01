@@ -179,6 +179,35 @@ class TestFormatBreakdown(unittest.TestCase):
         output = format_breakdown(breakdown)
         self.assertIn("[existing: £30,000]", output)
 
+    def test_scotland_title_suffix(self):
+        breakdown = SalaryBreakdown(
+            mode="PAYE",
+            inputs={"salary": 50000, "region": "scotland"},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
+        )
+        self.assertIn("[Scotland]", format_breakdown(breakdown))
+
+    def test_rest_of_uk_title_has_no_scotland_suffix(self):
+        breakdown = SalaryBreakdown(
+            mode="PAYE",
+            inputs={"salary": 50000, "region": "rest_of_uk"},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
+        )
+        self.assertNotIn("[Scotland]", format_breakdown(breakdown))
+        # Also absent when region not set at all
+        breakdown2 = SalaryBreakdown(
+            mode="PAYE",
+            inputs={"salary": 50000},
+            steps=[],
+            annual_take_home=0,
+            display_take_home=0,
+        )
+        self.assertNotIn("[Scotland]", format_breakdown(breakdown2))
+
 
 if __name__ == "__main__":
     unittest.main()

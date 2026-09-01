@@ -28,10 +28,12 @@ class InsideIR35Calculator:
         is_paystream: bool = False,
         sacrifice_frequency: str = "monthly",
         effective_days: int | None = None,
+        region: str | None = None,
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
         Umbrella company guidance: https://www.gov.uk/guidance/working-through-an-umbrella-company
+        Scottish Income Tax: https://www.gov.uk/scottish-income-tax
 
         *existing_income* is income already earned in this tax year. It reduces
         the remaining Personal Allowance and rate bands available to this contract.
@@ -43,6 +45,7 @@ class InsideIR35Calculator:
         gross reduction and retains the employer-cost saving.
         *sacrifice_frequency* is ``"monthly"`` (default) or ``"daily"`` and only
         affects the per-period breakdown line.
+        *region* is ``"scotland"`` for Scottish rates, anything else for rUK.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
@@ -129,7 +132,7 @@ class InsideIR35Calculator:
         )
         pa, tapered = calc_personal_allowance(ani)
         it_result = calc_income_tax(
-            effective_gross, pa, existing_income=existing_income
+            effective_gross, pa, existing_income=existing_income, region=region
         )
         ee_ni_result = calc_employee_ni(effective_gross)
 
@@ -251,6 +254,8 @@ class InsideIR35Calculator:
             "margin_weekly": umbrella_margin_weekly,
             "effective_working_days": effective_days,
         }
+        if region == "scotland":
+            inputs["region"] = "scotland"
         if period_label:
             inputs["start_month"] = start_month
             inputs["contract_months"] = months

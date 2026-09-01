@@ -11,6 +11,21 @@ BASIC_RATE: float = 0.20
 HIGHER_RATE: float = 0.40
 ADDITIONAL_RATE: float = 0.45
 
+# Income Tax (Scotland — non-savings, non-dividend income)
+# Source: https://www.gov.uk/scottish-income-tax
+# PA and its £100k taper are UK-wide (same PERSONAL_ALLOWANCE / PA_TAPER_*).
+SCOTTISH_STARTER_BAND_LIMIT: int = 16_537
+SCOTTISH_BASIC_BAND_LIMIT: int = 29_526
+SCOTTISH_INTERMEDIATE_BAND_LIMIT: int = 43_662
+SCOTTISH_HIGHER_BAND_LIMIT: int = 75_000
+SCOTTISH_ADVANCED_BAND_LIMIT: int = 125_140
+SCOTTISH_STARTER_RATE: float = 0.19
+SCOTTISH_BASIC_RATE: float = 0.20
+SCOTTISH_INTERMEDIATE_RATE: float = 0.21
+SCOTTISH_HIGHER_RATE: float = 0.42
+SCOTTISH_ADVANCED_RATE: float = 0.45
+SCOTTISH_TOP_RATE: float = 0.48
+
 # National Insurance (Employee, Cat A)
 # Source: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
 NI_PRIMARY_THRESHOLD: int = 12_570

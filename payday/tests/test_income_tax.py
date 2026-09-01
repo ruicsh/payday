@@ -150,6 +150,71 @@ class TestIncomeTax(unittest.TestCase):
         self.assertGreater(res.total_tax, 0)
         self.assertGreater(res.taxable_income, 0)
 
+    # ── Scotland (region="scotland") tests ───────────────────────────────
+
+    def test_scotland_basic_rate(self):
+        # Scotland 50k, PA 12570 -> taxable 37430
+        # Starter 3967@19%=754 + Basic 12989@20%=2598 + Intermediate 14136@21%=2969
+        # + Higher (37430-31092)=6338@42%=2662 => 8983
+        res = calc_income_tax(50000, 12570, region="scotland")
+        self.assertEqual(res.region, "scotland")
+        self.assertEqual(res.total_tax, 8983)
+        self.assertEqual(res.starter_band, 3967)
+        self.assertEqual(res.starter_tax, 754)
+        self.assertEqual(res.intermediate_band, 14136)
+        self.assertEqual(res.additional_band, 0)
+
+    def test_scotland_mid_rate(self):
+        # Scotland 80k, PA 12570 -> taxable 67430
+        # Starter 754 + Basic 2598 + Intermediate 2969 + Higher 31338@42%=13162
+        # + Advanced 5000@45%=2250 => 21733
+        res = calc_income_tax(80000, 12570, region="scotland")
+        self.assertEqual(res.total_tax, 21733)
+        self.assertEqual(res.higher_band, 31338)
+        self.assertEqual(res.advanced_band, 5000)
+        self.assertEqual(res.top_band, 0)
+
+    def test_scotland_top_rate(self):
+        # Scotland 150k, PA 0 -> taxable 150000
+        # 3967@19 + 12989@20 + 14136@21 + 31338@42 + 50140@45 + 37430@48 = 60012
+        res = calc_income_tax(150000, 0, region="scotland")
+        self.assertEqual(res.total_tax, 60012)
+        self.assertEqual(res.advanced_band, 50140)
+        self.assertEqual(res.top_band, 37430)
+
+    def test_scotland_advanced_top_boundary(self):
+        # Regression: advanced must cap at 50140 (112570-62430), top starts at 112570.
+        # Before the fix advanced was 62710 (125140-62430).
+        res = calc_income_tax(150000, 0, region="scotland")
+        self.assertEqual(res.advanced_band, 50140)
+        res2 = calc_income_tax(125140, 12570, region="scotland")
+        # 125140-12570=112570 taxable -> exactly fills advanced, no top
+        self.assertEqual(res2.advanced_band, 50140)
+        self.assertEqual(res2.top_band, 0)
+
+    def test_scotland_aliases_normalise_to_rest_of_uk(self):
+        for alias in ("england", "wales", "northern_ireland", "rest_of_uk", None):
+            res = calc_income_tax(50000, 12570, region=alias)
+            self.assertEqual(res.region, "rest_of_uk")
+            self.assertEqual(res.total_tax, 7486)
+
+    def test_scotland_existing_income_reduces_bands(self):
+        # Existing 30k: PA 12570 consumed + 17430 of Scottish bands.
+        #   existing taxable 17430 -> starter 3967 + basic 12989 + intermediate 474
+        # Combined 50k: taxable 37430 -> starter 3967 + basic 12989 + intermediate 14136 + higher 6338
+        # New 20k: starter 0, basic 0, intermediate 13662, higher 6338
+        #   tax: 13662*0.21=2869 + 6338*0.42=2662 => 5531
+        res = calc_income_tax(20000, 12570, existing_income=30000, region="scotland")
+        self.assertEqual(res.region, "scotland")
+        self.assertEqual(res.additional_band, 0)
+        self.assertEqual(res.total_tax, 5531)
+        self.assertEqual(res.starter_band, 0)
+        self.assertEqual(res.basic_band, 0)
+        self.assertEqual(res.intermediate_band, 13662)
+        self.assertEqual(res.higher_band, 6338)
+        self.assertEqual(res.advanced_band, 0)
+        self.assertEqual(res.top_band, 0)
+
 
 class TestAdjustedNetIncome(unittest.TestCase):
     def test_all_defaults(self):

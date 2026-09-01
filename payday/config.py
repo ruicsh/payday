@@ -5,6 +5,7 @@ from typing import Any
 
 VALID_MODES = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3}
 VALID_SACRIFICE_KEYWORDS = {"max", "auto"}
+VALID_REGIONS = {"scotland", "england", "wales", "northern_ireland", "rest_of_uk"}
 # Boolean fields accept both true and false as legitimate values.
 BOOLEAN_FIELDS = {"salary_sacrifice_enabled", "is_paystream"}
 # Fields where false is a sentinel meaning "off / no value".
@@ -25,6 +26,7 @@ FIELD_TYPES = {
     "daily_salary_sacrifice": (int, str, bool, type(None)),
     "income_target": (int, bool, type(None)),
     "director_pension": (int, bool, type(None)),
+    "region": (str, type(None)),
 }
 _ALL_FIELDS = [
     "mode",
@@ -42,6 +44,7 @@ _ALL_FIELDS = [
     "daily_salary_sacrifice",
     "income_target",
     "director_pension",
+    "region",
 ]
 
 
@@ -106,6 +109,12 @@ def _validate_field(key: str, value: Any) -> None:
     elif key == "director_pension" and isinstance(value, int):
         if value < 0:
             raise ValueError(f"'director_pension': must be >= 0, got {value}")
+
+    elif key == "region" and value is not None:
+        if value not in VALID_REGIONS:
+            raise ValueError(
+                f"'region': must be one of {', '.join(sorted(VALID_REGIONS))}, got '{value}'"
+            )
 
 
 def load_config(path: str) -> dict | None:

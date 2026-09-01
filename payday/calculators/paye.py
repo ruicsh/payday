@@ -10,17 +10,22 @@ from payday.models import SalaryBreakdown, StepLine, PensionResult
 
 class PAYECalculator:
     @staticmethod
-    def calculate(salary: int, salary_sacrifice: int = 0) -> SalaryBreakdown:
+    def calculate(
+        salary: int, salary_sacrifice: int = 0, region: str | None = None
+    ) -> SalaryBreakdown:
         """PAYE: Gross → IT + EE NI + Pension → take-home (monthly).
         Income Tax: https://www.gov.uk/income-tax-rates
+        Scottish Income Tax: https://www.gov.uk/scottish-income-tax
         Employee NI: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
         Pension: https://www.gov.uk/workplace-pensions/what-you-your-employer-and-the-government-pay
+
+        *region* is ``"scotland"`` for Scottish rates, anything else for rUK.
         """
         effective_gross = salary - salary_sacrifice
 
         ani = calc_adjusted_net_income(employment_income=effective_gross)
         pa, tapered = calc_personal_allowance(ani)
-        it_result = calc_income_tax(effective_gross, pa)
+        it_result = calc_income_tax(effective_gross, pa, region=region)
         ni_result = calc_employee_ni(effective_gross)
         if salary_sacrifice:
             pension_result = PensionResult(False, 0, 0, 0)
@@ -72,6 +77,8 @@ class PAYECalculator:
         ]
 
         inputs: dict = {"salary": salary}
+        if region == "scotland":
+            inputs["region"] = "scotland"
         if salary_sacrifice:
             inputs["salary_sacrifice"] = salary_sacrifice
 

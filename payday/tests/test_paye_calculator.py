@@ -110,6 +110,31 @@ class TestPAYECalculator(unittest.TestCase):
         labels = {step.label for step in breakdown.steps}
         self.assertNotIn("Pension Contribution", labels)
 
+    # ── region (Scotland) integration tests ────────────────────────────
+
+    def test_scotland_region_changes_income_tax(self):
+        scot = PAYECalculator.calculate(50000, region="scotland")
+        ruk = PAYECalculator.calculate(50000, region="rest_of_uk")
+        assert scot.income_tax is not None
+        assert ruk.income_tax is not None
+        # Known answers: 50k Scotland 8983, rUK 7486
+        self.assertEqual(scot.income_tax.total_tax, 8983)
+        self.assertEqual(ruk.income_tax.total_tax, 7486)
+        self.assertEqual(scot.income_tax.region, "scotland")
+        self.assertEqual(ruk.income_tax.region, "rest_of_uk")
+        # Scotland take-home is lower due to higher tax
+        self.assertLess(scot.annual_take_home, ruk.annual_take_home)
+
+    def test_scotland_region_stored_in_inputs(self):
+        scot = PAYECalculator.calculate(50000, region="scotland")
+        self.assertEqual(scot.inputs.get("region"), "scotland")
+        # rUK (explicit alias or None) does not set region key — formatter checks == "scotland"
+        for alias in (None, "rest_of_uk", "england", "wales", "northern_ireland"):
+            ruk = PAYECalculator.calculate(50000, region=alias)
+            self.assertNotEqual(ruk.inputs.get("region"), "scotland")
+            assert ruk.income_tax is not None
+            self.assertEqual(ruk.income_tax.region, "rest_of_uk")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -410,6 +410,28 @@ def prompt_paystream(config: dict | None = None) -> bool:
     return answer == "y"
 
 
+def prompt_region(config: dict | None = None) -> str:
+    """Ask whether the taxpayer is a Scottish taxpayer.
+
+    Returns ``"scotland"`` or ``"rest_of_uk"`` (aliases ``england``/``wales``/
+    ``northern_ireland`` normalise to rest_of_uk).
+
+    When *config* is provided (config-file mode) and ``region`` is absent
+    (``None``), defaults to ``rest_of_uk`` without prompting — mirroring
+    that England/Wales/NI share one rate set.
+    """
+    if config is not None:
+        val = config.get("region")
+        if val is not None:
+            print(
+                f"Is your tax region Scotland? [y/N]: {'yes' if val == 'scotland' else 'no'}"
+            )
+            return "scotland" if val == "scotland" else "rest_of_uk"
+        return "rest_of_uk"
+    answer = input("Is your tax region Scotland? [y/N]: ").strip().lower()
+    return "scotland" if answer == "y" else "rest_of_uk"
+
+
 def _resolve_days_off(config: dict, default: int = 25) -> int:
     """Extract days_off from config, using ``default`` when True or absent."""
     raw = config.get("days_off")
@@ -520,13 +542,16 @@ def run_once(config: dict | None = None) -> None:
         print("\n═══════════════════════════════════════")
         print("  Regular PAYE")
         print("═══════════════════════════════════════")
+        region = prompt_region(config)
         salary = prompt_int(
             "Enter your annual gross salary (£)",
             min_val=0,
             config_value=config.get("salary") if config else None,
         )
         salary_sacrifice = prompt_salary_sacrifice(salary, mode="paye", config=config)
-        breakdown = PAYECalculator.calculate(salary, salary_sacrifice=salary_sacrifice)
+        breakdown = PAYECalculator.calculate(
+            salary, salary_sacrifice=salary_sacrifice, region=region
+        )
 
     elif mode == 2:
         print("\n═══════════════════════════════════════")
@@ -549,6 +574,7 @@ def run_once(config: dict | None = None) -> None:
             config_value=config.get("umbrella_margin") if config else None,
         )
         is_paystream = prompt_paystream(config)
+        region = prompt_region(config)
 
         weeks = net_working_days / 5
         annual_margin = round(margin * weeks)
@@ -586,6 +612,7 @@ def run_once(config: dict | None = None) -> None:
                 else "monthly"
             ),
             effective_days=net_working_days,
+            region=region,
         )
 
     elif mode == 3:

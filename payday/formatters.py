@@ -37,6 +37,8 @@ def _mode_title(breakdown: SalaryBreakdown) -> str:
         "Outside IR35": "Outside IR35 (Ltd Co) — 2026/27",
     }
     title = titles.get(breakdown.mode, f"{breakdown.mode} — 2026/27")
+    if breakdown.inputs.get("region") == "scotland":
+        title += "  [Scotland]"
     period = breakdown.inputs.get("contract_period")
     if period:
         title += f"  ({period})"

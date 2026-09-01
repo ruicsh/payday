@@ -535,6 +535,38 @@ class TestInsideIR35Calculator(unittest.TestCase):
             explicit_none.inputs["effective_working_days"],
         )
 
+    # ── region (Scotland) integration tests ────────────────────────────
+
+    def test_scotland_region_changes_income_tax(self):
+        # Same gross, different IT. Use a fixed assignment to keep gross stable.
+        scot = InsideIR35Calculator.calculate(500, 240, 25, region="scotland")
+        ruk = InsideIR35Calculator.calculate(500, 240, 25, region="rest_of_uk")
+        assert scot.income_tax is not None
+        assert ruk.income_tax is not None
+        self.assertEqual(scot.income_tax.region, "scotland")
+        self.assertEqual(ruk.income_tax.region, "rest_of_uk")
+        # Scotland tax diverges from rUK (for this gross/tapered-PA case it's higher)
+        self.assertNotEqual(scot.income_tax.total_tax, ruk.income_tax.total_tax)
+        # Verify against direct calc_income_tax on the same gross/PA
+        from payday.income_tax import calc_personal_allowance, calc_income_tax
+
+        gross = self._find_step(ruk, "Gross Salary").amount
+        pa, _ = calc_personal_allowance(gross)
+        self.assertEqual(
+            scot.income_tax.total_tax,
+            calc_income_tax(gross, pa, region="scotland").total_tax,
+        )
+        self.assertEqual(scot.inputs.get("region"), "scotland")
+
+    def test_scotland_region_stored_only_for_scotland(self):
+        scot = InsideIR35Calculator.calculate(500, 240, 25, region="scotland")
+        self.assertEqual(scot.inputs.get("region"), "scotland")
+        for alias in (None, "rest_of_uk", "england", "wales", "northern_ireland"):
+            ruk = InsideIR35Calculator.calculate(500, 240, 25, region=alias)
+            self.assertNotEqual(ruk.inputs.get("region"), "scotland")
+            assert ruk.income_tax is not None
+            self.assertEqual(ruk.income_tax.region, "rest_of_uk")
+
 
 if __name__ == "__main__":
     unittest.main()
