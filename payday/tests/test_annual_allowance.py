@@ -219,7 +219,9 @@ class TestFindMaxPensionForFuncs(unittest.TestCase):
         max_p = find_max_pension_for_funcs(thr, adj, cap=60_000)
         # Brute force check
         brute = max(
-            p for p in range(60_001) if p <= calc_annual_allowance(thr(p), adj(p)).annual_allowance
+            p
+            for p in range(60_001)
+            if p <= calc_annual_allowance(thr(p), adj(p)).annual_allowance
         )
         self.assertEqual(max_p, brute)
         self.assertEqual(max_p, 43_333)
@@ -234,9 +236,7 @@ class TestFindMaxPensionForFuncs(unittest.TestCase):
         annual_margin = round(25 * weeks)
         admin = round(PAYSTREAM_ADMIN_CHARGE_WEEKLY * weeks)
         # Use canonical helper — same logic as calculator
-        max_p = paystream_max_pension(
-            assignment, annual_margin, admin, cap=60_000
-        )
+        max_p = paystream_max_pension(assignment, annual_margin, admin, cap=60_000)
         # Brute via paystream thr/adj functions
         from payday.calculators.inside_ir35 import InsideIR35Calculator
 
@@ -244,13 +244,19 @@ class TestFindMaxPensionForFuncs(unittest.TestCase):
             sac_budget = assignment - p - annual_margin - admin
             if sac_budget < 0:
                 sac_budget = 0
-            g = InsideIR35Calculator.solve_gross_salary(sac_budget, include_er_pension=False)
+            g = InsideIR35Calculator.solve_gross_salary(
+                sac_budget, include_er_pension=False
+            )
             return round(g + p)
 
         def adj(p):
             return thr(p) + p
 
-        brute = max(p for p in range(60_001) if p <= calc_annual_allowance(thr(p), adj(p)).annual_allowance)
+        brute = max(
+            p
+            for p in range(60_001)
+            if p <= calc_annual_allowance(thr(p), adj(p)).annual_allowance
+        )
         self.assertEqual(max_p, brute)
         # Must be tapered and under floor
         self.assertLess(max_p, 60_000)
@@ -281,7 +287,11 @@ class TestFindMaxPensionForFuncs(unittest.TestCase):
             return thr(p) + p
 
         max_p = find_max_pension_for_funcs(thr, adj, cap=60_000)
-        brute = max(p for p in range(60_001) if p <= calc_annual_allowance(thr(p), adj(p)).annual_allowance)
+        brute = max(
+            p
+            for p in range(60_001)
+            if p <= calc_annual_allowance(thr(p), adj(p)).annual_allowance
+        )
         self.assertEqual(max_p, brute)
         self.assertEqual(max_p, 47_871)
 
@@ -299,27 +309,40 @@ class TestFindMaxPensionForFuncs(unittest.TestCase):
 class TestFindMaxPensionSoleTrader(unittest.TestCase):
     def _brute(self, total, cap=60_000):
         return max(
-            p for p in range(cap + 1) if p <= calc_annual_allowance(total - round(p * 1.25), total).annual_allowance
+            p
+            for p in range(cap + 1)
+            if p
+            <= calc_annual_allowance(total - round(p * 1.25), total).annual_allowance
         )
 
     def test_no_taper_below_260k(self):
         for total in [200_000, 250_000, 260_000]:
             self.assertEqual(find_max_pension_sole_trader(total, cap=60_000), 60_000)
-            self.assertEqual(find_max_pension_sole_trader(total, cap=60_000), self._brute(total))
+            self.assertEqual(
+                find_max_pension_sole_trader(total, cap=60_000), self._brute(total)
+            )
 
     def test_nonmonotonic_band(self):
         # Band where large pension removes taper — previously under-capped 52500 vs 60000.
         for total in [271_000, 272_000, 273_000, 274_000, 275_000]:
             with self.subTest(total=total):
-                self.assertEqual(find_max_pension_sole_trader(total, cap=60_000), 60_000)
-                self.assertEqual(find_max_pension_sole_trader(total, cap=60_000), self._brute(total))
+                self.assertEqual(
+                    find_max_pension_sole_trader(total, cap=60_000), 60_000
+                )
+                self.assertEqual(
+                    find_max_pension_sole_trader(total, cap=60_000), self._brute(total)
+                )
 
     def test_permanently_tapered(self):
         # Never drops below 200k within cap → AA floor
         self.assertEqual(find_max_pension_sole_trader(360_000, cap=60_000), 10_000)
-        self.assertEqual(find_max_pension_sole_trader(360_000, cap=60_000), self._brute(360_000))
+        self.assertEqual(
+            find_max_pension_sole_trader(360_000, cap=60_000), self._brute(360_000)
+        )
         self.assertEqual(find_max_pension_sole_trader(310_000, cap=60_000), 35_000)
-        self.assertEqual(find_max_pension_sole_trader(310_000, cap=60_000), self._brute(310_000))
+        self.assertEqual(
+            find_max_pension_sole_trader(310_000, cap=60_000), self._brute(310_000)
+        )
 
     def test_cap_below_p_cross(self):
         # total 275k, cap 40000 < p_cross 60000 → only tapered regime, should be min(cap, AA_tapered)
@@ -328,13 +351,26 @@ class TestFindMaxPensionSoleTrader(unittest.TestCase):
         self.assertEqual(find_max_pension_sole_trader(275_000, cap=52_000), 52_000)
         # cap 55k >52500 but <60000 cross → still capped to AA_tapered 52500
         self.assertEqual(find_max_pension_sole_trader(275_000, cap=55_000), 52_500)
-        self.assertEqual(find_max_pension_sole_trader(275_000, cap=55_000), self._brute(275_000, cap=55_000))
+        self.assertEqual(
+            find_max_pension_sole_trader(275_000, cap=55_000),
+            self._brute(275_000, cap=55_000),
+        )
 
     def test_brute_match_sweep(self):
-        for total in list(range(0, 500_000, 25_000)) + [205_000, 261_000, 275_000, 310_000]:
+        for total in list(range(0, 500_000, 25_000)) + [
+            205_000,
+            261_000,
+            275_000,
+            310_000,
+        ]:
             with self.subTest(total=total):
-                self.assertEqual(find_max_pension_sole_trader(total, cap=60_000), self._brute(total))
-                self.assertEqual(find_max_pension_sole_trader(total, cap=30_000), self._brute(total, cap=30_000))
+                self.assertEqual(
+                    find_max_pension_sole_trader(total, cap=60_000), self._brute(total)
+                )
+                self.assertEqual(
+                    find_max_pension_sole_trader(total, cap=30_000),
+                    self._brute(total, cap=30_000),
+                )
 
 
 class TestAnnualAllowanceIntegrationPAYE(unittest.TestCase):

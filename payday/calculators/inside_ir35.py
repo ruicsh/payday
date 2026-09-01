@@ -111,7 +111,10 @@ class InsideIR35Calculator:
                 # is constant (ref_gross = gross without sacrifice).
                 ref_gross_estimate = InsideIR35Calculator.solve_gross_salary(budget)
                 threshold_estimate = round(
-                    ref_gross_estimate + other_income + existing_income + existing_dividends
+                    ref_gross_estimate
+                    + other_income
+                    + existing_income
+                    + existing_dividends
                 )
                 max_allowed = find_max_pension_for_threshold(threshold_estimate)
             if salary_sacrifice > max_allowed:
