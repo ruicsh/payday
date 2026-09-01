@@ -767,6 +767,125 @@ class TestCLI(unittest.TestCase):
         output = mock_stdout.getvalue()
         self.assertIn("£7,500/mo", output)  # 60000 / 8 = 7500
 
+    # ── prompt_salary_sacrifice — manual daily tests ─────────────────────
+
+    @patch("builtins.input", side_effect=["y", "d", "50"])
+    def test_salary_sacrifice_manual_daily_amount(self, mock_input):
+        """Manual daily: y → daily → 50/day × 227 days = annual."""
+        result = prompt_salary_sacrifice(150_000, mode="inside_ir35", working_days=227)
+        self.assertEqual(result, 50 * 227)
+        self.assertEqual(result.frequency, "daily")
+
+    @patch("builtins.input", side_effect=["y", "d", "100"])
+    def test_salary_sacrifice_manual_daily_generic_umbrella(self, mock_input):
+        """Manual daily works for any Inside IR35 umbrella, not just PayStream."""
+        result = prompt_salary_sacrifice(
+            150_000,
+            mode="inside_ir35",
+            working_days=227,
+            is_paystream=False,
+        )
+        self.assertEqual(result, 100 * 227)
+        self.assertEqual(result.frequency, "daily")
+
+    @patch("builtins.input", side_effect=["y", "d", "500"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_manual_daily_capped_at_60k(self, mock_stdout, mock_input):
+        """Daily amount exceeding £60k/yr is capped with per-day warning."""
+        result = prompt_salary_sacrifice(150_000, mode="inside_ir35", working_days=227)
+        self.assertEqual(result, 60_000)
+        self.assertEqual(result.frequency, "daily")
+        output = mock_stdout.getvalue()
+        self.assertIn("capped", output)
+        self.assertIn("/day", output)
+
+    @patch("builtins.input", side_effect=["y", "d", "max"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_manual_daily_max(self, mock_stdout, mock_input):
+        """Max with daily frequency returns 60k and shows per-day figure."""
+        result = prompt_salary_sacrifice(
+            150_000,
+            mode="inside_ir35",
+            working_days=227,
+            annual_margin=5_000,
+            admin_charge=1_000,
+        )
+        self.assertEqual(result, 60_000)
+        self.assertEqual(result.frequency, "daily")
+        output = mock_stdout.getvalue()
+        self.assertIn("Maximum sacrifice", output)
+        self.assertIn("/day", output)
+
+    @patch("builtins.input", side_effect=["y", "d", "", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_manual_daily_auto(self, mock_stdout, mock_input):
+        """Auto with daily frequency calculates correctly and shows per-day."""
+        result = prompt_salary_sacrifice(
+            144_000,
+            mode="inside_ir35",
+            annual_margin=1_200,
+            working_days=227,
+        )
+        # 144k assignment, 1.2k margin, 100k cap → known annual 28,050
+        self.assertEqual(result, 28_050)
+        self.assertEqual(result.frequency, "daily")
+        output = mock_stdout.getvalue()
+        self.assertIn("Auto-calculated", output)
+        self.assertIn("/day", output)
+
+    @patch("builtins.input", side_effect=["y", "m", "2000"])
+    def test_salary_sacrifice_manual_monthly_explicit(self, mock_input):
+        """Explicit monthly choice: y → monthly → 2000/mo × 12 = annual."""
+        result = prompt_salary_sacrifice(150_000, mode="inside_ir35", working_days=227)
+        self.assertEqual(result, 2000 * 12)
+        self.assertEqual(result.frequency, "monthly")
+
+    @patch("builtins.input", side_effect=["y", "", "2000"])
+    def test_salary_sacrifice_manual_empty_frequency_defaults_monthly(self, mock_input):
+        """Empty frequency input defaults to monthly."""
+        result = prompt_salary_sacrifice(150_000, mode="inside_ir35", working_days=227)
+        self.assertEqual(result, 2000 * 12)
+        self.assertEqual(result.frequency, "monthly")
+
+    @patch("builtins.input", side_effect=["y", "x", "d", "50"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_manual_daily_invalid_frequency_retry(
+        self, mock_stdout, mock_input
+    ):
+        """Invalid frequency input retries until valid daily."""
+        result = prompt_salary_sacrifice(150_000, mode="inside_ir35", working_days=227)
+        self.assertEqual(result, 50 * 227)
+        self.assertEqual(result.frequency, "daily")
+        output = mock_stdout.getvalue()
+        self.assertIn("Error: Enter 'm' for monthly or 'd' for daily.", output)
+
+    @patch("builtins.input", side_effect=["y", "d"])
+    def test_salary_sacrifice_manual_daily_requires_working_days(self, mock_input):
+        """Daily manual without working_days raises ValueError."""
+        with self.assertRaises(ValueError):
+            prompt_salary_sacrifice(150_000, mode="inside_ir35", working_days=None)
+
+    def test_sacrifice_choice_is_int_subclass(self):
+        """SacrificeChoice behaves as int while carrying frequency."""
+        from payday.cli import SacrificeChoice
+
+        choice = SacrificeChoice(50_000, "daily")
+        self.assertEqual(choice, 50_000)
+        self.assertEqual(choice.frequency, "daily")
+        self.assertIsInstance(choice, int)
+        daily = SacrificeChoice(10 * 227, "daily")
+        self.assertEqual(int(daily), 10 * 227)
+        self.assertEqual(SacrificeChoice(2000 * 12, "monthly").frequency, "monthly")
+
+    @patch("builtins.input", side_effect=["y", "5000"])
+    def test_salary_sacrifice_paye_manual_no_frequency_prompt(self, mock_input):
+        """PAYE manual path does not prompt for daily/monthly frequency."""
+        result = prompt_salary_sacrifice(150_000, mode="paye")
+        self.assertEqual(result, 5000 * 12)
+        self.assertEqual(result.frequency, "monthly")
+        # Only two prompts: y/N and amount — ensure no extra call
+        self.assertEqual(mock_input.call_count, 2)
+
     # ── run_once — mode 3 external IR35 tests ──────────────────────────
 
     @patch("payday.cli.OutsideIR35Calculator.calculate")
