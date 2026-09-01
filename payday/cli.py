@@ -18,6 +18,22 @@ from payday.tax_year import (
 )
 
 
+class SacrificeChoice(int):
+    """Annual sacrifice amount that also carries its frequency.
+
+    Subclasses :class:`int` so existing ``int`` comparisons keep working
+    (``SacrificeChoice(50000, "monthly") == 50000``) while callers that
+    need the frequency can read ``.frequency`` (``"monthly"`` or ``"daily"``).
+    """
+
+    frequency: str
+
+    def __new__(cls, amount: int, frequency: str = "monthly") -> "SacrificeChoice":
+        obj = int.__new__(cls, amount)
+        obj.frequency = frequency
+        return obj
+
+
 def prompt_int(
     prompt: str,
     *,
@@ -222,17 +238,21 @@ def prompt_salary_sacrifice(
     existing_dividends: float = 0,
     default_cap: int = 100_000,
     config: dict | None = None,
-) -> int:
+) -> SacrificeChoice:
     """Prompt whether to make a salary sacrifice for a personal pension.
 
-    Returns the *annual* sacrifice amount.
+    Returns a :class:`SacrificeChoice` (``int`` subclass) whose value is
+    the *annual* sacrifice amount and whose ``.frequency`` is ``"monthly"``
+    or ``"daily"``.
 
     *working_days* is required to convert a daily sacrifice to annual.
-    *is_paystream* restricts the daily option to the PayStream umbrella.
+    In config mode the daily option is restricted to the PayStream
+    umbrella; in manual mode daily is offered for any Inside IR35
+    umbrella via an explicit monthly/daily choice.
     """
     if config:
         if not config.get("salary_sacrifice_enabled"):
-            return 0
+            return SacrificeChoice(0, "monthly")
 
         contract_months = 12 if start_month is None else months_in_tax_year(start_month)
 
@@ -247,6 +267,7 @@ def prompt_salary_sacrifice(
         is_daily = ds is not None
         sac_val = ds if is_daily else ms
         label = "Daily" if is_daily else "Monthly"
+        frequency: str = "daily" if is_daily else "monthly"
         per_period = working_days if is_daily else contract_months
 
         if is_daily and not is_paystream:
@@ -263,13 +284,12 @@ def prompt_salary_sacrifice(
             annual = sac_val * per_period
             result = min(annual, MAX_SALARY_SACRIFICE)
             print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): {sac_val}")
-            return result
+            return SacrificeChoice(result, frequency)
 
         if sac_val == "max":
             result = _max_sacrifice(gross, mode, annual_margin, admin_charge)
-            monthly = result // contract_months
             print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): max")
-            return result
+            return SacrificeChoice(result, frequency)
 
         if sac_val == "auto":
             raw_target = config.get("income_target")
@@ -277,7 +297,7 @@ def prompt_salary_sacrifice(
                 result = _max_sacrifice(gross, mode, annual_margin, admin_charge)
                 print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): auto")
                 print("Income target: none (maxing pension)")
-                return result
+                return SacrificeChoice(result, frequency)
             if raw_target is None or raw_target is True:
                 cap = prompt_int(
                     "Taxable income cap",
@@ -304,10 +324,10 @@ def prompt_salary_sacrifice(
                 print(
                     "Gross is already at or below cap — no sacrifice needed (payday.json)."
                 )
-                return 0
+                return SacrificeChoice(0, frequency)
             print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): auto")
             print(f"Income target: {format_gbp(cap)}")
-            return result
+            return SacrificeChoice(result, frequency)
 
     answer = (
         input(
@@ -317,12 +337,31 @@ def prompt_salary_sacrifice(
         .lower()
     )
     if answer != "y":
-        return 0
+        return SacrificeChoice(0, "monthly")
     contract_months = 12 if start_month is None else months_in_tax_year(start_month)
+
+    # Manual frequency choice — only for Inside IR35 (day-rate) mode.
+    frequency = "monthly"
+    if mode == "inside_ir35":
+        while True:
+            freq_input = (
+                input("Salary sacrifice per day or per month? [m/d]: ").strip().lower()
+            )
+            if not freq_input or freq_input in ("m", "monthly", "month"):
+                frequency = "monthly"
+                break
+            if freq_input in ("d", "daily", "day"):
+                frequency = "daily"
+                break
+            print("Error: Enter 'm' for monthly or 'd' for daily.")
+        if frequency == "daily" and working_days is None:
+            raise ValueError("daily salary sacrifice requires working days")
+
+    label = "Daily" if frequency == "daily" else "Monthly"
 
     while True:
         user_input = input(
-            "Monthly salary sacrifice [ENTER=auto, or 'max'] (£): "
+            f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): "
         ).strip()
 
         if not user_input:
@@ -350,7 +389,7 @@ def prompt_salary_sacrifice(
                 print(
                     "Your gross is already at or below the cap — no sacrifice needed."
                 )
-                return 0
+                return SacrificeChoice(0, frequency)
 
             # Warn only if the cap actually constrained the result.
             # PAYE: compare the unconstrained sacrifice against the limit.
@@ -362,13 +401,20 @@ def prompt_salary_sacrifice(
             if was_capped:
                 print(f"Note: Salary sacrifice capped at £{MAX_SALARY_SACRIFICE:,}/yr.")
 
-            monthly = annual_sacrifice // contract_months
-            print(
-                f"Auto-calculated: £{annual_sacrifice:,}/yr "
-                f"(£{monthly:,}/mo) sacrifice."
-            )
+            if frequency == "daily" and working_days:
+                per_day = annual_sacrifice // working_days
+                print(
+                    f"Auto-calculated: £{annual_sacrifice:,}/yr "
+                    f"(£{per_day:,}/day) sacrifice."
+                )
+            else:
+                monthly = annual_sacrifice // contract_months
+                print(
+                    f"Auto-calculated: £{annual_sacrifice:,}/yr "
+                    f"(£{monthly:,}/mo) sacrifice."
+                )
             print(f"Income target: {format_gbp(cap)}")
-            return annual_sacrifice
+            return SacrificeChoice(annual_sacrifice, frequency)
 
         if user_input.lower() == "max":
             if mode == "paye":
@@ -379,23 +425,39 @@ def prompt_salary_sacrifice(
             else:
                 annual_sacrifice = 0
 
-            monthly = annual_sacrifice // contract_months
-            print(f"Maximum sacrifice: £{annual_sacrifice:,}/yr (£{monthly:,}/mo).")
-            return annual_sacrifice
+            if frequency == "daily" and working_days:
+                per_day = annual_sacrifice // working_days
+                print(
+                    f"Maximum sacrifice: £{annual_sacrifice:,}/yr (£{per_day:,}/day)."
+                )
+            else:
+                monthly = annual_sacrifice // contract_months
+                print(f"Maximum sacrifice: £{annual_sacrifice:,}/yr (£{monthly:,}/mo).")
+            return SacrificeChoice(annual_sacrifice, frequency)
 
         try:
             val = int(user_input)
             if val < 0:
                 print("Error: Value must be at least 0.")
                 continue
-            annual = val * contract_months
+            if frequency == "daily":
+                annual = val * working_days  # type: ignore[operator]
+            else:
+                annual = val * contract_months
             if annual > MAX_SALARY_SACRIFICE:
-                print(
-                    f"Note: Salary sacrifice capped at £{MAX_SALARY_SACRIFICE:,}/yr "
-                    f"(£{MAX_SALARY_SACRIFICE // contract_months:,}/mo)."
-                )
+                if frequency == "daily" and working_days:
+                    per_day_cap = MAX_SALARY_SACRIFICE // working_days
+                    print(
+                        f"Note: Salary sacrifice capped at £{MAX_SALARY_SACRIFICE:,}/yr "
+                        f"(£{per_day_cap:,}/day)."
+                    )
+                else:
+                    print(
+                        f"Note: Salary sacrifice capped at £{MAX_SALARY_SACRIFICE:,}/yr "
+                        f"(£{MAX_SALARY_SACRIFICE // contract_months:,}/mo)."
+                    )
                 annual = MAX_SALARY_SACRIFICE
-            return annual
+            return SacrificeChoice(annual, frequency)
         except ValueError:
             print("Error: Please enter a whole number.")
 
@@ -550,7 +612,7 @@ def run_once(config: dict | None = None) -> None:
         )
         salary_sacrifice = prompt_salary_sacrifice(salary, mode="paye", config=config)
         breakdown = PAYECalculator.calculate(
-            salary, salary_sacrifice=salary_sacrifice, region=region
+            salary, salary_sacrifice=int(salary_sacrifice), region=region
         )
 
     elif mode == 2:
@@ -585,7 +647,7 @@ def run_once(config: dict | None = None) -> None:
             round(PAYSTREAM_ADMIN_CHARGE_WEEKLY * weeks) if is_paystream else 0
         )
 
-        salary_sacrifice = prompt_salary_sacrifice(
+        sacrifice_choice = prompt_salary_sacrifice(
             annual_assignment,
             mode="inside_ir35",
             start_month=start_month,
@@ -604,13 +666,9 @@ def run_once(config: dict | None = None) -> None:
             start_month,
             existing_income,
             existing_dividends=existing_dividends,
-            salary_sacrifice=salary_sacrifice,
+            salary_sacrifice=int(sacrifice_choice),
             is_paystream=is_paystream,
-            sacrifice_frequency=(
-                "daily"
-                if config and config.get("daily_salary_sacrifice") is not None
-                else "monthly"
-            ),
+            sacrifice_frequency=getattr(sacrifice_choice, "frequency", "monthly"),
             effective_days=net_working_days,
             region=region,
         )

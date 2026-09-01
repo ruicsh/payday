@@ -696,7 +696,7 @@ class TestCLI(unittest.TestCase):
         result = prompt_salary_sacrifice(130_000, mode="paye")
         self.assertEqual(result, 50_000)
 
-    @patch("builtins.input", side_effect=["y", "", ""])
+    @patch("builtins.input", side_effect=["y", "", "", ""])
     @patch("sys.stdout", new_callable=StringIO)
     def test_salary_sacrifice_auto_calc_inside_ir35(self, mock_stdout, mock_input):
         """Auto-calc for Inside IR35: 144k assignment, 1200 margin, 100k cap."""
@@ -747,7 +747,7 @@ class TestCLI(unittest.TestCase):
         result = prompt_salary_sacrifice(150_000, mode="paye")
         self.assertEqual(result, 60_000)
 
-    @patch("builtins.input", side_effect=["y", "max"])
+    @patch("builtins.input", side_effect=["y", "", "max"])
     @patch("sys.stdout", new_callable=StringIO)
     def test_salary_sacrifice_max_inside_ir35(self, mock_stdout, mock_input):
         """Typing 'max' on Inside IR35 with enough budget returns 60k."""
