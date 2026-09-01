@@ -445,7 +445,9 @@ class TestLoadConfig(unittest.TestCase):
     def test_region_scotland_accepted(self):
         for val in ("scotland", "england", "wales", "northern_ireland", "rest_of_uk"):
             data = {"mode": "paye", "region": val}
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
                 json.dump(data, f)
                 path = f.name
             try:
