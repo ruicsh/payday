@@ -64,8 +64,15 @@ PENSION_QUALIFYING_UPPER_LIMIT: int = 50_270
 PENSION_EMPLOYEE_RATE: float = 0.05
 PENSION_EMPLOYER_RATE: float = 0.03
 
-# Salary Sacrifice
-MAX_SALARY_SACRIFICE: int = 60_000
+# Pension Annual Allowance (2026/27)
+# Source: https://www.gov.uk/tax-on-your-private-pension/annual-allowance
+ANNUAL_ALLOWANCE: int = 60_000
+AA_TAPER_THRESHOLD_INCOME: int = 200_000
+AA_TAPER_ADJUSTED_INCOME: int = 260_000
+AA_TAPER_MIN: int = 10_000
+
+# Salary Sacrifice (capped at the standard Annual Allowance)
+MAX_SALARY_SACRIFICE: int = ANNUAL_ALLOWANCE
 
 # Student Loan repayment (2026/27)
 # Source: https://www.gov.uk/repaying-your-student-loan/what-you-pay

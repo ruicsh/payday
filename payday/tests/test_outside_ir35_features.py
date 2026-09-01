@@ -558,6 +558,7 @@ class TestOutsideIR35CLI(unittest.TestCase):
             "3",  # mode
             "600",  # day rate
             "",  # start month (full year)
+            "",  # other income (default 0)
             "",  # days off (default 25)
             "",  # accept working days
             "y",  # Scotland? y

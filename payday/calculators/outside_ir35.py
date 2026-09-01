@@ -1,3 +1,4 @@
+from payday.annual_allowance import calc_annual_allowance
 from payday.constants import (
     EMPLOYMENT_ALLOWANCE,
     MAX_SALARY_SACRIFICE,
@@ -24,6 +25,7 @@ class OutsideIR35Calculator:
         start_month: int | None = None,
         existing_income: float = 0,
         existing_dividends: float = 0,
+        other_income: float = 0,
         effective_days: int | None = None,
         director_salary: int | None = None,
         director_pension: int = 0,
@@ -33,6 +35,7 @@ class OutsideIR35Calculator:
         region: str | None = None,
         student_loan_plan: str | None = None,
         postgraduate_loan: bool = False,
+        _aa_recursed: bool = False,
     ) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → Student Loan → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
@@ -105,7 +108,8 @@ class OutsideIR35Calculator:
             er_ni_total = er_ni_total - ea_used
 
         # Director pension contributions are an allowable expense that reduces
-        # company profit (and therefore CT). Capped at £60k annual allowance.
+        # company profit (and therefore CT). Capped at the standard Annual
+        # Allowance (£60k); tapered AA is enforced below after profit is known.
         pension = min(director_pension, MAX_SALARY_SACRIFICE)
 
         # Company running costs (accountancy, insurance, software, etc.)
@@ -126,12 +130,42 @@ class OutsideIR35Calculator:
         # (clamped to zero if loss-making / fully retained).
         dividends = max(0, post_tax_profit - retained)
 
+        # Annual Allowance taper — when threshold/adjusted income triggers
+        # the taper, cap the pension. Need dividends to compute threshold
+        # so we check here; recurse once with the tapered allowance when
+        # the requested pension exceeds it (per-mode isolation).
+        if pension and not _aa_recursed:
+            threshold_income = round(
+                salary + dividends + other_income + existing_income + existing_dividends
+            )
+            adjusted_income = round(threshold_income + pension)
+            aa_check = calc_annual_allowance(threshold_income, adjusted_income)
+            if pension > aa_check.annual_allowance:
+                return OutsideIR35Calculator.calculate(
+                    day_rate=day_rate,
+                    working_days=working_days,
+                    start_month=start_month,
+                    existing_income=existing_income,
+                    existing_dividends=existing_dividends,
+                    other_income=other_income,
+                    effective_days=effective_days,
+                    director_salary=director_salary,
+                    director_pension=aa_check.annual_allowance,
+                    company_expenses=company_expenses,
+                    retained_profit=retained_profit,
+                    employment_allowance=employment_allowance,
+                    region=region,
+                    student_loan_plan=student_loan_plan,
+                    postgraduate_loan=postgraduate_loan,
+                    _aa_recursed=True,
+                )
+
         # Personal Allowance depends on total adjusted net income (salary +
-        # dividends + existing). Computed here for the salary income-tax slice
-        # and to keep stacking consistent with dividend_tax (which recomputes it
-        # internally from the same inputs).
+        # dividends + existing + other). Computed here for the salary income-tax
+        # slice and to keep stacking consistent with dividend_tax (which
+        # recomputes it internally from the same inputs).
         ani = calc_adjusted_net_income(
-            employment_income=salary + existing_income,
+            employment_income=round(salary + existing_income + other_income),
             dividend_income=dividends + existing_dividends,
         )
         pa, _tapered = calc_personal_allowance(ani)
@@ -139,16 +173,27 @@ class OutsideIR35Calculator:
         # Income Tax + Employee NI on the salary slice (zero when <= PA / PT).
         # Mirrors inside_ir35.py which computes IT + EE NI on gross salary.
         it_result = calc_income_tax(
-            salary, pa, existing_income=existing_income, region=region
+            salary,
+            pa,
+            existing_income=round(existing_income + other_income),
+            region=region,
         )
         ee_ni_result = calc_employee_ni(salary)
 
         div_tax_result = calc_dividend_tax(
             dividends,
             salary,
-            existing_income=existing_income,
+            existing_income=round(existing_income + other_income),
             existing_dividends=existing_dividends,
         )
+
+        # Annual Allowance (for display) — threshold is total income
+        # (salary + dividends + other + existing), adjusted adds pension.
+        threshold_income = round(
+            salary + dividends + other_income + existing_income + existing_dividends
+        )
+        adjusted_income = round(threshold_income + pension)
+        aa_result = calc_annual_allowance(threshold_income, adjusted_income)
 
         # Take-home = salary (net of IT + EE NI) + net dividends - Student Loan.
         # Student loan via Self Assessment is on total income (salary + dividends).
@@ -183,7 +228,7 @@ class OutsideIR35Calculator:
         )
 
         year_taxable_income = round(
-            salary + dividends + existing_income + existing_dividends
+            salary + dividends + existing_income + existing_dividends + other_income
         )
 
         steps = [
@@ -214,6 +259,14 @@ class OutsideIR35Calculator:
             steps.append(StepLine("Student Loan", -sl_result.repayment, indent=1))
         if pgl_result:
             steps.append(StepLine("Postgraduate Loan", -pgl_result.repayment, indent=1))
+        if aa_result and aa_result.tapered:
+            steps.append(
+                StepLine(
+                    f"Annual Allowance (tapered to £{aa_result.annual_allowance:,})",
+                    0,
+                    indent=1,
+                )
+            )
         steps += [
             StepLine("Take-Home", take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
@@ -227,6 +280,12 @@ class OutsideIR35Calculator:
             "salary": salary,
             "net_dividends": net_dividends,
         }
+        if other_income:
+            inputs["other_income"] = other_income
+        if aa_result and aa_result.tapered:
+            inputs["annual_allowance"] = aa_result.annual_allowance
+            inputs["threshold_income"] = aa_result.threshold_income
+            inputs["adjusted_income"] = aa_result.adjusted_income
         if pension:
             inputs["director_pension"] = pension
         if expenses:
@@ -264,6 +323,7 @@ class OutsideIR35Calculator:
             employer_ni=er_ni_gross_result,
             corporation_tax=ct_result,
             dividend_tax=div_tax_result,
+            annual_allowance=aa_result,
             student_loan=sl_result,
             postgraduate_loan=pgl_result,
         )

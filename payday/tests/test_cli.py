@@ -713,11 +713,21 @@ class TestCLI(unittest.TestCase):
     @patch("builtins.input", side_effect=["y", "", ""])
     @patch("sys.stdout", new_callable=StringIO)
     def test_salary_sacrifice_auto_calc_capped_at_60k(self, mock_stdout, mock_input):
-        """Auto-calc: 300k gross, 100k cap → capped at £60k with warning."""
-        result = prompt_salary_sacrifice(300_000, mode="paye")
+        """Auto-calc: 160k gross, 100k cap → capped at £60k with warning (no taper)."""
+        result = prompt_salary_sacrifice(160_000, mode="paye")
         self.assertEqual(result, 60_000)
         output = mock_stdout.getvalue()
         self.assertIn("capped", output)
+
+    @patch("builtins.input", side_effect=["y", "", ""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_salary_sacrifice_auto_calc_capped_tapered(self, mock_stdout, mock_input):
+        """Auto-calc: 300k gross, 100k cap → capped to tapered AA (£26,667) with warning."""
+        result = prompt_salary_sacrifice(300_000, mode="paye")
+        self.assertEqual(result, 26_667)
+        output = mock_stdout.getvalue()
+        self.assertIn("tapered", output.lower())
+        self.assertIn("26,667", output)
 
     # ── prompt_salary_sacrifice — "max" keyword tests ─────────────────
 
@@ -898,6 +908,7 @@ class TestCLI(unittest.TestCase):
             "8",  # start month (Aug → partial year)
             "20000",  # existing income
             "15000",  # existing dividends
+            "",  # other income (default 0)
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no
@@ -937,6 +948,7 @@ class TestCLI(unittest.TestCase):
             "3",  # mode: Outside IR35
             "500",  # day rate
             "",  # start month (full year → no existing prompts)
+            "",  # other income (default 0)
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no
@@ -989,6 +1001,7 @@ class TestCLI(unittest.TestCase):
         mock_calc.assert_called_once_with(
             50000,
             salary_sacrifice=0,
+            other_income=0.0,
             region="rest_of_uk",
             student_loan_plan=None,
             postgraduate_loan=False,
@@ -1142,6 +1155,7 @@ class TestCLI(unittest.TestCase):
             "3",  # mode: Outside IR35
             "500",  # day rate
             "",  # start month (full year)
+            "",  # other income (default 0)
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no
@@ -1180,6 +1194,7 @@ class TestCLI(unittest.TestCase):
             "3",  # mode: Outside IR35
             "500",  # day rate
             "",  # start month (full year)
+            "",  # other income (default 0)
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no
@@ -1218,6 +1233,7 @@ class TestCLI(unittest.TestCase):
             "3",  # mode: Outside IR35
             "500",  # day rate
             "",  # start month (full year)
+            "",  # other income (default 0)
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no

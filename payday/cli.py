@@ -1,5 +1,6 @@
 import sys
 from collections.abc import Callable
+from payday.annual_allowance import find_max_pension_for_threshold
 from payday.config import VALID_MODES
 from payday.constants import MAX_SALARY_SACRIFICE, PAYSTREAM_ADMIN_CHARGE_WEEKLY
 from payday.calculators.optimal_sacrifice import (
@@ -241,19 +242,83 @@ def prompt_existing_self_employment(
     )
 
 
+def prompt_other_income(config: dict | None = None) -> float:
+    """Prompt for other taxable income (savings, property, etc.) for AA taper.
+
+    Other income is all taxable income outside the main employment /
+    self-employment / dividend income for this calculation. It feeds both
+    the Annual Allowance taper (threshold / adjusted income) and the
+    Personal Allowance taper via ANI.
+
+    See: https://www.gov.uk/guidance/pension-schemes-work-out-your-tapered-annual-allowance
+    """
+    if config is not None:
+        val = config.get("other_income")
+        if val is True or val is None:
+            print("Other taxable income this tax year (£) [0]: 0")
+            return 0.0
+        print(f"Other taxable income this tax year (£) [0]: {val}")
+        return float(val)
+    return prompt_float(
+        "Other taxable income this tax year (£)",
+        default=0,
+        min_val=0,
+    )
+
+
 def _max_sacrifice(
     gross: int,
     mode: str,
     annual_margin: int = 0,
     admin_charge: int = 0,
+    tapered_max: int | None = None,
 ) -> int:
-    """Return the maximum feasible annual salary sacrifice for *mode*."""
+    """Return the maximum feasible annual salary sacrifice for *mode*.
+
+    *tapered_max* is the tapered Annual Allowance cap for this earner
+    (``None`` → standard £60k). The result is the minimum of the budget
+    constraint and the allowance.
+    """
+    cap = tapered_max if tapered_max is not None else MAX_SALARY_SACRIFICE
     if mode == "paye":
-        return min(gross, MAX_SALARY_SACRIFICE)
+        return min(gross, cap)
     if mode == "inside_ir35":
         max_within_budget = max(0, gross - annual_margin - admin_charge - 1)
-        return min(max_within_budget, MAX_SALARY_SACRIFICE)
+        return min(max_within_budget, cap)
     return 0
+
+
+def _tapered_sacrifice_cap(
+    gross: int,
+    mode: str,
+    *,
+    other_income: float = 0,
+    existing_income: float = 0,
+    existing_dividends: float = 0,
+    annual_margin: int = 0,
+) -> int:
+    """Compute the tapered Annual Allowance cap for a salary-sacrifice.
+
+    Mirrors the per-mode threshold logic in the calculators so the CLI
+    never offers (or auto-selects) a sacrifice the calculator would later
+    silently cap.
+    """
+    if mode == "paye":
+        threshold = round(gross + other_income)
+        return find_max_pension_for_threshold(threshold)
+    if mode == "inside_ir35":
+        # Threshold estimate: gross without sacrifice (per-mode isolation).
+        # For generic umbrellas threshold = ref_gross + other + existing;
+        # for PayStream it is a close estimate (see inside_ir35.py).
+        from payday.calculators.inside_ir35 import InsideIR35Calculator
+
+        budget = gross - annual_margin
+        ref_gross_estimate = InsideIR35Calculator.solve_gross_salary(budget)
+        threshold = round(
+            ref_gross_estimate + other_income + existing_income + existing_dividends
+        )
+        return find_max_pension_for_threshold(threshold)
+    return MAX_SALARY_SACRIFICE
 
 
 def prompt_salary_sacrifice(
@@ -267,6 +332,7 @@ def prompt_salary_sacrifice(
     is_paystream: bool = False,
     existing_income: float = 0,
     existing_dividends: float = 0,
+    other_income: float = 0,
     default_cap: int = 100_000,
     config: dict | None = None,
 ) -> SacrificeChoice:
@@ -281,6 +347,15 @@ def prompt_salary_sacrifice(
     umbrella; in manual mode daily is offered for any Inside IR35
     umbrella via an explicit monthly/daily choice.
     """
+    tapered_max = _tapered_sacrifice_cap(
+        gross,
+        mode,
+        other_income=other_income,
+        existing_income=existing_income,
+        existing_dividends=existing_dividends,
+        annual_margin=annual_margin,
+    )
+
     if config:
         if not config.get("salary_sacrifice_enabled"):
             return SacrificeChoice(0, "monthly")
@@ -313,21 +388,40 @@ def prompt_salary_sacrifice(
             if per_period is None:
                 raise ValueError("daily_salary_sacrifice requires working days")
             annual = sac_val * per_period
-            result = min(annual, MAX_SALARY_SACRIFICE)
+            result = min(annual, tapered_max)
+            if result < annual:
+                print(
+                    f"Note: Salary sacrifice capped to tapered Annual Allowance "
+                    f"£{tapered_max:,}/yr."
+                )
             print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): {sac_val}")
             return SacrificeChoice(result, frequency)
 
         if sac_val == "max":
-            result = _max_sacrifice(gross, mode, annual_margin, admin_charge)
+            result = _max_sacrifice(
+                gross, mode, annual_margin, admin_charge, tapered_max=tapered_max
+            )
             print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): max")
+            if tapered_max < MAX_SALARY_SACRIFICE:
+                print(
+                    f"Note: Maximum sacrifice capped to tapered Annual Allowance "
+                    f"£{tapered_max:,}/yr."
+                )
             return SacrificeChoice(result, frequency)
 
         if sac_val == "auto":
             raw_target = config.get("income_target")
             if raw_target is False:
-                result = _max_sacrifice(gross, mode, annual_margin, admin_charge)
+                result = _max_sacrifice(
+                    gross, mode, annual_margin, admin_charge, tapered_max=tapered_max
+                )
                 print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): auto")
                 print("Income target: none (maxing pension)")
+                if tapered_max < MAX_SALARY_SACRIFICE:
+                    print(
+                        f"Note: Maximum sacrifice capped to tapered Annual Allowance "
+                        f"£{tapered_max:,}/yr."
+                    )
                 return SacrificeChoice(result, frequency)
             if raw_target is None or raw_target is True:
                 cap = prompt_int(
@@ -351,6 +445,10 @@ def prompt_salary_sacrifice(
                 )
             else:
                 result = 0
+            capped_for_taper = False
+            if result > tapered_max:
+                result = tapered_max
+                capped_for_taper = True
             if result == 0:
                 print(
                     "Gross is already at or below cap — no sacrifice needed (payday.json)."
@@ -358,6 +456,11 @@ def prompt_salary_sacrifice(
                 return SacrificeChoice(0, frequency)
             print(f"{label} salary sacrifice [ENTER=auto, or 'max'] (£): auto")
             print(f"Income target: {format_gbp(cap)}")
+            if capped_for_taper:
+                print(
+                    f"Note: Auto sacrifice capped to tapered Annual Allowance "
+                    f"£{tapered_max:,}/yr (income target not fully met)."
+                )
             return SacrificeChoice(result, frequency)
 
     answer = (
@@ -416,6 +519,11 @@ def prompt_salary_sacrifice(
             else:
                 annual_sacrifice = 0
 
+            capped_for_taper = False
+            if annual_sacrifice > tapered_max:
+                annual_sacrifice = tapered_max
+                capped_for_taper = True
+
             if annual_sacrifice == 0:
                 print(
                     "Your gross is already at or below the cap — no sacrifice needed."
@@ -423,14 +531,17 @@ def prompt_salary_sacrifice(
                 return SacrificeChoice(0, frequency)
 
             # Warn only if the cap actually constrained the result.
-            # PAYE: compare the unconstrained sacrifice against the limit.
-            # Inside IR35: use equality as a proxy for capping — this may
-            # produce a false positive if the optimal is exactly £60k.
-            was_capped = (
-                mode == "paye" and max(0, gross - cap) > MAX_SALARY_SACRIFICE
-            ) or (mode == "inside_ir35" and annual_sacrifice == MAX_SALARY_SACRIFICE)
+            was_capped = (annual_sacrifice == tapered_max and tapered_max < gross) or (
+                mode == "paye" and max(0, gross - cap) > tapered_max
+            )
             if was_capped:
-                print(f"Note: Salary sacrifice capped at £{MAX_SALARY_SACRIFICE:,}/yr.")
+                if capped_for_taper and tapered_max < MAX_SALARY_SACRIFICE:
+                    print(
+                        f"Note: Salary sacrifice capped to tapered Annual Allowance "
+                        f"£{tapered_max:,}/yr (income target not fully met)."
+                    )
+                else:
+                    print(f"Note: Salary sacrifice capped at £{tapered_max:,}/yr.")
 
             if frequency == "daily" and working_days:
                 per_day = annual_sacrifice // working_days
@@ -448,13 +559,14 @@ def prompt_salary_sacrifice(
             return SacrificeChoice(annual_sacrifice, frequency)
 
         if user_input.lower() == "max":
-            if mode == "paye":
-                annual_sacrifice = min(gross, MAX_SALARY_SACRIFICE)
-            elif mode == "inside_ir35":
-                max_within_budget = max(0, gross - annual_margin - admin_charge - 1)
-                annual_sacrifice = min(max_within_budget, MAX_SALARY_SACRIFICE)
-            else:
-                annual_sacrifice = 0
+            annual_sacrifice = _max_sacrifice(
+                gross, mode, annual_margin, admin_charge, tapered_max=tapered_max
+            )
+            if tapered_max < MAX_SALARY_SACRIFICE:
+                print(
+                    f"Note: Maximum sacrifice capped to tapered Annual Allowance "
+                    f"£{tapered_max:,}/yr."
+                )
 
             if frequency == "daily" and working_days:
                 per_day = annual_sacrifice // working_days
@@ -475,19 +587,28 @@ def prompt_salary_sacrifice(
                 annual = val * working_days  # type: ignore[operator]
             else:
                 annual = val * contract_months
-            if annual > MAX_SALARY_SACRIFICE:
+            if annual > tapered_max:
                 if frequency == "daily" and working_days:
-                    per_day_cap = MAX_SALARY_SACRIFICE // working_days
-                    print(
-                        f"Note: Salary sacrifice capped at £{MAX_SALARY_SACRIFICE:,}/yr "
-                        f"(£{per_day_cap:,}/day)."
+                    per_day_cap = tapered_max // working_days
+                    cap_label = (
+                        f"£{tapered_max:,}/yr (£{per_day_cap:,}/day)"
+                        if tapered_max < MAX_SALARY_SACRIFICE
+                        else f"£{MAX_SALARY_SACRIFICE:,}/yr (£{per_day_cap:,}/day)"
                     )
+                    print(f"Note: Salary sacrifice capped at {cap_label}.")
+                    if tapered_max < MAX_SALARY_SACRIFICE:
+                        print(f"      (tapered Annual Allowance £{tapered_max:,})")
                 else:
-                    print(
-                        f"Note: Salary sacrifice capped at £{MAX_SALARY_SACRIFICE:,}/yr "
-                        f"(£{MAX_SALARY_SACRIFICE // contract_months:,}/mo)."
+                    per_mo_cap = tapered_max // contract_months
+                    cap_label = (
+                        f"£{tapered_max:,}/yr (£{per_mo_cap:,}/mo)"
+                        if tapered_max < MAX_SALARY_SACRIFICE
+                        else f"£{MAX_SALARY_SACRIFICE:,}/yr (£{per_mo_cap:,}/mo)"
                     )
-                annual = MAX_SALARY_SACRIFICE
+                    print(f"Note: Salary sacrifice capped at {cap_label}.")
+                    if tapered_max < MAX_SALARY_SACRIFICE:
+                        print(f"      (tapered Annual Allowance £{tapered_max:,})")
+                annual = tapered_max
             return SacrificeChoice(annual, frequency)
         except ValueError:
             print("Error: Please enter a whole number.")
@@ -706,15 +827,31 @@ def run_once(config: dict | None = None) -> None:
             min_val=0,
             config_value=config.get("salary") if config else None,
         )
-        salary_sacrifice = prompt_salary_sacrifice(salary, mode="paye", config=config)
+        other_income = prompt_other_income(config)
+        salary_sacrifice = prompt_salary_sacrifice(
+            salary, mode="paye", other_income=other_income, config=config
+        )
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
         breakdown = PAYECalculator.calculate(
             salary,
             salary_sacrifice=int(salary_sacrifice),
+            other_income=other_income,
             region=region,
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
         )
+        # Safety net: if calculator capped further (e.g. estimate drift), surface it.
+        if (
+            breakdown.annual_allowance
+            and breakdown.annual_allowance.tapered
+            and breakdown.inputs.get("salary_sacrifice") is not None
+            and breakdown.inputs["salary_sacrifice"] != int(salary_sacrifice)
+        ):
+            print(
+                f"Note: Salary sacrifice capped to tapered Annual Allowance "
+                f"£{breakdown.inputs['salary_sacrifice']:,}/yr "
+                f"(requested £{int(salary_sacrifice):,})."
+            )
 
     elif mode == 2:
         print("\n═══════════════════════════════════════")
@@ -728,6 +865,7 @@ def run_once(config: dict | None = None) -> None:
         start_month = prompt_start_month(config)
         existing_income = prompt_existing_income(start_month, config)
         existing_dividends = prompt_existing_dividends(start_month, config)
+        other_income = prompt_other_income(config)
 
         net_working_days, _ = prompt_working_days(start_month, config)
         margin = prompt_int(
@@ -759,6 +897,7 @@ def run_once(config: dict | None = None) -> None:
             is_paystream=is_paystream,
             existing_income=existing_income,
             existing_dividends=existing_dividends,
+            other_income=other_income,
             config=config,
         )
         breakdown = InsideIR35Calculator.calculate(
@@ -768,6 +907,7 @@ def run_once(config: dict | None = None) -> None:
             start_month,
             existing_income,
             existing_dividends=existing_dividends,
+            other_income=other_income,
             salary_sacrifice=int(sacrifice_choice),
             is_paystream=is_paystream,
             sacrifice_frequency=getattr(sacrifice_choice, "frequency", "monthly"),
@@ -776,6 +916,17 @@ def run_once(config: dict | None = None) -> None:
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
         )
+        if (
+            breakdown.annual_allowance
+            and breakdown.annual_allowance.tapered
+            and breakdown.inputs.get("salary_sacrifice") is not None
+            and breakdown.inputs["salary_sacrifice"] != int(sacrifice_choice)
+        ):
+            print(
+                f"Note: Salary sacrifice capped to tapered Annual Allowance "
+                f"£{breakdown.inputs['salary_sacrifice']:,}/yr "
+                f"(requested £{int(sacrifice_choice):,})."
+            )
 
     elif mode == 3:
         print("\n═══════════════════════════════════════")
@@ -789,6 +940,7 @@ def run_once(config: dict | None = None) -> None:
         start_month = prompt_start_month(config)
         existing_income = prompt_existing_income(start_month, config)
         existing_dividends = prompt_existing_dividends(start_month, config)
+        other_income = prompt_other_income(config)
 
         net_working_days, _ = prompt_working_days(start_month, config)
 
@@ -827,6 +979,7 @@ def run_once(config: dict | None = None) -> None:
             start_month,
             existing_income,
             existing_dividends=existing_dividends,
+            other_income=other_income,
             effective_days=net_working_days,
             director_salary=director_salary,
             director_pension=director_pension,
@@ -837,6 +990,17 @@ def run_once(config: dict | None = None) -> None:
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
         )
+        if (
+            breakdown.annual_allowance
+            and breakdown.annual_allowance.tapered
+            and breakdown.inputs.get("director_pension") is not None
+            and breakdown.inputs["director_pension"] != director_pension
+        ):
+            print(
+                f"Note: Director pension capped to tapered Annual Allowance "
+                f"£{breakdown.inputs['director_pension']:,}/yr "
+                f"(requested £{director_pension:,})."
+            )
 
     elif mode == 4:
         print("\n═══════════════════════════════════════")
@@ -850,6 +1014,7 @@ def run_once(config: dict | None = None) -> None:
         start_month = prompt_start_month(config)
         existing_income = prompt_existing_income(start_month, config)
         existing_self_employment = prompt_existing_self_employment(start_month, config)
+        other_income = prompt_other_income(config)
 
         net_working_days, _ = prompt_working_days(start_month, config)
 
@@ -875,6 +1040,7 @@ def run_once(config: dict | None = None) -> None:
             start_month,
             existing_income,
             existing_self_employment=existing_self_employment,
+            other_income=other_income,
             business_expenses=business_expenses,
             personal_pension=personal_pension,
             effective_days=net_working_days,
@@ -882,6 +1048,17 @@ def run_once(config: dict | None = None) -> None:
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
         )
+        if (
+            breakdown.annual_allowance
+            and breakdown.annual_allowance.tapered
+            and breakdown.inputs.get("personal_pension") is not None
+            and breakdown.inputs["personal_pension"] != personal_pension
+        ):
+            print(
+                f"Note: Personal pension capped to tapered Annual Allowance "
+                f"£{breakdown.inputs['personal_pension']:,}/yr "
+                f"(requested £{personal_pension:,})."
+            )
 
     else:
         return

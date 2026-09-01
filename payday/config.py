@@ -24,6 +24,7 @@ FIELD_TYPES = {
     "existing_income": (float, int, bool, type(None)),
     "existing_dividends": (float, int, bool, type(None)),
     "existing_self_employment": (float, int, bool, type(None)),
+    "other_income": (float, int, bool, type(None)),
     "days_off": (int, bool, type(None)),
     "working_days": (int, bool, type(None)),
     "umbrella_margin": (int, bool, type(None)),
@@ -51,6 +52,7 @@ _ALL_FIELDS = [
     "existing_income",
     "existing_dividends",
     "existing_self_employment",
+    "other_income",
     "days_off",
     "working_days",
     "umbrella_margin",
@@ -102,7 +104,13 @@ def _validate_field(key: str, value: Any) -> None:
             raise ValueError(f"'start_month': must be 1-12 or null, got {value}")
 
     elif (
-        key in ("existing_income", "existing_dividends", "existing_self_employment")
+        key
+        in (
+            "existing_income",
+            "existing_dividends",
+            "existing_self_employment",
+            "other_income",
+        )
         and value is not None
     ):
         if value < 0:

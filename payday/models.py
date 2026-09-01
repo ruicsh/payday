@@ -75,6 +75,15 @@ class PensionResult:
 
 
 @dataclass
+class AnnualAllowanceResult:
+    threshold_income: int
+    adjusted_income: int
+    standard_allowance: int
+    annual_allowance: int
+    tapered: bool
+
+
+@dataclass
 class StudentLoanResult:
     plan: str
     threshold: int
@@ -115,6 +124,7 @@ class SalaryBreakdown:
     corporation_tax: CorporationTaxResult | None = None
     dividend_tax: DividendTaxResult | None = None
     pension: PensionResult | None = None
+    annual_allowance: AnnualAllowanceResult | None = None
     student_loan: StudentLoanResult | None = None
     postgraduate_loan: StudentLoanResult | None = None
     class4_ni: Class4NIResult | None = None

@@ -1,3 +1,4 @@
+from payday.annual_allowance import calc_annual_allowance
 from payday.constants import MAX_SALARY_SACRIFICE
 from payday.income_tax import (
     calc_adjusted_net_income,
@@ -18,6 +19,7 @@ class SoleTraderCalculator:
         start_month: int | None = None,
         existing_income: float = 0,
         existing_self_employment: float = 0,
+        other_income: float = 0,
         business_expenses: int = 0,
         personal_pension: int = 0,
         effective_days: int | None = None,
@@ -73,32 +75,61 @@ class SoleTraderCalculator:
         turnover = day_rate * effective_days
         trading_profit = max(0, turnover - business_expenses)
 
-        # Personal pension: capped at annual allowance (£60k gross).
-        # Input is treated as gross-equivalent for the cap; take-home
-        # deducts the gross amount (pension provider claims 20% separately,
-        # but from take-home perspective the full gross leaves your pocket
-        # via net pay + reclaimed relief — model as straight deduction).
-        pension = min(personal_pension, MAX_SALARY_SACRIFICE) if personal_pension else 0
+        # Personal pension: capped at the Annual Allowance (standard £60k,
+        # tapered when threshold/adjusted income exceeds £200k/£260k).
+        # For relief-at-source, threshold = total_income - pension*1.25,
+        # adjusted = total_income — so a large pension can bring the
+        # threshold below £200k and remove the taper.
+        total_income_for_aa = round(
+            trading_profit + other_income + existing_income + existing_self_employment
+        )
+        if personal_pension:
+            # Binary search for the maximum pension that does not exceed
+            # the tapered allowance (handles the threshold dependency).
+            lo, hi = 0, min(personal_pension, MAX_SALARY_SACRIFICE)
+            best = 0
+            while lo <= hi:
+                mid = (lo + hi) // 2
+                threshold = total_income_for_aa - round(mid * 1.25)
+                adjusted = total_income_for_aa
+                aa = calc_annual_allowance(threshold, adjusted)
+                if mid <= aa.annual_allowance:
+                    best = mid
+                    lo = mid + 1
+                else:
+                    hi = mid - 1
+            pension = best
+        else:
+            pension = 0
+        # Also enforce the flat £60k cap for cases where taper is not triggered.
+        pension = min(pension, MAX_SALARY_SACRIFICE) if personal_pension else 0
 
         # Income Tax is on taxable profit (trading profit less pension).
         # Class 4 NI is on trading profit (pension is NOT an allowable
         # trading expense for NI — https://www.gov.uk/self-employed-national-insurance-rates).
         taxable_profit = max(0, trading_profit - pension)
 
-        # ANI for PA taper: self-employment + employment, less relief-at-source
-        # gross-up (pension net × 1.25). Use calc_adjusted_net_income helper.
+        # ANI for PA taper: self-employment + employment + other, less
+        # relief-at-source gross-up (pension × 1.25).
         ani = calc_adjusted_net_income(
-            employment_income=existing_income,
+            employment_income=round(existing_income + other_income),
             self_employment_income=round(trading_profit + existing_self_employment),
             relief_at_source_pension=pension,
         )
         pa, tapered = calc_personal_allowance(ani)
 
-        # Existing income for income tax bands: employment + prior self-employment
-        existing_for_it = existing_income + existing_self_employment
+        # Existing income for income tax bands: employment + prior self-employment + other
+        existing_for_it = round(
+            existing_income + existing_self_employment + other_income
+        )
         it_result = calc_income_tax(
             taxable_profit, pa, existing_income=existing_for_it, region=region
         )
+
+        # Annual Allowance for display (total_income = trading + other + existing).
+        threshold_aa = total_income_for_aa - round(pension * 1.25)
+        adjusted_aa = total_income_for_aa
+        aa_result = calc_annual_allowance(threshold_aa, adjusted_aa)
 
         class4_result = calc_class4_ni(
             trading_profit, existing_self_employment=existing_self_employment
@@ -138,7 +169,7 @@ class SoleTraderCalculator:
         )
 
         year_taxable_income = round(
-            taxable_profit + existing_income + existing_self_employment
+            taxable_profit + existing_income + existing_self_employment + other_income
         )
 
         remaining_pa = max(0, pa - existing_for_it)
@@ -163,6 +194,14 @@ class SoleTraderCalculator:
             steps.append(StepLine("Student Loan", -sl_result.repayment, indent=1))
         if pgl_result:
             steps.append(StepLine("Postgraduate Loan", -pgl_result.repayment, indent=1))
+        if aa_result and aa_result.tapered:
+            steps.append(
+                StepLine(
+                    f"Annual Allowance (tapered to £{aa_result.annual_allowance:,})",
+                    0,
+                    indent=1,
+                )
+            )
         steps += [
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
@@ -174,6 +213,12 @@ class SoleTraderCalculator:
             "working_days": working_days,
             "effective_working_days": effective_days,
         }
+        if other_income:
+            inputs["other_income"] = other_income
+        if aa_result and aa_result.tapered:
+            inputs["annual_allowance"] = aa_result.annual_allowance
+            inputs["threshold_income"] = aa_result.threshold_income
+            inputs["adjusted_income"] = aa_result.adjusted_income
         if business_expenses:
             inputs["business_expenses"] = business_expenses
         if pension:
@@ -202,6 +247,7 @@ class SoleTraderCalculator:
             year_taxable_income=year_taxable_income,
             income_tax=it_result,
             class4_ni=class4_result,
+            annual_allowance=aa_result,
             student_loan=sl_result,
             postgraduate_loan=pgl_result,
         )

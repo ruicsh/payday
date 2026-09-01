@@ -1,3 +1,7 @@
+from payday.annual_allowance import (
+    calc_annual_allowance,
+    find_max_pension_for_threshold,
+)
 from payday.constants import (
     APPRENTICESHIP_LEVY_RATE,
     NI_EMPLOYER_RATE,
@@ -25,6 +29,7 @@ class InsideIR35Calculator:
         start_month: int | None = None,
         existing_income: float = 0,
         existing_dividends: float = 0,
+        other_income: float = 0,
         salary_sacrifice: int = 0,
         is_paystream: bool = False,
         sacrifice_frequency: str = "monthly",
@@ -72,14 +77,36 @@ class InsideIR35Calculator:
 
         budget = annual_assignment - annual_margin
 
+        # Preserve original sacrifice for budget-exceed check, then cap
+        # to the tapered Annual Allowance before solving gross.
+        original_sacrifice = salary_sacrifice
+        original_admin = (
+            round(PAYSTREAM_ADMIN_CHARGE_WEEKLY * weeks)
+            if is_paystream and original_sacrifice
+            else 0
+        )
+        if original_sacrifice >= budget - original_admin:
+            raise ValueError("salary_sacrifice exceeds available budget")
+
+        # Annual Allowance taper — cap salary sacrifice when threshold/
+        # adjusted income triggers the taper. Estimate threshold via gross
+        # without sacrifice (per-mode isolation). For generic umbrellas
+        # threshold = ref_gross + other + existing, which is exact; for
+        # PayStream it is a close estimate (gross solved from sac_budget).
+        if salary_sacrifice:
+            ref_gross_estimate = InsideIR35Calculator.solve_gross_salary(budget)
+            threshold_estimate = round(
+                ref_gross_estimate + other_income + existing_income + existing_dividends
+            )
+            max_allowed = find_max_pension_for_threshold(threshold_estimate)
+            if salary_sacrifice > max_allowed:
+                salary_sacrifice = max_allowed
+
         # PayStream salary-sacrifice administration charge (weekly, incl. VAT).
         # Charged only when sacrificing through PayStream.
         admin_charge = 0
         if is_paystream and salary_sacrifice:
             admin_charge = round(PAYSTREAM_ADMIN_CHARGE_WEEKLY * weeks)
-
-        if salary_sacrifice >= budget - admin_charge:
-            raise ValueError("salary_sacrifice exceeds available budget")
 
         er_ni_saving = 0
         ref_gross = 0
@@ -132,14 +159,19 @@ class InsideIR35Calculator:
                 employer_contribution=er_pension.employer_contribution,
             )
 
-        # ANI includes all income for correct PA tapering; dividends don't consume rate bands
+        # ANI includes all income for correct PA tapering; dividends don't consume rate bands.
+        # Other income is treated as additional taxable income for ANI/PA purposes.
         ani = calc_adjusted_net_income(
-            employment_income=effective_gross + existing_income,
+            employment_income=round(effective_gross + existing_income + other_income),
             dividend_income=existing_dividends,
         )
         pa, tapered = calc_personal_allowance(ani)
+        total_existing_for_pa = round(existing_income + other_income)
         it_result = calc_income_tax(
-            effective_gross, pa, existing_income=existing_income, region=region
+            effective_gross,
+            pa,
+            existing_income=total_existing_for_pa,
+            region=region,
         )
         ee_ni_result = calc_employee_ni(effective_gross)
 
@@ -157,16 +189,38 @@ class InsideIR35Calculator:
             pgl_result.repayment if pgl_result else 0
         )
 
+        # Annual Allowance result for display (per-mode isolation).
+        if salary_sacrifice:
+            threshold_income = round(
+                effective_gross
+                + salary_sacrifice
+                + other_income
+                + existing_income
+                + existing_dividends
+            )
+            adjusted_income = round(threshold_income + salary_sacrifice)
+            aa_result = calc_annual_allowance(threshold_income, adjusted_income)
+        else:
+            threshold_income = round(
+                effective_gross + other_income + existing_income + existing_dividends
+            )
+            pension_input = (
+                pension_result.employee_contribution
+                + pension_result.employer_contribution
+            )
+            adjusted_income = round(threshold_income + pension_input)
+            aa_result = calc_annual_allowance(threshold_income, adjusted_income)
+
         annual_take_home = (
             effective_gross - it_result.total_tax - ee_ni_result.total_ni - sl_total
         )
 
         year_taxable_income = round(
-            effective_gross + existing_income + existing_dividends
+            effective_gross + existing_income + existing_dividends + other_income
         )
         take_home_20_day = round(annual_take_home / effective_days * 20)
 
-        remaining_pa = max(0, pa - existing_income)
+        remaining_pa = max(0, pa - round(existing_income + other_income))
         pa_label = "Personal Allowance" + (" (tapered)" if tapered else "")
 
         if sacrifice_frequency == "daily":
@@ -270,6 +324,15 @@ class InsideIR35Calculator:
         if pgl_result:
             steps.append(StepLine("Postgraduate Loan", -pgl_result.repayment, indent=1))
 
+        if aa_result and aa_result.tapered:
+            steps.append(
+                StepLine(
+                    f"Annual Allowance (tapered to £{aa_result.annual_allowance:,})",
+                    0,
+                    indent=1,
+                )
+            )
+
         steps += [
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
@@ -282,6 +345,12 @@ class InsideIR35Calculator:
             "margin_weekly": umbrella_margin_weekly,
             "effective_working_days": effective_days,
         }
+        if other_income:
+            inputs["other_income"] = other_income
+        if aa_result and aa_result.tapered:
+            inputs["annual_allowance"] = aa_result.annual_allowance
+            inputs["threshold_income"] = aa_result.threshold_income
+            inputs["adjusted_income"] = aa_result.adjusted_income
         if region == "scotland":
             inputs["region"] = "scotland"
         if period_label:
@@ -316,6 +385,7 @@ class InsideIR35Calculator:
             employee_ni=ee_ni_result,
             employer_ni=er_ni_result,
             pension=pension_result,
+            annual_allowance=aa_result,
             student_loan=sl_result,
             postgraduate_loan=pgl_result,
         )

@@ -12,10 +12,11 @@ Run it via `make run` (defaults to `payday.json`) or `make run myconfig.json`. O
 
 For permanent employees on a fixed annual salary.
 
-| Input                      | Default   | Description                                                             |
-| -------------------------- | --------- | ----------------------------------------------------------------------- |
-| Annual gross salary        | —         | Your full-year salary before deductions                                 |
-| Salary sacrifice (monthly) | auto-calc | Reduces taxable income (capped at £60k/yr); auto-calc targets £100k ANI |
+| Input                      | Default   | Description                                                                                                                             |
+| -------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Annual gross salary        | —         | Your full-year salary before deductions                                                                                                 |
+| Other taxable income       | £0        | All other taxable income (savings interest, property, etc.); reduces remaining Personal Allowance/rate bands and feeds the Annual Allowance taper |
+| Salary sacrifice (monthly) | auto-calc | Reduces taxable income (capped at £60k/yr, tapered to £10k when threshold >£200k and adjusted >£260k); auto-calc targets £100k ANI    |
 
 **Flow:**
 
@@ -48,7 +49,8 @@ For contractors working through an umbrella company. The umbrella sits between t
 | Start month                | None                  | Month contract starts (1–12) for mid-year proration                                                                          |
 | Existing employment income | £0                    | Income already earned this tax year                                                                                          |
 | Existing dividend income   | £0                    | Dividends already received this tax year                                                                                     |
-| Salary sacrifice (monthly) | auto-calc             | Reduces taxable income (capped at £60k/yr); auto-calc targets £100k ANI. PayStream also supports a per-day sacrifice instead (see below). |
+| Other taxable income       | £0                    | All other taxable income (savings interest, property, etc.); reduces remaining Personal Allowance/rate bands and feeds the Annual Allowance taper |
+| Salary sacrifice (monthly) | auto-calc             | Reduces taxable income (capped at £60k/yr, tapered to £10k when threshold >£200k and adjusted >£260k); auto-calc targets £100k ANI. PayStream also supports a per-day sacrifice instead (see below). |
 
 **Flow:**
 
@@ -82,9 +84,11 @@ For contractors operating through their own limited company. The company receive
 | Day rate                      | —                     | Daily contract rate                                                                                                     |
 | Working days/year             | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
 | Existing employment income    | £0                    | Income already earned this tax year (consumes PA and rate bands)                                                        |
+| Existing dividend income      | £0                    | Dividends already received this tax year (consumes PA and dividend rate bands)                                          |
+| Other taxable income          | £0                    | All other taxable income (savings interest, property, etc.); consumes PA/rate bands and feeds the Annual Allowance taper |
 | Director salary               | £12,570               | Annual director salary; above £12,570 incurs Income Tax + Employee NI (Scotland supported when `region: scotland`)      |
 | Company expenses              | £0                    | Annual company running costs (accountancy, insurance, software, etc.); reduces Corporation Tax                          |
-| Director pension contribution | £0                    | Annual company pension contribution to director's SIPP (≥ 0, max £60k); reduces Corporation Tax                         |
+| Director pension contribution | £0                    | Annual company pension contribution to director's SIPP (≥ 0, max £60k, tapered to £10k when threshold >£200k and adjusted >£260k); reduces Corporation Tax |
 | Retained profit               | £0                    | Profit retained in the company, not distributed; defers dividend tax (subject to CT)                                   |
 | Employment Allowance          | No                    | Claim £10,500 Employment Allowance against Employer NI; single-director companies (sole director as only employee) cannot claim |
 | Region                        | rUK                   | `scotland` for Scottish Income Tax on salary; rUK otherwise (dividends always UK-rate)                                 |
@@ -126,9 +130,10 @@ For self-employed sole traders operating as an individual. The business receives
 | Day rate                           | —                     | Daily contract rate                                                                                                          |
 | Working days/year                  | auto (252 − days‑off) | Days you work per year; auto‑computed from weekdays minus 9 E&W bank holidays, then subtracting days‑off (default 25 → ~227) |
 | Business expenses                  | £0                    | Annual allowable expenses deducted from turnover before profit                                                               |
-| Personal pension contribution      | £0                    | Annual personal pension contribution (relief at source, ≥ 0, max £60k); reduces Income Tax but not Class 4 NI              |
+| Personal pension contribution      | £0                    | Annual personal pension contribution (relief at source, ≥ 0, max £60k, tapered to £10k when threshold >£200k and adjusted >£260k); reduces Income Tax but not Class 4 NI |
 | Existing employment income         | £0                    | Income already earned this tax year (consumes PA and rate bands)                                                             |
 | Existing self-employment profit    | £0                    | Self-employment profit already earned this tax year (consumes PA, rate bands and Class 4 NI bands)                         |
+| Other taxable income               | £0                    | All other taxable income (savings interest, property, etc.); consumes PA/rate bands and feeds the Annual Allowance taper    |
 
 **Flow (Sole Trader — Self Assessment on trading profit; Class 2 treated as paid above £7,105, so only Class 4 is deducted):**
 
@@ -172,6 +177,7 @@ All rates, thresholds and formulas used in this project are sourced from the fol
 | Allowable Business Expenses (Self-Employed)    | [https://www.gov.uk/expenses-if-youre-self-employed](https://www.gov.uk/expenses-if-youre-self-employed)                                                                                                                                                                                                           |
 | Pension Tax Relief (Relief at Source)          | [https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief](https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief)                                                                                                                                                                           |
 | Pension Annual Allowance                       | [https://www.gov.uk/tax-on-your-private-pension/annual-allowance](https://www.gov.uk/tax-on-your-private-pension/annual-allowance)                                                                                                                                                                               |
+| Tapered Annual Allowance                       | [https://www.gov.uk/guidance/pension-schemes-work-out-your-tapered-annual-allowance](https://www.gov.uk/guidance/pension-schemes-work-out-your-tapered-annual-allowance)                                                                                                                                         |
 | IR35 / Off-Payroll Working Rules                 | [https://www.gov.uk/guidance/understanding-off-payroll-working-ir35](https://www.gov.uk/guidance/understanding-off-payroll-working-ir35)                                                                                                                                                                         |
 | Umbrella Company Guidance                        | [https://www.gov.uk/guidance/working-through-an-umbrella-company](https://www.gov.uk/guidance/working-through-an-umbrella-company)                                                                                                                                                                               |
 
@@ -200,9 +206,9 @@ Or via the launcher (uses the project venv):
 
 When run without a valid `--config` (e.g. `make run` with no `payday.json` present), you'll be shown a list of contracts from `contracts/` and prompted to pick one. Selecting `[0] Manual entry` (or pressing Enter) skips the contract and prompts interactively.
 
-Follow the prompts to select a mode and enter your details. You'll be asked about salary sacrifice and existing income/dividends where applicable.
+Follow the prompts to select a mode and enter your details. You'll be asked about salary sacrifice, existing income/dividends and other taxable income (savings, property, etc.) where applicable.
 
-Salary sacrifice is capped at £60,000 per year. For help choosing how much to sacrifice, see `payday/calculators/optimal_sacrifice.py`.
+Salary sacrifice and all pension contributions are capped at the standard Annual Allowance of £60,000 per year, tapered to £10,000 when threshold income exceeds £200,000 and adjusted income exceeds £260,000 (see [Tapered Annual Allowance](https://www.gov.uk/guidance/pension-schemes-work-out-your-tapered-annual-allowance)). The waterfall shows `Annual Allowance (tapered to £N)` when the taper applies. For help choosing how much to sacrifice, see `payday/calculators/optimal_sacrifice.py` and `payday/annual_allowance.py`.
 
 ---
 
@@ -246,21 +252,22 @@ All fields are optional.
 | `existing_income`          | float, int, or null | Income already earned this tax year (≥ 0); `true` = £0                                           |
 | `existing_dividends`       | float, int, or null | Dividends already received (≥ 0); `true` = £0                                                    |
 | `existing_self_employment` | float, int, or null | Self-employment profit already earned (≥ 0, Sole Trader only); `true` = £0                      |
+| `other_income`             | float, int, or null | All other taxable income (savings interest, property, etc., ≥ 0); `true` = £0. Feeds the Annual Allowance taper (`threshold >£200k` and `adjusted >£260k` → tapered to £10k) and reduces remaining Personal Allowance/rate bands |
 | `days_off`                 | int or null         | Non-working days (≥ 0); `true` = default 25                                                      |
 | `working_days`             | int or null         | Net working days (≥ 1); `true` or absent = auto-computed from `days_off`                         |
 | `umbrella_margin`          | int or null         | Weekly umbrella fee (≥ 0, IR35 only); `true` = default £25                                       |
 | `is_paystream`             | bool or null        | `true` = PayStream umbrella (net-pay salary sacrifice + £7+VAT weekly admin charge). `false` = generic umbrella (direct gross reduction). `null` prompts. |
 | `salary_sacrifice_enabled` | bool or null        | `true` enables salary sacrifice. `false` *or* `null` skips sacrifice entirely — no prompt, £0.  |
-| `monthly_salary_sacrifice` | int or str or null  | Monthly amount, `"max"`, or `"auto"` (`true` = `"auto"`). Mutually exclusive with `daily_*`.     |
-| `daily_salary_sacrifice`   | int or str or null  | Per-day amount (PayStream only), `"max"`, or `"auto"` (`true` = `"auto"`). Mutually exclusive with `monthly_*`. |
-| `income_target`            | int, bool, or null  | Fixed cap (≥ 1); `null`/`true` = prompt for cap (default £100,000); `false` = no target (max out pension). Only relevant with `"auto"` sacrifice. |
+| `monthly_salary_sacrifice` | int or str or null  | Monthly amount, `"max"`, or `"auto"` (`true` = `"auto"`). Mutually exclusive with `daily_*`. `"max"` is capped at the tapered Annual Allowance. |
+| `daily_salary_sacrifice`   | int or str or null  | Per-day amount (PayStream only), `"max"`, or `"auto"` (`true` = `"auto"`). Mutually exclusive with `monthly_*`. `"max"` is capped at the tapered Annual Allowance. |
+| `income_target`            | int, bool, or null  | Fixed cap (≥ 1); `null`/`true` = prompt for cap (default £100,000); `false` = no target (max out pension, capped at tapered Annual Allowance). Only relevant with `"auto"` sacrifice. |
 | `director_salary`          | int, bool, or null  | Annual director salary (Outside IR35 only, ≥ 0); `true` = £12,570 (default optimal salary). Above £12,570 incurs Income Tax + Employee NI. |
-| `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = £0 (no contribution). |
+| `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k, tapered to £10k when threshold >£200k and adjusted >£260k). `true` = £0 (no contribution). |
 | `company_expenses`         | int, bool, or null  | Annual company running costs (Outside IR35 only, ≥ 0); `true` = £0. Reduces Corporation Tax. |
 | `retained_profit`          | int, bool, or null  | Profit retained in company (Outside IR35 only, ≥ 0); `true` = £0. Clamped to distributable profit; defers dividend tax. |
 | `employment_allowance`     | bool or null        | `true` = Claim £10,500 Employment Allowance against Employer NI (Outside IR35 only). `false`/`null` = not claimed. Single-director companies (sole director as only employee) cannot claim. |
 | `business_expenses`        | int, bool, or null  | Annual allowable business expenses (Sole Trader only, ≥ 0); `true` = £0                          |
-| `personal_pension`         | int, bool, or null  | Annual personal pension contribution (Sole Trader only, ≥ 0, max £60k); `true` = £0. Reduces Income Tax but not Class 4 NI. |
+| `personal_pension`         | int, bool, or null  | Annual personal pension contribution (Sole Trader only, ≥ 0, max £60k, tapered to £10k when threshold >£200k and adjusted >£260k); `true` = £0. Reduces Income Tax but not Class 4 NI. |
 | `region`                   | string or null      | `"scotland"` for Scottish Income Tax; `"england"`/`"wales"`/`"northern_ireland"`/`"rest_of_uk"` (or `null`) = rUK rates. Non-Scottish aliases are equivalent to `rest_of_uk`. |
 | `student_loan_plan`        | string or null      | Undergraduate plan: `"plan1"`, `"plan2"`, `"plan4"`, `"plan5"` (or `null` = no loan). All modes — PAYE/Inside IR35 via PAYE, Outside IR35 via Self Assessment on salary+dividends, Sole Trader via Self Assessment on taxable profit + existing. |
 | `postgraduate_loan`        | bool or null        | `true` = Postgraduate Loan (6% above £21,000); stacks on top of `student_loan_plan`. `false`/`null` = none. Independent — valid without an undergraduate plan. |
@@ -378,6 +385,8 @@ All fields are optional.
 - `start_month`, `days_off`, `umbrella_margin`, `working_days`, `existing_*`, `director_salary`, `company_expenses`, `retained_profit`, `director_pension`, `business_expenses`, `personal_pension`, and the sacrifice amounts all accept `true` as "use the default".
 - **Student loan collection differs by mode:** PAYE & Inside IR35 deduct via PAYE on gross salary; Outside IR35 collects via Self Assessment on total income (salary + dividends) — all post-CT dividends count, and the threshold is reduced by `existing_income` + `existing_dividends`; Sole Trader collects via Self Assessment on taxable profit + existing income/self-employment. For PAYE/Inside IR35 the loan is calculated on income **after** salary sacrifice.
 - **Sole Trader pension vs expenses:** `personal_pension` reduces Income Tax (relief at source) but is **not** an allowable expense for Class 4 NI, which is charged on trading profit before pension. `business_expenses` reduce both.
+- **Annual Allowance taper:** all pension inputs (`salary_sacrifice`, `director_pension`, `personal_pension`) are capped at the tapered Annual Allowance — £60k standard, reduced by £1 per £2 of adjusted income over £260k (when threshold income >£200k), floored at £10k. `other_income` (savings, property, etc.) counts towards `threshold`/`adjusted` income, so it can trigger the taper even when employment/self-employment income alone does not. The waterfall shows `Annual Allowance (tapered to £N)` when the taper applies.
+- **Other taxable income:** `other_income` is prompted in every mode (default £0) and via config. It is *not* part of take-home from this employment/contract — it only reduces the remaining Personal Allowance/rate bands and feeds the Annual Allowance taper. Enter the total of all other taxable income for the year (savings interest, property, etc.).
 - **Outside IR35 Employment Allowance:** single-director companies (sole director as only employee) **cannot** claim Employment Allowance. It requires at least one other employee/director paid above the £5,000 secondary threshold. Enable `employment_allowance: true` only if eligible — otherwise the HMRC claim will be rejected. The allowance reduces Employer NI by up to £10,500 (2026/27), covering the barest obligation but not eliminating the need for correct payroll reporting.
 - **Outside IR35 director salary:** defaults to £12,570 (the Primary Threshold / Personal Allowance). Below £5,000 incurs no Employer NI; above £12,570 incurs Income Tax and Employee NI on the salary itself (Scottish rates apply when `region: scotland`). Dividends always use UK rates.
 - **Outside IR35 retained profit:** clamped to distributable profit (CT still applies — only dividend tax is deferred). Retaining more than distributable simply results in zero dividends.
@@ -399,7 +408,7 @@ Or directly:
 python3 -m unittest discover -v -s payday/tests
 ```
 
-All tests pass (568 test cases and counting).
+All tests pass (620 test cases and counting).
 
 ---
 
