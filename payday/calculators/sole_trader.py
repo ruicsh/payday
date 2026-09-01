@@ -1,5 +1,6 @@
 from payday.annual_allowance import calc_annual_allowance
 from payday.constants import MAX_SALARY_SACRIFICE
+from payday.hicbc import apply_hicbc_inputs, hicbc_result_and_steps
 from payday.income_tax import (
     calc_adjusted_net_income,
     calc_personal_allowance,
@@ -26,6 +27,8 @@ class SoleTraderCalculator:
         region: str | None = None,
         student_loan_plan: str | None = None,
         postgraduate_loan: bool = False,
+        has_child_benefit: bool = False,
+        num_children: int = 1,
     ) -> SalaryBreakdown:
         """Sole Trader (self-employed): Turnover → expenses → profit → IT + Class 4 NI → 20-day.
         Sole trader setup: https://www.gov.uk/set-up-sole-trader
@@ -202,6 +205,13 @@ class SoleTraderCalculator:
                     indent=1,
                 )
             )
+
+        # HICBC advisory (shared helper).
+        hicbc_result, hicbc_steps = hicbc_result_and_steps(
+            ani, has_child_benefit=has_child_benefit, num_children=num_children
+        )
+        steps.extend(hicbc_steps)
+
         steps += [
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
@@ -237,6 +247,7 @@ class SoleTraderCalculator:
             inputs["student_loan_plan"] = student_loan_plan
         if postgraduate_loan:
             inputs["postgraduate_loan"] = True
+        apply_hicbc_inputs(inputs, hicbc_result, has_child_benefit)
 
         return SalaryBreakdown(
             mode="Sole Trader",
@@ -250,4 +261,5 @@ class SoleTraderCalculator:
             annual_allowance=aa_result,
             student_loan=sl_result,
             postgraduate_loan=pgl_result,
+            hicbc=hicbc_result,
         )

@@ -4,6 +4,7 @@ from payday.constants import (
     MAX_SALARY_SACRIFICE,
     PERSONAL_ALLOWANCE,
 )
+from payday.hicbc import apply_hicbc_inputs, hicbc_result_and_steps
 from payday.income_tax import (
     calc_adjusted_net_income,
     calc_income_tax,
@@ -35,6 +36,8 @@ class OutsideIR35Calculator:
         region: str | None = None,
         student_loan_plan: str | None = None,
         postgraduate_loan: bool = False,
+        has_child_benefit: bool = False,
+        num_children: int = 1,
         _aa_recursed: bool = False,
     ) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → Student Loan → 20-day.
@@ -157,6 +160,8 @@ class OutsideIR35Calculator:
                     region=region,
                     student_loan_plan=student_loan_plan,
                     postgraduate_loan=postgraduate_loan,
+                    has_child_benefit=has_child_benefit,
+                    num_children=num_children,
                     _aa_recursed=True,
                 )
 
@@ -267,6 +272,13 @@ class OutsideIR35Calculator:
                     indent=1,
                 )
             )
+
+        # HICBC advisory (shared helper).
+        hicbc_result, hicbc_steps = hicbc_result_and_steps(
+            ani, has_child_benefit=has_child_benefit, num_children=num_children
+        )
+        steps.extend(hicbc_steps)
+
         steps += [
             StepLine("Take-Home", take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
@@ -310,6 +322,7 @@ class OutsideIR35Calculator:
             inputs["student_loan_plan"] = student_loan_plan
         if postgraduate_loan:
             inputs["postgraduate_loan"] = True
+        apply_hicbc_inputs(inputs, hicbc_result, has_child_benefit)
 
         return SalaryBreakdown(
             mode="Outside IR35",
@@ -326,4 +339,5 @@ class OutsideIR35Calculator:
             annual_allowance=aa_result,
             student_loan=sl_result,
             postgraduate_loan=pgl_result,
+            hicbc=hicbc_result,
         )

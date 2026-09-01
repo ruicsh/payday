@@ -917,6 +917,7 @@ class TestCLI(unittest.TestCase):
             "",  # director pension (default 0)
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],
@@ -957,6 +958,7 @@ class TestCLI(unittest.TestCase):
             "",  # director pension (default 0)
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],
@@ -998,14 +1000,16 @@ class TestCLI(unittest.TestCase):
         )
         config = {"mode": "paye", "salary": 50000, "salary_sacrifice_enabled": False}
         run_once(config)
-        mock_calc.assert_called_once_with(
-            50000,
-            salary_sacrifice=0,
-            other_income=0.0,
-            region="rest_of_uk",
-            student_loan_plan=None,
-            postgraduate_loan=False,
-        )
+        mock_calc.assert_called_once()
+        args, kwargs = mock_calc.call_args
+        self.assertEqual(args[0], 50000)
+        self.assertEqual(kwargs.get("salary_sacrifice"), 0)
+        self.assertEqual(kwargs.get("other_income"), 0.0)
+        self.assertEqual(kwargs.get("region"), "rest_of_uk")
+        self.assertIsNone(kwargs.get("student_loan_plan"))
+        self.assertFalse(kwargs.get("postgraduate_loan"))
+        # has_child_benefit defaults to False when absent from config
+        self.assertFalse(kwargs.get("has_child_benefit"))
 
     @patch("payday.cli.InsideIR35Calculator.calculate")
     @patch("builtins.input", side_effect=["n"])
@@ -1164,6 +1168,7 @@ class TestCLI(unittest.TestCase):
             "",  # director pension (default 0)
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],
@@ -1203,6 +1208,7 @@ class TestCLI(unittest.TestCase):
             "20000",  # director pension
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],
@@ -1242,6 +1248,7 @@ class TestCLI(unittest.TestCase):
             "60000",  # max director pension
             "",  # retained profit (default 0)
             "n",  # employment allowance
+            "n",  # child benefit? [y/N]
             "",  # student loan plan (none)
             "n",  # postgraduate loan
         ],

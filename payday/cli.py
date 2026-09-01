@@ -3,6 +3,7 @@ from collections.abc import Callable
 from payday.annual_allowance import find_max_pension_for_threshold
 from payday.config import VALID_MODES
 from payday.constants import MAX_SALARY_SACRIFICE, PAYSTREAM_ADMIN_CHARGE_WEEKLY
+from payday.hicbc import recommended_ani_cap
 from payday.calculators.optimal_sacrifice import (
     calc_optimal_sacrifice_inside_ir35,
     calc_optimal_sacrifice_paye,
@@ -321,6 +322,58 @@ def _tapered_sacrifice_cap(
     return MAX_SALARY_SACRIFICE
 
 
+def prompt_has_child_benefit(config: dict | None = None) -> bool:
+    """Ask whether the household claims Child Benefit (for HICBC).
+
+    When ``has_child_benefit`` is true the salary-sacrifice auto-target
+    defaults to £60,000 (HICBC threshold) instead of £100,000
+    (PA taper).  See https://www.gov.uk/child-benefit-tax-charge
+    """
+    if config is not None:
+        val = config.get("has_child_benefit")
+        if val is not None:
+            print(
+                f"Do you (or your partner) receive Child Benefit? [y/N]: {'yes' if val else 'no'}"
+            )
+            return bool(val)
+        return False
+    answer = (
+        input("Do you (or your partner) receive Child Benefit? [y/N]: ").strip().lower()
+    )
+    return answer == "y"
+
+
+def prompt_num_children(
+    config: dict | None = None,
+    *,
+    has_child_benefit: bool = False,
+) -> int:
+    """Prompt for number of children receiving Child Benefit.
+
+    Only relevant when *has_child_benefit* is true; otherwise returns 1
+    (the default, unused). Config value ``num_children`` is validated
+    as >=1; when absent defaults to 1.
+    """
+    if not has_child_benefit:
+        return 1
+    if config is not None:
+        val = config.get("num_children")
+        if val is not None:
+            if val is True:
+                print("Number of children receiving Child Benefit [1]: 1")
+                return 1
+            print(f"Number of children receiving Child Benefit [1]: {val}")
+            if val < 1:
+                raise ValueError(f"num_children: must be >= 1, got {val}")
+            return int(val)
+        return 1
+    return prompt_int(
+        "Number of children receiving Child Benefit",
+        default=1,
+        min_val=1,
+    )
+
+
 def prompt_salary_sacrifice(
     gross: int,
     *,
@@ -334,6 +387,7 @@ def prompt_salary_sacrifice(
     existing_dividends: float = 0,
     other_income: float = 0,
     default_cap: int = 100_000,
+    has_child_benefit: bool = False,
     config: dict | None = None,
 ) -> SacrificeChoice:
     """Prompt whether to make a salary sacrifice for a personal pension.
@@ -354,6 +408,10 @@ def prompt_salary_sacrifice(
         existing_income=existing_income,
         existing_dividends=existing_dividends,
         annual_margin=annual_margin,
+    )
+
+    effective_default_cap = (
+        recommended_ani_cap(has_child_benefit) if has_child_benefit else default_cap
     )
 
     if config:
@@ -426,14 +484,16 @@ def prompt_salary_sacrifice(
             if raw_target is None or raw_target is True:
                 cap = prompt_int(
                     "Taxable income cap",
-                    default=default_cap,
+                    default=effective_default_cap,
                     min_val=1,
                     default_fmt=format_gbp,
                 )
             else:
                 cap = raw_target
             if mode == "paye":
-                result = calc_optimal_sacrifice_paye(gross, cap=cap)
+                result = calc_optimal_sacrifice_paye(
+                    gross, cap=cap, other_income=other_income
+                )
             elif mode == "inside_ir35":
                 result = calc_optimal_sacrifice_inside_ir35(
                     gross,
@@ -441,6 +501,7 @@ def prompt_salary_sacrifice(
                     cap=cap,
                     existing_income=existing_income,
                     existing_dividends=existing_dividends,
+                    other_income=other_income,
                     admin_charge=admin_charge,
                 )
             else:
@@ -501,12 +562,14 @@ def prompt_salary_sacrifice(
         if not user_input:
             cap = prompt_int(
                 "Taxable income cap",
-                default=default_cap,
+                default=effective_default_cap,
                 min_val=1,
                 default_fmt=format_gbp,
             )
             if mode == "paye":
-                annual_sacrifice = calc_optimal_sacrifice_paye(gross, cap=cap)
+                annual_sacrifice = calc_optimal_sacrifice_paye(
+                    gross, cap=cap, other_income=other_income
+                )
             elif mode == "inside_ir35":
                 annual_sacrifice = calc_optimal_sacrifice_inside_ir35(
                     gross,
@@ -514,6 +577,7 @@ def prompt_salary_sacrifice(
                     cap=cap,
                     existing_income=existing_income,
                     existing_dividends=existing_dividends,
+                    other_income=other_income,
                     admin_charge=admin_charge,
                 )
             else:
@@ -530,10 +594,11 @@ def prompt_salary_sacrifice(
                 )
                 return SacrificeChoice(0, frequency)
 
-            # Warn only if the cap actually constrained the result.
-            was_capped = (annual_sacrifice == tapered_max and tapered_max < gross) or (
-                mode == "paye" and max(0, gross - cap) > tapered_max
-            )
+            # Warn only if the AA taper cap constrained the result.
+            # The old second disjunct `max(0, gross - cap) > tapered_max`
+            # ignored `other_income` and was dead (first clause already
+            # covers every capped case); remove it.
+            was_capped = annual_sacrifice == tapered_max and tapered_max < gross
             if was_capped:
                 if capped_for_taper and tapered_max < MAX_SALARY_SACRIFICE:
                     print(
@@ -828,8 +893,14 @@ def run_once(config: dict | None = None) -> None:
             config_value=config.get("salary") if config else None,
         )
         other_income = prompt_other_income(config)
+        has_child_benefit = prompt_has_child_benefit(config)
+        num_children = prompt_num_children(config, has_child_benefit=has_child_benefit)
         salary_sacrifice = prompt_salary_sacrifice(
-            salary, mode="paye", other_income=other_income, config=config
+            salary,
+            mode="paye",
+            other_income=other_income,
+            has_child_benefit=has_child_benefit,
+            config=config,
         )
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
         breakdown = PAYECalculator.calculate(
@@ -839,6 +910,8 @@ def run_once(config: dict | None = None) -> None:
             region=region,
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
+            has_child_benefit=has_child_benefit,
+            num_children=num_children,
         )
         # Safety net: if calculator capped further (e.g. estimate drift), surface it.
         if (
@@ -876,6 +949,8 @@ def run_once(config: dict | None = None) -> None:
         )
         is_paystream = prompt_paystream(config)
         region = prompt_region(config)
+        has_child_benefit = prompt_has_child_benefit(config)
+        num_children = prompt_num_children(config, has_child_benefit=has_child_benefit)
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
 
         weeks = net_working_days / 5
@@ -898,6 +973,7 @@ def run_once(config: dict | None = None) -> None:
             existing_income=existing_income,
             existing_dividends=existing_dividends,
             other_income=other_income,
+            has_child_benefit=has_child_benefit,
             config=config,
         )
         breakdown = InsideIR35Calculator.calculate(
@@ -915,6 +991,8 @@ def run_once(config: dict | None = None) -> None:
             region=region,
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
+            has_child_benefit=has_child_benefit,
+            num_children=num_children,
         )
         if (
             breakdown.annual_allowance
@@ -971,6 +1049,8 @@ def run_once(config: dict | None = None) -> None:
             config_value=config.get("retained_profit") if config else None,
         )
         employment_allowance = prompt_employment_allowance(config)
+        has_child_benefit = prompt_has_child_benefit(config)
+        num_children = prompt_num_children(config, has_child_benefit=has_child_benefit)
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
 
         breakdown = OutsideIR35Calculator.calculate(
@@ -989,6 +1069,8 @@ def run_once(config: dict | None = None) -> None:
             region=region,
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
+            has_child_benefit=has_child_benefit,
+            num_children=num_children,
         )
         if (
             breakdown.annual_allowance
@@ -1032,6 +1114,8 @@ def run_once(config: dict | None = None) -> None:
             config_value=config.get("personal_pension") if config else None,
         )
         region = prompt_region(config)
+        has_child_benefit = prompt_has_child_benefit(config)
+        num_children = prompt_num_children(config, has_child_benefit=has_child_benefit)
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
 
         breakdown = SoleTraderCalculator.calculate(
@@ -1047,6 +1131,8 @@ def run_once(config: dict | None = None) -> None:
             region=region,
             student_loan_plan=student_loan_plan,
             postgraduate_loan=postgraduate_loan,
+            has_child_benefit=has_child_benefit,
+            num_children=num_children,
         )
         if (
             breakdown.annual_allowance

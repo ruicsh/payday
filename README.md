@@ -16,7 +16,9 @@ For permanent employees on a fixed annual salary.
 | -------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Annual gross salary        | —         | Your full-year salary before deductions                                                                                                 |
 | Other taxable income       | £0        | All other taxable income (savings interest, property, etc.); reduces remaining Personal Allowance/rate bands and feeds the Annual Allowance taper |
-| Salary sacrifice (monthly) | auto-calc | Reduces taxable income (capped at £60k/yr, tapered to £10k when threshold >£200k and adjusted >£260k); auto-calc targets £100k ANI    |
+| Receives Child Benefit     | No        | Whether you (or your partner) receive Child Benefit — when `true` HICBC claws back Child Benefit at £60k–£80k ANI; auto-calc targets £60k ANI (saving ~47% for 1 child, ~56% for 3) instead of £100k |
+| Number of children         | 1         | Number of children receiving Child Benefit (≥ 1); only used when Child Benefit is claimed — scales the annual benefit (£1,354 for 1, £2,251 for 2, £3,148 for 3) |
+| Salary sacrifice (monthly) | auto-calc | Reduces taxable income (capped at £60k/yr, tapered to £10k when threshold >£200k and adjusted >£260k); auto-calc targets £100k ANI (or £60k when Child Benefit is claimed)    |
 
 **Flow:**
 
@@ -50,7 +52,9 @@ For contractors working through an umbrella company. The umbrella sits between t
 | Existing employment income | £0                    | Income already earned this tax year                                                                                          |
 | Existing dividend income   | £0                    | Dividends already received this tax year                                                                                     |
 | Other taxable income       | £0                    | All other taxable income (savings interest, property, etc.); reduces remaining Personal Allowance/rate bands and feeds the Annual Allowance taper |
-| Salary sacrifice (monthly) | auto-calc             | Reduces taxable income (capped at £60k/yr, tapered to £10k when threshold >£200k and adjusted >£260k); auto-calc targets £100k ANI. PayStream also supports a per-day sacrifice instead (see below). |
+| Receives Child Benefit     | No                    | Whether you (or your partner) receive Child Benefit — when `true` HICBC claws back Child Benefit at £60k–£80k ANI; auto-calc targets £60k ANI instead of £100k |
+| Number of children         | 1                     | Number of children receiving Child Benefit (≥ 1); only used when Child Benefit is claimed — scales the annual benefit (£1,354 for 1, £2,251 for 2, £3,148 for 3) |
+| Salary sacrifice (monthly) | auto-calc             | Reduces taxable income (capped at £60k/yr, tapered to £10k when threshold >£200k and adjusted >£260k); auto-calc targets £100k ANI (or £60k when Child Benefit is claimed). PayStream also supports a per-day sacrifice instead (see below). |
 
 **Flow:**
 
@@ -178,6 +182,8 @@ All rates, thresholds and formulas used in this project are sourced from the fol
 | Pension Tax Relief (Relief at Source)          | [https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief](https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief)                                                                                                                                                                           |
 | Pension Annual Allowance                       | [https://www.gov.uk/tax-on-your-private-pension/annual-allowance](https://www.gov.uk/tax-on-your-private-pension/annual-allowance)                                                                                                                                                                               |
 | Tapered Annual Allowance                       | [https://www.gov.uk/guidance/pension-schemes-work-out-your-tapered-annual-allowance](https://www.gov.uk/guidance/pension-schemes-work-out-your-tapered-annual-allowance)                                                                                                                                         |
+| High Income Child Benefit Charge (HICBC)       | [https://www.gov.uk/child-benefit-tax-charge](https://www.gov.uk/child-benefit-tax-charge)                                                                                                                                                                                                                         |
+| Child Benefit rates (2026/27)                  | [https://www.gov.uk/child-benefit-rates](https://www.gov.uk/child-benefit-rates)                                                                                                                                                                                                                                   |
 | IR35 / Off-Payroll Working Rules                 | [https://www.gov.uk/guidance/understanding-off-payroll-working-ir35](https://www.gov.uk/guidance/understanding-off-payroll-working-ir35)                                                                                                                                                                         |
 | Umbrella Company Guidance                        | [https://www.gov.uk/guidance/working-through-an-umbrella-company](https://www.gov.uk/guidance/working-through-an-umbrella-company)                                                                                                                                                                               |
 
@@ -206,7 +212,7 @@ Or via the launcher (uses the project venv):
 
 When run without a valid `--config` (e.g. `make run` with no `payday.json` present), you'll be shown a list of contracts from `contracts/` and prompted to pick one. Selecting `[0] Manual entry` (or pressing Enter) skips the contract and prompts interactively.
 
-Follow the prompts to select a mode and enter your details. You'll be asked about salary sacrifice, existing income/dividends and other taxable income (savings, property, etc.) where applicable.
+Follow the prompts to select a mode and enter your details. You'll be asked about salary sacrifice, Child Benefit (for HICBC), existing income/dividends and other taxable income (savings, property, etc.) where applicable.
 
 Salary sacrifice and all pension contributions are capped at the standard Annual Allowance of £60,000 per year, tapered to £10,000 when threshold income exceeds £200,000 and adjusted income exceeds £260,000 (see [Tapered Annual Allowance](https://www.gov.uk/guidance/pension-schemes-work-out-your-tapered-annual-allowance)). The waterfall shows `Annual Allowance (tapered to £N)` when the taper applies. For help choosing how much to sacrifice, see `payday/calculators/optimal_sacrifice.py` and `payday/annual_allowance.py`.
 
@@ -260,7 +266,9 @@ All fields are optional.
 | `salary_sacrifice_enabled` | bool or null        | `true` enables salary sacrifice. `false` *or* `null` skips sacrifice entirely — no prompt, £0.  |
 | `monthly_salary_sacrifice` | int or str or null  | Monthly amount, `"max"`, or `"auto"` (`true` = `"auto"`). Mutually exclusive with `daily_*`. `"max"` is capped at the tapered Annual Allowance. |
 | `daily_salary_sacrifice`   | int or str or null  | Per-day amount (PayStream only), `"max"`, or `"auto"` (`true` = `"auto"`). Mutually exclusive with `monthly_*`. `"max"` is capped at the tapered Annual Allowance. |
-| `income_target`            | int, bool, or null  | Fixed cap (≥ 1); `null`/`true` = prompt for cap (default £100,000); `false` = no target (max out pension, capped at tapered Annual Allowance). Only relevant with `"auto"` sacrifice. |
+| `income_target`            | int, bool, or null  | Fixed cap (≥ 1); `null`/`true` = prompt for cap (default £100,000, or £60,000 when `has_child_benefit: true`); `false` = no target (max out pension, capped at tapered Annual Allowance). Only relevant with `"auto"` sacrifice. |
+| `has_child_benefit`        | bool or null        | `true` = you (or your partner) receive Child Benefit — HICBC applies (£60k–£80k), auto-calc defaults to £60k ANI. `false`/`null` = no Child Benefit (default). |
+| `num_children`             | int, bool, or null  | Number of children receiving Child Benefit (≥ 1); `true`/`null` = 1. Only used when `has_child_benefit: true`; scales the annual benefit (£1,354 for 1, £2,251 for 2, £3,148 for 3) and HICBC. |
 | `director_salary`          | int, bool, or null  | Annual director salary (Outside IR35 only, ≥ 0); `true` = £12,570 (default optimal salary). Above £12,570 incurs Income Tax + Employee NI. |
 | `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k, tapered to £10k when threshold >£200k and adjusted >£260k). `true` = £0 (no contribution). |
 | `company_expenses`         | int, bool, or null  | Annual company running costs (Outside IR35 only, ≥ 0); `true` = £0. Reduces Corporation Tax. |
@@ -283,6 +291,18 @@ All fields are optional.
   "salary_sacrifice_enabled": true,
   "monthly_salary_sacrifice": "auto",
   "income_target": 100000
+}
+```
+
+**PAYE — Child Benefit, auto sacrifice targeting £60,000 ANI (HICBC):**
+
+```json
+{
+  "mode": "paye",
+  "salary": 75000,
+  "salary_sacrifice_enabled": true,
+  "monthly_salary_sacrifice": "auto",
+  "has_child_benefit": true
 }
 ```
 
@@ -391,6 +411,7 @@ All fields are optional.
 - **Outside IR35 director salary:** defaults to £12,570 (the Primary Threshold / Personal Allowance). Below £5,000 incurs no Employer NI; above £12,570 incurs Income Tax and Employee NI on the salary itself (Scottish rates apply when `region: scotland`). Dividends always use UK rates.
 - **Outside IR35 retained profit:** clamped to distributable profit (CT still applies — only dividend tax is deferred). Retaining more than distributable simply results in zero dividends.
 - **Outside IR35 company expenses:** treated as allowable company running costs (accountancy, insurance, software) reducing profit before Corporation Tax — distinct from Sole Trader `business_expenses`.
+- **High Income Child Benefit Charge (HICBC):** from £60,000 ANI Child Benefit is clawed back at 1% per *complete* £200 (≈£60k–£80k, rounded *down* per ITEPA s.681C), 100% wiped at £80,000. Set `has_child_benefit: true` to enable HICBC advisory (`Child Benefit (HICBC XX%…)`) and to make auto sacrifice target £60k (saving ~47% effective for 1 child, ~56% for 3). Set `num_children` to scale the benefit (£1,354/£2,251/£3,148 for 1/2/3). ANI = employment + other taxable income − salary sacrifice (PAYE/Inside) or + dividends/self-employment as applicable.
 
 > `make run` passes `--config payday.json` by default, so a `payday.json` in the working directory is picked up automatically when using `make run`. Running bare `python3 -m payday` — or `./payday.sh` with no arguments, which forwards args verbatim — skips `payday.json` entirely and opens the contract picker instead.
 
@@ -408,7 +429,7 @@ Or directly:
 python3 -m unittest discover -v -s payday/tests
 ```
 
-All tests pass (620 test cases and counting).
+All tests pass (690 test cases and counting).
 
 ---
 

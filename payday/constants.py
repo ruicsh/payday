@@ -112,3 +112,15 @@ EMPLOYMENT_ALLOWANCE: int = 10_500
 # Source: PayStream "Salary Sacrifice — Contractor FAQs" (paystream-salary-sacrifice.pdf)
 # £7.00 + 20% VAT = £8.40/week; charged only when sacrificing through PayStream.
 PAYSTREAM_ADMIN_CHARGE_WEEKLY: float = 8.40
+
+# High Income Child Benefit Charge (HICBC) (2026/27)
+# Source: https://www.gov.uk/child-benefit-tax-charge
+# Clawback starts at £60,000 ANI, fully wipes out benefit at £80,000.
+# Charge = 1% per £200 of ANI above £60k (i.e. linearly over £20k band).
+HICBC_LOWER_THRESHOLD: int = 60_000
+HICBC_UPPER_THRESHOLD: int = 80_000
+
+# Child Benefit rates (2026/27 weekly)
+# Source: https://www.gov.uk/child-benefit-rates
+CHILD_BENEFIT_FIRST_CHILD_WEEKLY: float = 26.05
+CHILD_BENEFIT_ADDITIONAL_CHILD_WEEKLY: float = 17.25

@@ -84,6 +84,17 @@ class AnnualAllowanceResult:
 
 
 @dataclass
+class HICBCResult:
+    ani: int
+    has_child_benefit: bool
+    lower_threshold: int
+    upper_threshold: int
+    charge_rate: float
+    annual_benefit: int
+    charge: int
+
+
+@dataclass
 class StudentLoanResult:
     plan: str
     threshold: int
@@ -128,3 +139,4 @@ class SalaryBreakdown:
     student_loan: StudentLoanResult | None = None
     postgraduate_loan: StudentLoanResult | None = None
     class4_ni: Class4NIResult | None = None
+    hicbc: HICBCResult | None = None

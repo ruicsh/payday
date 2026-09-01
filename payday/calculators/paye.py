@@ -10,7 +10,8 @@ from payday.income_tax import (
 from payday.national_insurance import calc_employee_ni
 from payday.pension import calc_pension
 from payday.student_loan import calc_postgraduate_loan, calc_student_loan
-from payday.models import SalaryBreakdown, StepLine, PensionResult
+from payday.hicbc import apply_hicbc_inputs, hicbc_result_and_steps
+from payday.models import PensionResult, SalaryBreakdown, StepLine
 
 
 class PAYECalculator:
@@ -22,6 +23,8 @@ class PAYECalculator:
         region: str | None = None,
         student_loan_plan: str | None = None,
         postgraduate_loan: bool = False,
+        has_child_benefit: bool = False,
+        num_children: int = 1,
     ) -> SalaryBreakdown:
         """PAYE: Gross → IT + EE NI + Pension + Student Loan → take-home (monthly).
         Income Tax: https://www.gov.uk/income-tax-rates
@@ -146,6 +149,12 @@ class PAYECalculator:
                 )
             )
 
+        # HICBC advisory (shared helper).
+        hicbc_result, hicbc_steps = hicbc_result_and_steps(
+            ani, has_child_benefit=has_child_benefit, num_children=num_children
+        )
+        steps.extend(hicbc_steps)
+
         year_taxable_income = round(effective_gross + other_income)
 
         steps += [
@@ -169,6 +178,7 @@ class PAYECalculator:
             inputs["student_loan_plan"] = student_loan_plan
         if postgraduate_loan:
             inputs["postgraduate_loan"] = True
+        apply_hicbc_inputs(inputs, hicbc_result, has_child_benefit)
 
         return SalaryBreakdown(
             mode="PAYE",
@@ -183,4 +193,5 @@ class PAYECalculator:
             annual_allowance=aa_result,
             student_loan=sl_result,
             postgraduate_loan=pgl_result,
+            hicbc=hicbc_result,
         )

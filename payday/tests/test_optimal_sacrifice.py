@@ -114,6 +114,17 @@ class TestCalcOptimalSacrificePAYE(unittest.TestCase):
         result = calc_optimal_sacrifice_paye(150_000, cap=100_000)
         self.assertEqual(result, 50_000)
 
+    def test_other_income_included_in_paye_target(self):
+        """PAYE ANI is gross - sacrifice + other; other pushes target down."""
+        # 75k salary + 10k other, cap 60k → need 25k sacrifice to hit 60k ANI
+        result = calc_optimal_sacrifice_paye(75_000, cap=60_000, other_income=10_000)
+        self.assertEqual(result, 25_000)
+
+    def test_other_income_breaches_cap_gives_zero(self):
+        """Other income alone >= cap → can't fix with sacrifice."""
+        result = calc_optimal_sacrifice_paye(50_000, cap=60_000, other_income=70_000)
+        self.assertEqual(result, 0)
+
 
 class TestCalcOptimalSacrificeInsideIR35(unittest.TestCase):
     def test_below_cap_returns_zero(self):
@@ -177,6 +188,15 @@ class TestCalcOptimalSacrificeInsideIR35(unittest.TestCase):
 
         sig = signature(calc_optimal_sacrifice_inside_ir35)
         self.assertEqual(sig.parameters["cap"].default, 100_000)
+
+    def test_other_income_reduces_target_inside(self):
+        """Other income is part of ANI; it reduces target gross like existing."""
+        # 144k assignment, 1200 margin, 100k cap, 10k other
+        # target_gross = 90k → budget 103200 → sacrifice 39600
+        result = calc_optimal_sacrifice_inside_ir35(
+            144_000, 1200, cap=100_000, other_income=10_000
+        )
+        self.assertEqual(result, 39_600)
 
     def test_sacrifice_capped_at_60k(self):
         """Very high assignment → sacrifice capped at £60k."""

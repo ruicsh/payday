@@ -567,6 +567,7 @@ class TestOutsideIR35CLI(unittest.TestCase):
             "5000",  # director pension
             "10000",  # retained
             "y",  # employment allowance
+            "n",  # child benefit? [y/N]
             "plan1",  # student loan plan
             "n",  # postgraduate
         ],

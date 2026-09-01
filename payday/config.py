@@ -13,6 +13,7 @@ BOOLEAN_FIELDS = {
     "is_paystream",
     "postgraduate_loan",
     "employment_allowance",
+    "has_child_benefit",
 }
 # Fields where false is a sentinel meaning "off / no value".
 FALSE_SENTINEL_FIELDS = {"income_target"}
@@ -43,6 +44,8 @@ FIELD_TYPES = {
     "region": (str, type(None)),
     "student_loan_plan": (str, type(None)),
     "postgraduate_loan": (bool, type(None)),
+    "has_child_benefit": (bool, type(None)),
+    "num_children": (int, bool, type(None)),
 }
 _ALL_FIELDS = [
     "mode",
@@ -71,6 +74,8 @@ _ALL_FIELDS = [
     "region",
     "student_loan_plan",
     "postgraduate_loan",
+    "has_child_benefit",
+    "num_children",
 ]
 
 
@@ -169,6 +174,12 @@ def _validate_field(key: str, value: Any) -> None:
                 f"'student_loan_plan': must be one of "
                 f"{', '.join(sorted(VALID_STUDENT_LOAN_PLANS))}, got '{value}'"
             )
+
+    elif key == "num_children" and value is not None:
+        if value is True:
+            pass  # True means default 1
+        elif not isinstance(value, int) or value < 1:
+            raise ValueError(f"'num_children': must be >= 1, got {value}")
 
 
 def load_config(path: str) -> dict | None:

@@ -1,19 +1,36 @@
-from payday.constants import MAX_SALARY_SACRIFICE, NI_SECONDARY_THRESHOLD
+from payday.constants import (
+    MAX_SALARY_SACRIFICE,
+    NI_SECONDARY_THRESHOLD,
+    PA_TAPER_THRESHOLD,
+)
 
 
 def calc_optimal_sacrifice_paye(
     gross: int,
-    cap: int = 100_000,
+    cap: int = PA_TAPER_THRESHOLD,
+    *,
+    other_income: float = 0,
 ) -> int:
     """Return the minimum annual salary sacrifice so that
     adjusted net income ≤ *cap* (default £100,000 — PA taper threshold).
 
-    For PAYE, ANI = gross - sacrifice.  The minimum sacrifice is:
-        sacrifice = max(0, gross - cap)
+    For PAYE, ANI = (gross - sacrifice) + other_income.  The minimum
+    sacrifice is::
+
+        sacrifice = max(0, gross + other_income - cap)
+
+    ``other_income`` is included so the £60k HICBC target is hit when
+    savings/property income pushes ANI into the clawback band
+    (regression: PAYE £75k + £10k other → 15k sacrifice left ANI at
+    £70k; correct is £25k → ANI £60k). When ``other_income`` alone
+    breaches *cap*, no sacrifice can fix it.
     """
     if cap <= 0:
         return 0
-    return min(max(0, gross - cap), MAX_SALARY_SACRIFICE)
+    effective_cap = cap - other_income
+    if effective_cap <= 0:
+        return 0
+    return min(max(0, gross - int(effective_cap)), MAX_SALARY_SACRIFICE)
 
 
 def inverse_solve_gross_salary(
@@ -61,30 +78,34 @@ def inverse_solve_gross_salary(
 def calc_optimal_sacrifice_inside_ir35(
     annual_assignment: int,
     annual_margin: int,
-    cap: int = 100_000,
+    cap: int = PA_TAPER_THRESHOLD,
     *,
     existing_income: float = 0,
     existing_dividends: float = 0,
+    other_income: float = 0,
     admin_charge: int = 0,
 ) -> int:
     """Return the optimal annual salary sacrifice for an Inside IR35
     contractor so that adjusted net income ≤ *cap*.
 
-    ANI = effective_gross + existing_income + existing_dividends.
-    We want:  effective_gross ≤ cap − existing_income − existing_dividends.
+    ANI = effective_gross + existing_income + existing_dividends
+          + other_income.  We want::
+
+        effective_gross ≤ cap − existing_income − existing_dividends
+                          − other_income.
 
     *admin_charge* is the annual PayStream salary-sacrifice admin charge
     (weekly £8.40 incl. VAT). It is deducted from the budget alongside the
     margin, so the sacrifice fits within the reduced pot.
 
-    If existing income already breaches the cap, return 0 (can't fix).
+    If existing/other income already breaches the cap, return 0 (can't fix).
     Otherwise compute the target gross, find the required budget via
     the inverse gross-salary solver, and work out the sacrifice.
     """
     if cap <= 0:
         return 0
 
-    target_gross = max(0, cap - existing_income - existing_dividends)
+    target_gross = max(0, cap - existing_income - existing_dividends - other_income)
 
     # If the target is too small to make a meaningful difference, give up
     if target_gross <= 500:
