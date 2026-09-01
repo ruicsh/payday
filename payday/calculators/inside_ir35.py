@@ -11,6 +11,7 @@ from payday.income_tax import (
 )
 from payday.national_insurance import calc_employee_ni, calc_employer_ni
 from payday.pension import calc_pension
+from payday.student_loan import calc_postgraduate_loan, calc_student_loan
 from payday.models import SalaryBreakdown, StepLine, PensionResult
 from payday.tax_year import pro_rate_contract
 
@@ -29,14 +30,18 @@ class InsideIR35Calculator:
         sacrifice_frequency: str = "monthly",
         effective_days: int | None = None,
         region: str | None = None,
+        student_loan_plan: str | None = None,
+        postgraduate_loan: bool = False,
     ) -> SalaryBreakdown:
-        """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension → 20-day.
+        """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension + Student Loan → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
         Umbrella company guidance: https://www.gov.uk/guidance/working-through-an-umbrella-company
         Scottish Income Tax: https://www.gov.uk/scottish-income-tax
+        Student Loan: https://www.gov.uk/repaying-your-student-loan/what-you-pay
 
         *existing_income* is income already earned in this tax year. It reduces
-        the remaining Personal Allowance and rate bands available to this contract.
+        the remaining Personal Allowance, rate bands and student loan threshold
+        available to this contract.
         *existing_dividends* is dividends already received this tax year.
         *effective_days* if provided, overrides the pro-rated working_days count.
         *is_paystream* selects the PayStream umbrella salary-sacrifice model
@@ -46,6 +51,8 @@ class InsideIR35Calculator:
         *sacrifice_frequency* is ``"monthly"`` (default) or ``"daily"`` and only
         affects the per-period breakdown line.
         *region* is ``"scotland"`` for Scottish rates, anything else for rUK.
+        *student_loan_plan* is ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``.
+        *postgraduate_loan* stacks a 6% Postgraduate Loan repayment on top.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
@@ -136,7 +143,23 @@ class InsideIR35Calculator:
         )
         ee_ni_result = calc_employee_ni(effective_gross)
 
-        annual_take_home = effective_gross - it_result.total_tax - ee_ni_result.total_ni
+        sl_result = (
+            calc_student_loan(effective_gross, student_loan_plan, existing_income)
+            if student_loan_plan
+            else None
+        )
+        pgl_result = (
+            calc_postgraduate_loan(effective_gross, existing_income)
+            if postgraduate_loan
+            else None
+        )
+        sl_total = (sl_result.repayment if sl_result else 0) + (
+            pgl_result.repayment if pgl_result else 0
+        )
+
+        annual_take_home = (
+            effective_gross - it_result.total_tax - ee_ni_result.total_ni - sl_total
+        )
 
         year_taxable_income = round(
             effective_gross + existing_income + existing_dividends
@@ -242,6 +265,11 @@ class InsideIR35Calculator:
                 )
             )
 
+        if sl_result:
+            steps.append(StepLine("Student Loan", -sl_result.repayment, indent=1))
+        if pgl_result:
+            steps.append(StepLine("Postgraduate Loan", -pgl_result.repayment, indent=1))
+
         steps += [
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
@@ -272,6 +300,10 @@ class InsideIR35Calculator:
             inputs["salary_sacrifice"] = salary_sacrifice
             if is_paystream:
                 inputs["er_ni_saving"] = er_ni_saving
+        if student_loan_plan:
+            inputs["student_loan_plan"] = student_loan_plan
+        if postgraduate_loan:
+            inputs["postgraduate_loan"] = True
 
         return SalaryBreakdown(
             mode="Inside IR35",
@@ -284,6 +316,8 @@ class InsideIR35Calculator:
             employee_ni=ee_ni_result,
             employer_ni=er_ni_result,
             pension=pension_result,
+            student_loan=sl_result,
+            postgraduate_loan=pgl_result,
         )
 
     @staticmethod

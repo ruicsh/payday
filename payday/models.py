@@ -75,6 +75,15 @@ class PensionResult:
 
 
 @dataclass
+class StudentLoanResult:
+    plan: str
+    threshold: int
+    rate: float
+    income_above_threshold: int
+    repayment: int
+
+
+@dataclass
 class StepLine:
     label: str
     amount: int | float
@@ -96,3 +105,5 @@ class SalaryBreakdown:
     corporation_tax: CorporationTaxResult | None = None
     dividend_tax: DividendTaxResult | None = None
     pension: PensionResult | None = None
+    student_loan: StudentLoanResult | None = None
+    postgraduate_loan: StudentLoanResult | None = None

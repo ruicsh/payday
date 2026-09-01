@@ -6,8 +6,9 @@ from typing import Any
 VALID_MODES = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3}
 VALID_SACRIFICE_KEYWORDS = {"max", "auto"}
 VALID_REGIONS = {"scotland", "england", "wales", "northern_ireland", "rest_of_uk"}
+VALID_STUDENT_LOAN_PLANS = {"plan1", "plan2", "plan4", "plan5"}
 # Boolean fields accept both true and false as legitimate values.
-BOOLEAN_FIELDS = {"salary_sacrifice_enabled", "is_paystream"}
+BOOLEAN_FIELDS = {"salary_sacrifice_enabled", "is_paystream", "postgraduate_loan"}
 # Fields where false is a sentinel meaning "off / no value".
 FALSE_SENTINEL_FIELDS = {"income_target"}
 FIELD_TYPES = {
@@ -27,6 +28,8 @@ FIELD_TYPES = {
     "income_target": (int, bool, type(None)),
     "director_pension": (int, bool, type(None)),
     "region": (str, type(None)),
+    "student_loan_plan": (str, type(None)),
+    "postgraduate_loan": (bool, type(None)),
 }
 _ALL_FIELDS = [
     "mode",
@@ -45,6 +48,8 @@ _ALL_FIELDS = [
     "income_target",
     "director_pension",
     "region",
+    "student_loan_plan",
+    "postgraduate_loan",
 ]
 
 
@@ -114,6 +119,13 @@ def _validate_field(key: str, value: Any) -> None:
         if value not in VALID_REGIONS:
             raise ValueError(
                 f"'region': must be one of {', '.join(sorted(VALID_REGIONS))}, got '{value}'"
+            )
+
+    elif key == "student_loan_plan" and value is not None:
+        if value not in VALID_STUDENT_LOAN_PLANS:
+            raise ValueError(
+                f"'student_loan_plan': must be one of "
+                f"{', '.join(sorted(VALID_STUDENT_LOAN_PLANS))}, got '{value}'"
             )
 
 

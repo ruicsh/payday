@@ -494,6 +494,47 @@ def prompt_region(config: dict | None = None) -> str:
     return "scotland" if answer == "y" else "rest_of_uk"
 
 
+def prompt_student_loan(
+    config: dict | None = None,
+) -> tuple[str | None, bool]:
+    """Prompt for student loan plan and postgraduate loan.
+
+    Returns (student_loan_plan, postgraduate_loan) where plan is one of
+    ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``, and postgraduate is a bool.
+
+    In config mode absent/null means no loan (no prompt, no repayment).
+    The undergraduate plan and postgraduate loan stack independently — a
+    borrower can hold both at once.
+    """
+    if config is not None:
+        plan = config.get("student_loan_plan")
+        pgl = bool(config.get("postgraduate_loan"))
+        if plan:
+            print(f"Student loan plan: {plan}")
+        else:
+            print("Student loan plan: none")
+        print(f"Postgraduate loan: {'yes' if pgl else 'no'}")
+        return plan, pgl
+
+    # Interactive: undergraduate plan
+    plan: str | None = None
+    while True:
+        raw = input("Student loan plan [1/2/4/5, ENTER for none]: ").strip().lower()
+        if not raw:
+            plan = None
+            break
+        # Accept "1", "plan1", "plan 1", etc.
+        normalised = raw.replace(" ", "").replace("plan", "")
+        if normalised in ("1", "2", "4", "5"):
+            plan = f"plan{normalised}"
+            break
+        print("Error: Enter 1, 2, 4, 5, or press ENTER for none.")
+
+    pgl_answer = input("Do you have a Postgraduate Loan? [y/N]: ").strip().lower()
+    has_pgl = pgl_answer == "y"
+    return plan, has_pgl
+
+
 def _resolve_days_off(config: dict, default: int = 25) -> int:
     """Extract days_off from config, using ``default`` when True or absent."""
     raw = config.get("days_off")
@@ -611,8 +652,13 @@ def run_once(config: dict | None = None) -> None:
             config_value=config.get("salary") if config else None,
         )
         salary_sacrifice = prompt_salary_sacrifice(salary, mode="paye", config=config)
+        student_loan_plan, postgraduate_loan = prompt_student_loan(config)
         breakdown = PAYECalculator.calculate(
-            salary, salary_sacrifice=int(salary_sacrifice), region=region
+            salary,
+            salary_sacrifice=int(salary_sacrifice),
+            region=region,
+            student_loan_plan=student_loan_plan,
+            postgraduate_loan=postgraduate_loan,
         )
 
     elif mode == 2:
@@ -637,6 +683,7 @@ def run_once(config: dict | None = None) -> None:
         )
         is_paystream = prompt_paystream(config)
         region = prompt_region(config)
+        student_loan_plan, postgraduate_loan = prompt_student_loan(config)
 
         weeks = net_working_days / 5
         annual_margin = round(margin * weeks)
@@ -671,6 +718,8 @@ def run_once(config: dict | None = None) -> None:
             sacrifice_frequency=getattr(sacrifice_choice, "frequency", "monthly"),
             effective_days=net_working_days,
             region=region,
+            student_loan_plan=student_loan_plan,
+            postgraduate_loan=postgraduate_loan,
         )
 
     elif mode == 3:
@@ -695,6 +744,7 @@ def run_once(config: dict | None = None) -> None:
             max_val=MAX_SALARY_SACRIFICE,
             config_value=config.get("director_pension") if config else None,
         )
+        student_loan_plan, postgraduate_loan = prompt_student_loan(config)
 
         breakdown = OutsideIR35Calculator.calculate(
             day_rate,
@@ -704,6 +754,8 @@ def run_once(config: dict | None = None) -> None:
             existing_dividends=existing_dividends,
             effective_days=net_working_days,
             director_pension=director_pension,
+            student_loan_plan=student_loan_plan,
+            postgraduate_loan=postgraduate_loan,
         )
 
     else:

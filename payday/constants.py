@@ -67,6 +67,16 @@ PENSION_EMPLOYER_RATE: float = 0.03
 # Salary Sacrifice
 MAX_SALARY_SACRIFICE: int = 60_000
 
+# Student Loan repayment (2026/27)
+# Source: https://www.gov.uk/repaying-your-student-loan/what-you-pay
+STUDENT_LOAN_PLAN1_THRESHOLD: int = 26_900
+STUDENT_LOAN_PLAN2_THRESHOLD: int = 29_385
+STUDENT_LOAN_PLAN4_THRESHOLD: int = 33_795
+STUDENT_LOAN_PLAN5_THRESHOLD: int = 25_000
+STUDENT_LOAN_POSTGRADUATE_THRESHOLD: int = 21_000
+STUDENT_LOAN_UNDERGRADUATE_RATE: float = 0.09
+STUDENT_LOAN_POSTGRADUATE_RATE: float = 0.06
+
 # PayStream salary-sacrifice administration charge (weekly, incl. 20% VAT)
 # Source: PayStream "Salary Sacrifice — Contractor FAQs" (paystream-salary-sacrifice.pdf)
 # £7.00 + 20% VAT = £8.40/week; charged only when sacrificing through PayStream.

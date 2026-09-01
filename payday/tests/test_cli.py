@@ -2,11 +2,12 @@ import unittest
 from unittest.mock import patch
 from io import StringIO
 from payday.cli import (
-    prompt_int,
-    prompt_float,
     prompt_existing_income,
+    prompt_float,
+    prompt_int,
     prompt_paystream,
     prompt_salary_sacrifice,
+    prompt_student_loan,
     prompt_working_days,
     run_once,
 )
@@ -900,6 +901,8 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "",  # director pension (default 0)
+            "",  # student loan plan (none)
+            "n",  # postgraduate loan
         ],
     )
     @patch("sys.stdout", new_callable=StringIO)
@@ -932,6 +935,8 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "",  # director pension (default 0)
+            "",  # student loan plan (none)
+            "n",  # postgraduate loan
         ],
     )
     @patch("sys.stdout", new_callable=StringIO)
@@ -972,7 +977,11 @@ class TestCLI(unittest.TestCase):
         config = {"mode": "paye", "salary": 50000, "salary_sacrifice_enabled": False}
         run_once(config)
         mock_calc.assert_called_once_with(
-            50000, salary_sacrifice=0, region="rest_of_uk"
+            50000,
+            salary_sacrifice=0,
+            region="rest_of_uk",
+            student_loan_plan=None,
+            postgraduate_loan=False,
         )
 
     @patch("payday.cli.InsideIR35Calculator.calculate")
@@ -1118,6 +1127,8 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "",  # director pension (default 0)
+            "",  # student loan plan (none)
+            "n",  # postgraduate loan
         ],
     )
     @patch("sys.stdout", new_callable=StringIO)
@@ -1149,6 +1160,8 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "20000",  # director pension
+            "",  # student loan plan (none)
+            "n",  # postgraduate loan
         ],
     )
     @patch("sys.stdout", new_callable=StringIO)
@@ -1180,6 +1193,8 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "60000",  # max director pension
+            "",  # student loan plan (none)
+            "n",  # postgraduate loan
         ],
     )
     @patch("sys.stdout", new_callable=StringIO)
@@ -1253,6 +1268,93 @@ class TestPromptWorkingDays(unittest.TestCase):
         result, days_off = prompt_working_days(3)
         self.assertEqual(result, 1)
         self.assertEqual(days_off, 25)
+
+
+class TestPromptStudentLoan(unittest.TestCase):
+    # ── interactive mode ────────────────────────────────────────────
+
+    @patch("builtins.input", side_effect=["", "n"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_enter_means_none(self, mock_stdout, mock_input):
+        plan, pgl = prompt_student_loan(None)
+        self.assertIsNone(plan)
+        self.assertFalse(pgl)
+
+    @patch("builtins.input", side_effect=["1", "n"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_digit_maps_to_plan(self, mock_stdout, mock_input):
+        plan, pgl = prompt_student_loan(None)
+        self.assertEqual(plan, "plan1")
+        self.assertFalse(pgl)
+
+    @patch("builtins.input", side_effect=["2", "y"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_digit_2_with_postgraduate(self, mock_stdout, mock_input):
+        plan, pgl = prompt_student_loan(None)
+        self.assertEqual(plan, "plan2")
+        self.assertTrue(pgl)
+
+    @patch("builtins.input", side_effect=["plan4", "n"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_plan_prefix_accepted(self, mock_stdout, mock_input):
+        plan, _ = prompt_student_loan(None)
+        self.assertEqual(plan, "plan4")
+
+    @patch("builtins.input", side_effect=["plan 1", "n"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_plan_with_space_accepted(self, mock_stdout, mock_input):
+        plan, _ = prompt_student_loan(None)
+        self.assertEqual(plan, "plan1")
+
+    @patch("builtins.input", side_effect=["PLAN5", "n"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_uppercase_normalised(self, mock_stdout, mock_input):
+        plan, _ = prompt_student_loan(None)
+        self.assertEqual(plan, "plan5")
+
+    @patch("builtins.input", side_effect=["3", "plan2", "n"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_invalid_then_valid_retries(self, mock_stdout, mock_input):
+        plan, _ = prompt_student_loan(None)
+        self.assertEqual(plan, "plan2")
+        self.assertIn("Error: Enter 1, 2, 4, 5", mock_stdout.getvalue())
+
+    @patch("builtins.input", side_effect=["", "y"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_postgraduate_only_no_undergrad(self, mock_stdout, mock_input):
+        plan, pgl = prompt_student_loan(None)
+        self.assertIsNone(plan)
+        self.assertTrue(pgl)
+
+    # ── config mode (no prompts) ──────────────────────────────────
+
+    @patch("builtins.input")
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_config_none_means_no_loan(self, mock_stdout, mock_input):
+        plan, pgl = prompt_student_loan({})
+        self.assertIsNone(plan)
+        self.assertFalse(pgl)
+        mock_input.assert_not_called()
+
+    @patch("builtins.input")
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_config_with_plan_and_pgl(self, mock_stdout, mock_input):
+        plan, pgl = prompt_student_loan(
+            {"student_loan_plan": "plan1", "postgraduate_loan": True}
+        )
+        self.assertEqual(plan, "plan1")
+        self.assertTrue(pgl)
+        mock_input.assert_not_called()
+
+    @patch("builtins.input")
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_config_null_postgraduate(self, mock_stdout, mock_input):
+        plan, pgl = prompt_student_loan(
+            {"student_loan_plan": None, "postgraduate_loan": None}
+        )
+        self.assertIsNone(plan)
+        self.assertFalse(pgl)
+        mock_input.assert_not_called()
 
 
 if __name__ == "__main__":

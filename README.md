@@ -27,7 +27,9 @@ For permanent employees on a fixed annual salary.
     ├─ Personal Allowance   -£N
     ├─ Income Tax           -£N
     ├─ Employee NI (0/8/2%) -£N
-    └─ Pension (5% EE)      -£N  (skipped if sacrifice)
+    ├─ Pension (5% EE)      -£N  (skipped if sacrifice)
+    ├─ Student Loan         -£N  (9% above plan threshold, optional)
+    └─ Postgraduate Loan    -£N  (6% above £21k, stacks with Student Loan)
   ─────────────────────────────
   Annual Take-Home          £N
   Monthly Take-Home         £N
@@ -61,7 +63,9 @@ For contractors working through an umbrella company. The umbrella sits between t
   Gross Salary             £N
     ├─ Income Tax          -£N
     ├─ Employee NI (0/8/2%)-£N
-    └─ Pension (5% EE)     -£N  (skipped if sacrifice)
+    ├─ Pension (5% EE)     -£N  (skipped if sacrifice)
+    ├─ Student Loan        -£N  (9% above plan threshold, optional)
+    └─ Postgraduate Loan   -£N  (6% above £21k, stacks with Student Loan)
   ────────────────────────────
   Annual Take-Home         £N
   20-Day Take-Home         £N
@@ -80,7 +84,7 @@ For contractors operating through their own limited company. The company receive
 | Existing employment income    | £0                    | Income already earned this tax year (consumes PA and rate bands)                                                             |
 | Director pension contribution | £0                    | Annual company pension contribution to director's SIPP (≥ 0, max £60k); reduces Corporation Tax                              |
 
-**Flow:**
+**Flow (Outside IR35 student loan is collected via Self Assessment on total income — salary + dividends):**
 
 ```
   Company Revenue         £day_rate × days
@@ -92,7 +96,9 @@ For contractors operating through their own limited company. The company receive
     └─ Corporation Tax     -£N  (19% / 25% with Marginal Relief)
   ────────────────────────────
   Distributable Profit     £N
-    └─ Dividend Tax        -£N  (0% / 10.75% / 35.75% / 39.35%)
+    ├─ Dividend Tax        -£N  (0% / 10.75% / 35.75% / 39.35%)
+    ├─ Student Loan        -£N  (9% on salary+dividends above plan threshold, optional)
+    └─ Postgraduate Loan   -£N  (6% on salary+dividends above £21k, stacks with Student Loan)
   ────────────────────────────
   Take-Home                £N
     (Salary £N | Dividends £N)
@@ -113,6 +119,7 @@ All rates, thresholds and formulas used in this project are sourced from the fol
 | Apprenticeship Levy (0.5%)                       | [https://www.gov.uk/guidance/pay-apprenticeship-levy](https://www.gov.uk/guidance/pay-apprenticeship-levy)                                                                                                                                                                                                       |
 | Corporation Tax (rates & Marginal Relief)        | [https://www.gov.uk/corporation-tax-rates](https://www.gov.uk/corporation-tax-rates)                                                                                                                                                                                                                             |
 | Dividend Tax (allowance & rates)                 | [https://www.gov.uk/tax-on-dividends](https://www.gov.uk/tax-on-dividends)                                                                                                                                                                                                                                       |
+| Student Loan Repayments (thresholds & rates)   | [https://www.gov.uk/repaying-your-student-loan/what-you-pay](https://www.gov.uk/repaying-your-student-loan/what-you-pay)                                                                                                                                                                                           |
 | IR35 / Off-Payroll Working Rules                 | [https://www.gov.uk/guidance/understanding-off-payroll-working-ir35](https://www.gov.uk/guidance/understanding-off-payroll-working-ir35)                                                                                                                                                                         |
 | Umbrella Company Guidance                        | [https://www.gov.uk/guidance/working-through-an-umbrella-company](https://www.gov.uk/guidance/working-through-an-umbrella-company)                                                                                                                                                                               |
 
@@ -196,6 +203,8 @@ All fields are optional.
 | `income_target`            | int, bool, or null  | Fixed cap (≥ 1); `null`/`true` = prompt for cap (default £100,000); `false` = no target (max out pension). Only relevant with `"auto"` sacrifice. |
 | `director_pension`         | int, bool, or null  | Annual company pension contribution to director's SIPP (≥ 0, max £60k). `true` = £0 (no contribution). |
 | `region`                   | string or null      | `"scotland"` for Scottish Income Tax; `"england"`/`"wales"`/`"northern_ireland"`/`"rest_of_uk"` (or `null`) = rUK rates. Non-Scottish aliases are equivalent to `rest_of_uk`. |
+| `student_loan_plan`        | string or null      | Undergraduate plan: `"plan1"`, `"plan2"`, `"plan4"`, `"plan5"` (or `null` = no loan). All modes — PAYE/Inside IR35 via PAYE, Outside IR35 via Self Assessment on salary+dividends. |
+| `postgraduate_loan`        | bool or null        | `true` = Postgraduate Loan (6% above £21,000); stacks on top of `student_loan_plan`. `false`/`null` = none. Independent — valid without an undergraduate plan. |
 
 ### Examples
 
@@ -237,6 +246,17 @@ All fields are optional.
 }
 ```
 
+**PAYE with Plan 2 + Postgraduate Loan (stacked):**
+
+```json
+{
+  "mode": "paye",
+  "salary": 50000,
+  "student_loan_plan": "plan2",
+  "postgraduate_loan": true
+}
+```
+
 **Outside IR35 — mid-year start with a director pension:**
 
 ```json
@@ -257,6 +277,7 @@ All fields are optional.
 - **`monthly_*` and `daily_*` are mutually exclusive** — setting both fails validation.
 - **`income_target: false` is not an error** — it deliberately means "no cap, maximise the pension". Every other field's `false` is rejected.
 - `start_month`, `days_off`, `umbrella_margin`, `working_days`, `existing_*`, `director_pension`, and the sacrifice amounts all accept `true` as "use the default".
+- **Student loan collection differs by mode:** PAYE & Inside IR35 deduct via PAYE on gross salary; Outside IR35 collects via Self Assessment on total income (salary + dividends) — all post-CT dividends count, and the threshold is reduced by `existing_income` + `existing_dividends`. For PAYE/Inside IR35 the loan is calculated on income **after** salary sacrifice.
 
 > `make run` passes `--config payday.json` by default, so a `payday.json` in the working directory is picked up automatically when using `make run`. Running bare `python3 -m payday` — or `./payday.sh` with no arguments, which forwards args verbatim — skips `payday.json` entirely and opens the contract picker instead.
 

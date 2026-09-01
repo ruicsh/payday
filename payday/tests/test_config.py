@@ -240,6 +240,7 @@ class TestLoadConfig(unittest.TestCase):
             "daily_salary_sacrifice",
             "income_target",
             "director_pension",
+            "postgraduate_loan",
         ]
         for field in fields_with_defaults:
             data = {"mode": "paye", field: True}
@@ -489,6 +490,143 @@ class TestLoadConfig(unittest.TestCase):
             result = load_config(path)
             assert result is not None
             self.assertIsNone(result["region"])
+        finally:
+            os.unlink(path)
+
+    # ── student loan config tests ─────────────────────────────────────
+
+    def test_student_loan_plan_valid_accepted(self):
+        for plan in ("plan1", "plan2", "plan4", "plan5"):
+            data = {"mode": "paye", "student_loan_plan": plan}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                result = load_config(path)
+                assert result is not None
+                self.assertEqual(result["student_loan_plan"], plan)
+            finally:
+                os.unlink(path)
+
+    def test_student_loan_plan_null_accepted(self):
+        data = {"mode": "paye", "student_loan_plan": None}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIsNone(result["student_loan_plan"])
+        finally:
+            os.unlink(path)
+
+    def test_student_loan_plan_absent_is_none(self):
+        data = {"mode": "paye"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIsNone(result["student_loan_plan"])
+        finally:
+            os.unlink(path)
+
+    def test_student_loan_plan_invalid_rejected(self):
+        for bad in ("plan3", "plan6", "undergrad", "", "1"):
+            data = {"mode": "paye", "student_loan_plan": bad}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                with self.assertRaises(ValueError):
+                    load_config(path)
+            finally:
+                os.unlink(path)
+
+    def test_student_loan_plan_wrong_type_rejected(self):
+        data = {"mode": "paye", "student_loan_plan": 123}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
+        finally:
+            os.unlink(path)
+
+    def test_postgraduate_loan_true_accepted(self):
+        data = {"mode": "paye", "postgraduate_loan": True}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIs(result["postgraduate_loan"], True)
+        finally:
+            os.unlink(path)
+
+    def test_postgraduate_loan_false_accepted(self):
+        """false is a valid value (no postgraduate loan)."""
+        data = {"mode": "paye", "postgraduate_loan": False}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIs(result["postgraduate_loan"], False)
+        finally:
+            os.unlink(path)
+
+    def test_postgraduate_loan_null_accepted(self):
+        data = {"mode": "paye", "postgraduate_loan": None}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIsNone(result["postgraduate_loan"])
+        finally:
+            os.unlink(path)
+
+    def test_postgraduate_loan_absent_is_none(self):
+        data = {"mode": "paye"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIsNone(result["postgraduate_loan"])
+        finally:
+            os.unlink(path)
+
+    def test_postgraduate_loan_string_rejected(self):
+        data = {"mode": "paye", "postgraduate_loan": "yes"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
+        finally:
+            os.unlink(path)
+
+    def test_postgraduate_loan_int_rejected(self):
+        data = {"mode": "paye", "postgraduate_loan": 1}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
         finally:
             os.unlink(path)
 

@@ -3,6 +3,7 @@ from payday.national_insurance import calc_employer_ni
 from payday.corporation_tax import calc_corporation_tax
 from payday.dividend_tax import calc_dividend_tax
 from payday.models import SalaryBreakdown, StepLine
+from payday.student_loan import calc_postgraduate_loan, calc_student_loan
 from payday.tax_year import pro_rate_contract
 
 
@@ -16,18 +17,27 @@ class OutsideIR35Calculator:
         existing_dividends: float = 0,
         effective_days: int | None = None,
         director_pension: int = 0,
+        student_loan_plan: str | None = None,
+        postgraduate_loan: bool = False,
     ) -> SalaryBreakdown:
-        """Outside IR35: Revenue → CT → dividends → tax → 20-day.
+        """Outside IR35: Revenue → CT → dividends → tax → Student Loan → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
         Income Tax: https://www.gov.uk/income-tax-rates
         Employer NI: https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027
         Corporation Tax: https://www.gov.uk/corporation-tax-rates
         Dividend Tax: https://www.gov.uk/tax-on-dividends
+        Student Loan: https://www.gov.uk/repaying-your-student-loan/what-you-pay
 
         *existing_income* is income already earned in this tax year. It reduces
-        the remaining Personal Allowance and rate bands available for dividends.
+        the remaining Personal Allowance, rate bands and student loan threshold
+        available for dividends.
         *existing_dividends* is dividends already received this tax year.
         *effective_days* if provided, overrides the pro-rated working_days count.
+        *student_loan_plan* is ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``.
+        *postgraduate_loan* stacks a 6% Postgraduate Loan repayment on top.
+        Outside IR35 repayments are modelled as Self Assessment on total
+        personal income (salary + dividends); the repayment base includes
+        existing income/dividends already earned this tax year.
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
@@ -63,10 +73,28 @@ class OutsideIR35Calculator:
             existing_dividends=existing_dividends,
         )
 
-        # Take-home = Salary + (Dividends - Dividend Tax)
+        # Take-home = Salary + (Dividends - Dividend Tax) - Student Loan
         # Note: at £12,570 salary, Income Tax and EE NI are both zero.
+        # Student loan via Self Assessment is on total income (salary + dividends).
         net_dividends = dividends - div_tax_result.total_tax
-        take_home = salary + net_dividends
+        total_personal_income = salary + dividends
+        existing_total = existing_income + existing_dividends
+
+        sl_result = (
+            calc_student_loan(total_personal_income, student_loan_plan, existing_total)
+            if student_loan_plan
+            else None
+        )
+        pgl_result = (
+            calc_postgraduate_loan(total_personal_income, existing_total)
+            if postgraduate_loan
+            else None
+        )
+        sl_total = (sl_result.repayment if sl_result else 0) + (
+            pgl_result.repayment if pgl_result else 0
+        )
+
+        take_home = salary + net_dividends - sl_total
 
         take_home_20_day = round(take_home / effective_days * 20)
 
@@ -86,6 +114,12 @@ class OutsideIR35Calculator:
             StepLine("Corporation Tax", -ct_result.total_ct, indent=1),
             StepLine("Distributable Profit", post_tax_profit, is_subtotal=True),
             StepLine("Dividend Tax", -div_tax_result.total_tax, indent=1),
+        ]
+        if sl_result:
+            steps.append(StepLine("Student Loan", -sl_result.repayment, indent=1))
+        if pgl_result:
+            steps.append(StepLine("Postgraduate Loan", -pgl_result.repayment, indent=1))
+        steps += [
             StepLine("Take-Home", take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
             StepLine("Year Taxable Income", year_taxable_income, is_subtotal=True),
@@ -106,6 +140,10 @@ class OutsideIR35Calculator:
             inputs["existing_income"] = existing_income
         if existing_dividends:
             inputs["existing_dividends"] = existing_dividends
+        if student_loan_plan:
+            inputs["student_loan_plan"] = student_loan_plan
+        if postgraduate_loan:
+            inputs["postgraduate_loan"] = True
 
         return SalaryBreakdown(
             mode="Outside IR35",
@@ -117,4 +155,6 @@ class OutsideIR35Calculator:
             employer_ni=er_ni_result,
             corporation_tax=ct_result,
             dividend_tax=div_tax_result,
+            student_loan=sl_result,
+            postgraduate_loan=pgl_result,
         )
