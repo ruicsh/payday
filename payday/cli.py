@@ -297,6 +297,8 @@ def _tapered_sacrifice_cap(
     existing_income: float = 0,
     existing_dividends: float = 0,
     annual_margin: int = 0,
+    admin_charge: int = 0,
+    is_paystream: bool = False,
 ) -> int:
     """Compute the tapered Annual Allowance cap for a salary-sacrifice.
 
@@ -308,9 +310,19 @@ def _tapered_sacrifice_cap(
         threshold = round(gross + other_income)
         return find_max_pension_for_threshold(threshold)
     if mode == "inside_ir35":
-        # Threshold estimate: gross without sacrifice (per-mode isolation).
-        # For generic umbrellas threshold = ref_gross + other + existing;
-        # for PayStream it is a close estimate (see inside_ir35.py).
+        if is_paystream:
+            from payday.calculators.inside_ir35 import paystream_max_pension
+
+            return paystream_max_pension(
+                gross,
+                annual_margin,
+                admin_charge,
+                other_income=other_income,
+                existing_income=existing_income,
+                existing_dividends=existing_dividends,
+                cap=MAX_SALARY_SACRIFICE,
+            )
+        # Generic umbrella: threshold = ref_gross + other + existing is exact.
         from payday.calculators.inside_ir35 import InsideIR35Calculator
 
         budget = gross - annual_margin
@@ -408,6 +420,8 @@ def prompt_salary_sacrifice(
         existing_income=existing_income,
         existing_dividends=existing_dividends,
         annual_margin=annual_margin,
+        admin_charge=admin_charge,
+        is_paystream=is_paystream,
     )
 
     effective_default_cap = (

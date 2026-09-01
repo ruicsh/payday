@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from payday.constants import (
     ANNUAL_ALLOWANCE,
     AA_TAPER_ADJUSTED_INCOME,
@@ -147,3 +149,79 @@ def find_max_pension_for_threshold(
         else:
             hi = mid - 1
     return best
+
+
+def find_max_pension_for_funcs(
+    threshold_for_pension: Callable[[int], int],
+    adjusted_for_pension: Callable[[int], int],
+    cap: int = ANNUAL_ALLOWANCE,
+) -> int:
+    """Return maximum pension where pension <= AA(threshold(p), adjusted(p)).
+
+    Both *threshold_for_pension* and *adjusted_for_pension* are callables
+    ``(p: int) -> int``. Uses binary search assuming monotonicity:
+    ``p <= AA(thr(p), adj(p))`` is decreasing (if feasible at p, all
+    smaller p are feasible). Valid for Inside IR35 (generic & PayStream)
+    and Outside IR35 where adjusted increases with pension.
+
+    Caches threshold results to avoid double ``calc_corporation_tax`` /
+    ``solve_gross_salary`` calls when ``adjusted(p)`` is derived from
+    ``threshold(p)``.
+    """
+    lo, hi = 0, min(cap, ANNUAL_ALLOWANCE)
+    best = 0
+    thr_cache: dict[int, int] = {}
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        thr = thr_cache.get(mid)
+        if thr is None:
+            thr = threshold_for_pension(mid)
+            thr_cache[mid] = thr
+        adj = adjusted_for_pension(mid)
+        # If adjusted is thr+p (PayStream/Outside pattern) the thr call
+        # inside adjusted is redundant; cache hit avoids recomputation.
+        # For generic callers, adjusted is independent — cache still helps
+        # when the caller memoizes internally.
+        aa = calc_annual_allowance(thr, adj).annual_allowance
+        if mid <= aa:
+            best = mid
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return best
+
+
+def find_max_pension_sole_trader(
+    total_income: int | float,
+    cap: int = ANNUAL_ALLOWANCE,
+) -> int:
+    """Return maximum relief-at-source pension for Sole Trader.
+
+    Sole Trader: threshold(p) = total - round(p*1.25), adjusted(p) = total.
+    Handles non-monotonicity where a large pension can drop threshold
+    below £200k and remove the taper, making high pensions feasible
+    again (e.g. total £271k–£275k).
+    """
+    total = round(total_income)
+    cap = min(cap, ANNUAL_ALLOWANCE)
+    if cap <= 0:
+        return 0
+    if total <= AA_TAPER_ADJUSTED_INCOME:
+        return cap  # adjusted never >£260k → no taper ever
+    # total >260k: taper may apply
+    p_cross: int | None = next(
+        (
+            p
+            for p in range(cap + 1)
+            if total - round(p * 1.25) <= AA_TAPER_THRESHOLD_INCOME
+        ),
+        None,
+    )
+    if p_cross is None:
+        # Never drops below £200k within cap → permanently tapered
+        aa = calc_annual_allowance(total, total).annual_allowance
+        return min(cap, aa)
+    if cap >= p_cross:
+        return cap  # at cap threshold ≤£200k → AA=60k ≥cap
+    aa = calc_annual_allowance(total, total).annual_allowance
+    return min(cap, aa)

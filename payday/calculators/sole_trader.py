@@ -1,4 +1,7 @@
-from payday.annual_allowance import calc_annual_allowance
+from payday.annual_allowance import (
+    calc_annual_allowance,
+    find_max_pension_sole_trader,
+)
 from payday.constants import MAX_SALARY_SACRIFICE
 from payday.hicbc import apply_hicbc_inputs, hicbc_result_and_steps
 from payday.income_tax import (
@@ -82,30 +85,19 @@ class SoleTraderCalculator:
         # tapered when threshold/adjusted income exceeds £200k/£260k).
         # For relief-at-source, threshold = total_income - pension*1.25,
         # adjusted = total_income — so a large pension can bring the
-        # threshold below £200k and remove the taper.
+        # threshold below £200k and remove the taper. This creates a
+        # non-monotonic feasibility (e.g. total £275k: £52.5k feasible,
+        # £52.6k not, £60k feasible again), so use the dedicated
+        # non-monotonic search.
         total_income_for_aa = round(
             trading_profit + other_income + existing_income + existing_self_employment
         )
         if personal_pension:
-            # Binary search for the maximum pension that does not exceed
-            # the tapered allowance (handles the threshold dependency).
-            lo, hi = 0, min(personal_pension, MAX_SALARY_SACRIFICE)
-            best = 0
-            while lo <= hi:
-                mid = (lo + hi) // 2
-                threshold = total_income_for_aa - round(mid * 1.25)
-                adjusted = total_income_for_aa
-                aa = calc_annual_allowance(threshold, adjusted)
-                if mid <= aa.annual_allowance:
-                    best = mid
-                    lo = mid + 1
-                else:
-                    hi = mid - 1
-            pension = best
+            pension = find_max_pension_sole_trader(
+                total_income_for_aa, cap=min(personal_pension, MAX_SALARY_SACRIFICE)
+            )
         else:
             pension = 0
-        # Also enforce the flat £60k cap for cases where taper is not triggered.
-        pension = min(pension, MAX_SALARY_SACRIFICE) if personal_pension else 0
 
         # Income Tax is on taxable profit (trading profit less pension).
         # Class 4 NI is on trading profit (pension is NOT an allowable

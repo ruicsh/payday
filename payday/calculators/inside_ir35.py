@@ -1,5 +1,6 @@
 from payday.annual_allowance import (
     calc_annual_allowance,
+    find_max_pension_for_funcs,
     find_max_pension_for_threshold,
 )
 from payday.constants import (
@@ -92,16 +93,27 @@ class InsideIR35Calculator:
             raise ValueError("salary_sacrifice exceeds available budget")
 
         # Annual Allowance taper — cap salary sacrifice when threshold/
-        # adjusted income triggers the taper. Estimate threshold via gross
-        # without sacrifice (per-mode isolation). For generic umbrellas
-        # threshold = ref_gross + other + existing, which is exact; for
-        # PayStream it is a close estimate (gross solved from sac_budget).
+        # adjusted income triggers the taper.
         if salary_sacrifice:
-            ref_gross_estimate = InsideIR35Calculator.solve_gross_salary(budget)
-            threshold_estimate = round(
-                ref_gross_estimate + other_income + existing_income + existing_dividends
-            )
-            max_allowed = find_max_pension_for_threshold(threshold_estimate)
+            if is_paystream:
+                admin_est = round(PAYSTREAM_ADMIN_CHARGE_WEEKLY * weeks)
+                max_allowed = paystream_max_pension(
+                    annual_assignment,
+                    annual_margin,
+                    admin_est,
+                    other_income=other_income,
+                    existing_income=existing_income,
+                    existing_dividends=existing_dividends,
+                    cap=salary_sacrifice,
+                )
+            else:
+                # Generic umbrella: threshold = ref_gross + other + existing
+                # is constant (ref_gross = gross without sacrifice).
+                ref_gross_estimate = InsideIR35Calculator.solve_gross_salary(budget)
+                threshold_estimate = round(
+                    ref_gross_estimate + other_income + existing_income + existing_dividends
+                )
+                max_allowed = find_max_pension_for_threshold(threshold_estimate)
             if salary_sacrifice > max_allowed:
                 salary_sacrifice = max_allowed
 
@@ -438,3 +450,48 @@ class InsideIR35Calculator:
             return round((budget + 937.20) / 1.185)
 
         return round((budget - 570.90) / 1.155)
+
+
+def paystream_max_pension(
+    annual_assignment: int,
+    annual_margin: int,
+    admin_charge: int,
+    other_income: float = 0,
+    existing_income: float = 0,
+    existing_dividends: float = 0,
+    cap: int | None = None,
+) -> int:
+    """Canonical PayStream taper cap — shared by calculator and CLI.
+
+    PayStream: threshold(p) = gross(p) + p + other + existing,
+    adjusted(p) = threshold(p) + p, where gross(p) solves
+    assignment - p - margin - admin = gross + ER NI + Levy.
+
+    Keeping this in one place prevents CLI/calculator drift.
+    """
+    from payday.constants import MAX_SALARY_SACRIFICE
+
+    if cap is None:
+        cap = MAX_SALARY_SACRIFICE
+
+    # Cache gross(p) to avoid double solve when adj(p) calls thr(p).
+    gross_cache: dict[int, int] = {}
+
+    def _thr(p: int) -> int:
+        g = gross_cache.get(p)
+        if g is None:
+            sac_budget = annual_assignment - p - annual_margin - admin_charge
+            if sac_budget < 0:
+                sac_budget = 0
+            g = InsideIR35Calculator.solve_gross_salary(
+                sac_budget, include_er_pension=False
+            )
+            gross_cache[p] = g
+        return round(g + p + other_income + existing_income + existing_dividends)
+
+    def _adj(p: int) -> int:
+        # Reuse cached gross; no second solve.
+        thr = _thr(p)
+        return thr + p
+
+    return find_max_pension_for_funcs(_thr, _adj, cap=cap)

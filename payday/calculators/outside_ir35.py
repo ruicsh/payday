@@ -1,4 +1,7 @@
-from payday.annual_allowance import calc_annual_allowance
+from payday.annual_allowance import (
+    calc_annual_allowance,
+    find_max_pension_for_funcs,
+)
 from payday.constants import (
     EMPLOYMENT_ALLOWANCE,
     MAX_SALARY_SACRIFICE,
@@ -111,9 +114,61 @@ class OutsideIR35Calculator:
             er_ni_total = er_ni_total - ea_used
 
         # Director pension contributions are an allowable expense that reduces
-        # company profit (and therefore CT). Capped at the standard Annual
-        # Allowance (£60k); tapered AA is enforced below after profit is known.
-        pension = min(director_pension, MAX_SALARY_SACRIFICE)
+        # company profit (and therefore CT). Capped at the tapered Annual
+        # Allowance (£60k standard, £10k floor when threshold>£200k and
+        # adjusted>£260k). Use binary search with correct threshold/
+        # adjusted functions since dividends (and thus threshold) depend
+        # on the pension.
+        pension_requested = min(director_pension, MAX_SALARY_SACRIFICE)
+        if pension_requested and not _aa_recursed:
+            thr_cache: dict[int, int] = {}
+
+            def _thr_out(p: int) -> int:
+                cached = thr_cache.get(p)
+                if cached is not None:
+                    return cached
+                prof = revenue - salary - er_ni_total - p - company_expenses
+                if prof <= 0:
+                    divs = 0
+                else:
+                    ct = calc_corporation_tax(prof).total_ct
+                    divs = max(0, prof - ct - min(retained_profit, max(0, prof - ct)))
+                thr = round(
+                    salary + divs + other_income + existing_income + existing_dividends
+                )
+                thr_cache[p] = thr
+                return thr
+
+            def _adj_out(p: int) -> int:
+                return _thr_out(p) + p
+
+            max_allowed = find_max_pension_for_funcs(
+                _thr_out, _adj_out, cap=pension_requested
+            )
+            if pension_requested > max_allowed:
+                return OutsideIR35Calculator.calculate(
+                    day_rate=day_rate,
+                    working_days=working_days,
+                    start_month=start_month,
+                    existing_income=existing_income,
+                    existing_dividends=existing_dividends,
+                    other_income=other_income,
+                    effective_days=effective_days,
+                    director_salary=director_salary,
+                    director_pension=max_allowed,
+                    company_expenses=company_expenses,
+                    retained_profit=retained_profit,
+                    employment_allowance=employment_allowance,
+                    region=region,
+                    student_loan_plan=student_loan_plan,
+                    postgraduate_loan=postgraduate_loan,
+                    has_child_benefit=has_child_benefit,
+                    num_children=num_children,
+                    _aa_recursed=True,
+                )
+            pension = pension_requested
+        else:
+            pension = pension_requested
 
         # Company running costs (accountancy, insurance, software, etc.)
         # are allowable expenses reducing profit before Corporation Tax.
@@ -132,38 +187,6 @@ class OutsideIR35Calculator:
         # Assume all remaining distributable profit distributed as dividends
         # (clamped to zero if loss-making / fully retained).
         dividends = max(0, post_tax_profit - retained)
-
-        # Annual Allowance taper — when threshold/adjusted income triggers
-        # the taper, cap the pension. Need dividends to compute threshold
-        # so we check here; recurse once with the tapered allowance when
-        # the requested pension exceeds it (per-mode isolation).
-        if pension and not _aa_recursed:
-            threshold_income = round(
-                salary + dividends + other_income + existing_income + existing_dividends
-            )
-            adjusted_income = round(threshold_income + pension)
-            aa_check = calc_annual_allowance(threshold_income, adjusted_income)
-            if pension > aa_check.annual_allowance:
-                return OutsideIR35Calculator.calculate(
-                    day_rate=day_rate,
-                    working_days=working_days,
-                    start_month=start_month,
-                    existing_income=existing_income,
-                    existing_dividends=existing_dividends,
-                    other_income=other_income,
-                    effective_days=effective_days,
-                    director_salary=director_salary,
-                    director_pension=aa_check.annual_allowance,
-                    company_expenses=company_expenses,
-                    retained_profit=retained_profit,
-                    employment_allowance=employment_allowance,
-                    region=region,
-                    student_loan_plan=student_loan_plan,
-                    postgraduate_loan=postgraduate_loan,
-                    has_child_benefit=has_child_benefit,
-                    num_children=num_children,
-                    _aa_recursed=True,
-                )
 
         # Personal Allowance depends on total adjusted net income (salary +
         # dividends + existing + other). Computed here for the salary income-tax
