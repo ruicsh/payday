@@ -421,5 +421,135 @@ class TestSoleTraderFormatter(unittest.TestCase):
         self.assertIn("[Scotland]", format_breakdown(b))
 
 
+class TestPaymentsOnAccount(unittest.TestCase):
+    """Payments on Account — https://www.gov.uk/understand-self-assessment-bill/payments-on-account"""
+
+    def _find_step(self, breakdown, label):
+        for step in breakdown.steps:
+            if step.label == label:
+                return step
+        self.fail(f"Step '{label}' not found")
+
+    def test_first_year_over_threshold_doubles(self):
+        b = SoleTraderCalculator.calculate(500, 240, is_first_year_sole_trader=True)
+        assert b.income_tax is not None
+        assert b.class4_ni is not None
+        bill = b.income_tax.total_tax + b.class4_ni.total_ni
+        self.assertGreater(bill, 1_000)
+        self.assertEqual(b.self_assessment_cash_needed, bill * 2)
+        self.assertEqual(
+            self._find_step(b, "Cash Needed for Self Assessment").amount, bill * 2
+        )
+        self.assertEqual(b.inputs["self_assessment_bill"], bill)
+        self.assertEqual(b.inputs["self_assessment_cash_needed"], bill * 2)
+        self.assertTrue(b.inputs["is_first_year_sole_trader"])
+
+    def test_first_year_under_threshold_no_poa(self):
+        b = SoleTraderCalculator.calculate(60, 240, is_first_year_sole_trader=True)
+        assert b.income_tax is not None
+        assert b.class4_ni is not None
+        bill = b.income_tax.total_tax + b.class4_ni.total_ni
+        self.assertLessEqual(bill, 1_000)
+        self.assertEqual(b.self_assessment_cash_needed, bill)
+        self.assertEqual(
+            self._find_step(b, "Cash Needed for Self Assessment").amount, bill
+        )
+        # inputs always exposed even when no POA triggered
+        self.assertEqual(b.inputs["self_assessment_cash_needed"], bill)
+
+    def test_non_first_year_no_poa_even_over_threshold(self):
+        b = SoleTraderCalculator.calculate(500, 240, is_first_year_sole_trader=False)
+        assert b.income_tax is not None
+        assert b.class4_ni is not None
+        bill = b.income_tax.total_tax + b.class4_ni.total_ni
+        self.assertGreater(bill, 1_000)
+        self.assertEqual(b.self_assessment_cash_needed, bill)
+        self.assertEqual(
+            self._find_step(b, "Cash Needed for Self Assessment").amount, bill
+        )
+        self.assertNotIn("is_first_year_sole_trader", b.inputs)
+        # but cash figure still exposed
+        self.assertEqual(b.inputs["self_assessment_cash_needed"], bill)
+
+    def test_boundary_strictly_greater_than_1000(self):
+        from payday.constants import PAYMENTS_ON_ACCOUNT_THRESHOLD
+
+        self.assertEqual(PAYMENTS_ON_ACCOUNT_THRESHOLD, 1_000)
+        # Just under vs just over using calibrated day rates (60→476, 70→1100)
+        under = SoleTraderCalculator.calculate(60, 240, is_first_year_sole_trader=True)
+        over = SoleTraderCalculator.calculate(70, 240, is_first_year_sole_trader=True)
+        self.assertEqual(
+            under.self_assessment_cash_needed, under.inputs["self_assessment_bill"]
+        )
+        self.assertEqual(
+            over.self_assessment_cash_needed, over.inputs["self_assessment_bill"] * 2
+        )
+
+    def test_student_loan_excluded_from_poa_base(self):
+        b_no_sl = SoleTraderCalculator.calculate(
+            500, 240, is_first_year_sole_trader=True
+        )
+        b_sl = SoleTraderCalculator.calculate(
+            500, 240, student_loan_plan="plan2", is_first_year_sole_trader=True
+        )
+        assert b_no_sl.income_tax is not None
+        assert b_no_sl.class4_ni is not None
+        assert b_sl.income_tax is not None
+        assert b_sl.class4_ni is not None
+        bill_no_sl = b_no_sl.income_tax.total_tax + b_no_sl.class4_ni.total_ni
+        bill_sl = b_sl.income_tax.total_tax + b_sl.class4_ni.total_ni
+        self.assertEqual(bill_no_sl, bill_sl)
+        self.assertEqual(b_sl.self_assessment_cash_needed, bill_sl * 2)
+        assert b_sl.student_loan is not None
+        self.assertNotEqual(
+            b_sl.self_assessment_cash_needed,
+            (bill_sl + b_sl.student_loan.repayment) * 2,
+        )
+
+    def test_default_flag_is_false(self):
+        b = SoleTraderCalculator.calculate(500, 240)
+        assert b.income_tax is not None
+        assert b.class4_ni is not None
+        bill = b.income_tax.total_tax + b.class4_ni.total_ni
+        self.assertEqual(b.self_assessment_cash_needed, bill)
+        self.assertNotIn("is_first_year_sole_trader", b.inputs)
+
+    def test_is_first_year_config_roundtrip(self):
+        import json
+        import tempfile
+        import os
+        from payday.config import load_config
+
+        for val in (True, False):
+            data = {"mode": "sole_trader", "is_first_year_sole_trader": val}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                cfg = load_config(path)
+                assert cfg is not None
+                self.assertEqual(cfg["is_first_year_sole_trader"], val)
+            finally:
+                os.unlink(path)
+
+    def test_is_first_year_invalid_type_rejected(self):
+        import json
+        import tempfile
+        import os
+        from payday.config import load_config
+
+        data = {"mode": "sole_trader", "is_first_year_sole_trader": "yes"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            with self.assertRaises(ValueError):
+                load_config(path)
+        finally:
+            os.unlink(path)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -140,3 +140,4 @@ class SalaryBreakdown:
     postgraduate_loan: StudentLoanResult | None = None
     class4_ni: Class4NIResult | None = None
     hicbc: HICBCResult | None = None
+    self_assessment_cash_needed: int | None = None

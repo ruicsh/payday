@@ -2,7 +2,11 @@ from payday.annual_allowance import (
     calc_annual_allowance,
     find_max_pension_sole_trader,
 )
-from payday.constants import MAX_SALARY_SACRIFICE
+from payday.constants import (
+    MAX_SALARY_SACRIFICE,
+    PAYMENTS_ON_ACCOUNT_RATE,
+    PAYMENTS_ON_ACCOUNT_THRESHOLD,
+)
 from payday.hicbc import apply_hicbc_inputs, hicbc_result_and_steps
 from payday.income_tax import (
     calc_adjusted_net_income,
@@ -32,6 +36,7 @@ class SoleTraderCalculator:
         postgraduate_loan: bool = False,
         has_child_benefit: bool = False,
         num_children: int = 1,
+        is_first_year_sole_trader: bool = False,
     ) -> SalaryBreakdown:
         """Sole Trader (self-employed): Turnover → expenses → profit → IT + Class 4 NI → 20-day.
         Sole trader setup: https://www.gov.uk/set-up-sole-trader
@@ -64,6 +69,12 @@ class SoleTraderCalculator:
         income (trading profit + existing income + existing self-employment).
         Class 2 NI is treated as paid above £7,105 (no compulsory charge
         since 6 Apr 2024) — only Class 4 (6%/2%) is deducted in take-home.
+        *has_child_benefit* / *num_children* drive the HICBC advisory.
+        *is_first_year_sole_trader* when true and the Self Assessment bill
+        (Income Tax + Class 4 NI) exceeds £1,000, two 50% payments on account
+        apply — cash needed is 200% of the bill (balancing payment +
+        2 × PAYMENTS_ON_ACCOUNT_RATE). Does not affect take-home.
+        https://www.gov.uk/understand-self-assessment-bill/payments-on-account
         """
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
@@ -204,10 +215,30 @@ class SoleTraderCalculator:
         )
         steps.extend(hicbc_steps)
 
+        # Payments on Account — cash needed for Self Assessment.
+        # HMRC requires two 50% advance payments towards next year's bill
+        # when the current Self Assessment bill (Income Tax + Class 4 NI)
+        # exceeds £1,000. First-year cash outflow is therefore 200% of the
+        # bill (balancing payment + 2 × PAYMENTS_ON_ACCOUNT_RATE).
+        # https://www.gov.uk/understand-self-assessment-bill/payments-on-account
+        # Note: student loan and HICBC are collected via Self Assessment but
+        # are excluded from the payments-on-account base.
+        self_assessment_bill = it_result.total_tax + class4_result.total_ni
+        if (
+            is_first_year_sole_trader
+            and self_assessment_bill > PAYMENTS_ON_ACCOUNT_THRESHOLD
+        ):
+            cash_needed = round(
+                self_assessment_bill * (1 + 2 * PAYMENTS_ON_ACCOUNT_RATE)
+            )
+        else:
+            cash_needed = self_assessment_bill
+
         steps += [
             StepLine("Annual Take-Home", annual_take_home, is_subtotal=True),
             StepLine("20-Day Take-Home", take_home_20_day),
             StepLine("Year Taxable Income", year_taxable_income, is_subtotal=True),
+            StepLine("Cash Needed for Self Assessment", cash_needed),
         ]
 
         inputs: dict = {
@@ -239,6 +270,13 @@ class SoleTraderCalculator:
             inputs["student_loan_plan"] = student_loan_plan
         if postgraduate_loan:
             inputs["postgraduate_loan"] = True
+        if is_first_year_sole_trader:
+            inputs["is_first_year_sole_trader"] = True
+        # Always expose the Self Assessment cash figure (used by the
+        # "Cash Needed for Self Assessment" step and for programmatic access
+        # via SalaryBreakdown.self_assessment_cash_needed).
+        inputs["self_assessment_bill"] = self_assessment_bill
+        inputs["self_assessment_cash_needed"] = cash_needed
         apply_hicbc_inputs(inputs, hicbc_result, has_child_benefit)
 
         return SalaryBreakdown(
@@ -254,4 +292,5 @@ class SoleTraderCalculator:
             student_loan=sl_result,
             postgraduate_loan=pgl_result,
             hicbc=hicbc_result,
+            self_assessment_cash_needed=cash_needed,
         )

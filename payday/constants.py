@@ -132,6 +132,14 @@ PAYSTREAM_ADMIN_CHARGE_WEEKLY: float = 8.40
 HICBC_LOWER_THRESHOLD: int = 60_000
 HICBC_UPPER_THRESHOLD: int = 80_000
 
+# Payments on Account (Self Assessment — Sole Trader)
+# Source: https://www.gov.uk/understand-self-assessment-bill/payments-on-account
+# If your Self Assessment bill (Income Tax + Class 4 NI) exceeds £1,000 you
+# must make two advance payments of 50% each towards next year's bill
+# (31 Jan + 31 Jul). First-year cash outflow is therefore 200% of the bill.
+PAYMENTS_ON_ACCOUNT_THRESHOLD: int = 1_000
+PAYMENTS_ON_ACCOUNT_RATE: float = 0.5
+
 # Child Benefit rates (2026/27 weekly)
 # Source: https://www.gov.uk/child-benefit-rates
 CHILD_BENEFIT_FIRST_CHILD_WEEKLY: float = 26.05

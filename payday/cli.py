@@ -386,6 +386,25 @@ def prompt_num_children(
     )
 
 
+def prompt_is_first_year_sole_trader(config: dict | None = None) -> bool:
+    """Ask whether this is the first year as a sole trader (for Payments on Account).
+
+    When true and the Self Assessment bill (Income Tax + Class 4 NI) exceeds
+    £1,000, HMRC requires two 50% payments on account — cash needed is 200%
+    of the bill. https://www.gov.uk/understand-self-assessment-bill/payments-on-account
+    """
+    if config is not None:
+        val = config.get("is_first_year_sole_trader")
+        if val is not None:
+            print(
+                f"Is this your first year as a sole trader? [y/N]: {'yes' if val else 'no'}"
+            )
+            return bool(val)
+        return False
+    answer = input("Is this your first year as a sole trader? [y/N]: ").strip().lower()
+    return answer == "y"
+
+
 def prompt_salary_sacrifice(
     gross: int,
     *,
@@ -1237,6 +1256,7 @@ def run_once(config: dict | None = None) -> None:
         has_child_benefit = prompt_has_child_benefit(config)
         num_children = prompt_num_children(config, has_child_benefit=has_child_benefit)
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
+        is_first_year_sole_trader = prompt_is_first_year_sole_trader(config)
 
         breakdown = SoleTraderCalculator.calculate(
             day_rate,
@@ -1253,6 +1273,7 @@ def run_once(config: dict | None = None) -> None:
             postgraduate_loan=postgraduate_loan,
             has_child_benefit=has_child_benefit,
             num_children=num_children,
+            is_first_year_sole_trader=is_first_year_sole_trader,
         )
         if (
             breakdown.annual_allowance

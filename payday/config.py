@@ -16,6 +16,7 @@ BOOLEAN_FIELDS = {
     "employment_allowance",
     "has_child_benefit",
     "vat_registered",
+    "is_first_year_sole_trader",
 }
 # Fields where false is a sentinel meaning "off / no value".
 FALSE_SENTINEL_FIELDS = {"income_target"}
@@ -46,6 +47,7 @@ FIELD_TYPES = {
     "vat_flat_rate": (float, int, bool, type(None)),
     "business_expenses": (int, bool, type(None)),
     "personal_pension": (int, bool, type(None)),
+    "is_first_year_sole_trader": (bool, type(None)),
     "region": (str, type(None)),
     "student_loan_plan": (str, type(None)),
     "postgraduate_loan": (bool, type(None)),
@@ -79,6 +81,7 @@ _ALL_FIELDS = [
     "vat_flat_rate",
     "business_expenses",
     "personal_pension",
+    "is_first_year_sole_trader",
     "region",
     "student_loan_plan",
     "postgraduate_loan",

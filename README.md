@@ -142,6 +142,7 @@ For self-employed sole traders operating as an individual. The business receives
 | Existing employment income         | £0                    | Income already earned this tax year (consumes PA and rate bands)                                                             |
 | Existing self-employment profit    | £0                    | Self-employment profit already earned this tax year (consumes PA, rate bands and Class 4 NI bands)                         |
 | Other taxable income               | £0                    | All other taxable income (savings interest, property, etc.); consumes PA/rate bands and feeds the Annual Allowance taper    |
+| First year as sole trader          | No                    | When `true` and the Self Assessment bill (Income Tax + Class 4 NI) exceeds £1,000, two 50% payments on account apply — cash needed is 200% of the bill ([GOV.UK](https://www.gov.uk/understand-self-assessment-bill/payments-on-account)) |
 
 **Flow (Sole Trader — Self Assessment on trading profit; Class 2 treated as paid above £7,105, so only Class 4 is deducted):**
 
@@ -160,6 +161,9 @@ For self-employed sole traders operating as an individual. The business receives
   ────────────────────────────
   Annual Take-Home       £N
   20-Day Take-Home       £N
+  Year Taxable Income    £N
+  Cash Needed for Self Assessment  £N  (Income Tax + Class 4 NI; 200% when first year and bill > £1,000 due to two 50% payments on account)
+  *Student loan and HICBC are collected via Self Assessment but excluded from the payments-on-account base.*
 ```
 
 ---
@@ -182,6 +186,7 @@ All rates, thresholds and formulas used in this project are sourced from the fol
 | VAT Flat Rate — How Much You Pay                 | [https://www.gov.uk/vat-flat-rate-scheme/how-much-you-pay](https://www.gov.uk/vat-flat-rate-scheme/how-much-you-pay)                                                                                                                                                                                                   |
 | VAT Notice 733 (Flat Rate Scheme)                | [https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2](https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2)                                                                                                                                             |
 | BIM31585 (Trading Profits — Flat Rate VAT)       | [https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim31585](https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim31585)                                                                                                                                                                   |
+| Payments on Account (Self Assessment)          | [https://www.gov.uk/understand-self-assessment-bill/payments-on-account](https://www.gov.uk/understand-self-assessment-bill/payments-on-account)                                                                                                                                                                                |
 | Limited Company Expenses                         | [https://www.gov.uk/limited-company-expenses](https://www.gov.uk/limited-company-expenses)                                                                                                                                                                                                                          |
 | Student Loan Repayments (thresholds & rates)   | [https://www.gov.uk/repaying-your-student-loan/what-you-pay](https://www.gov.uk/repaying-your-student-loan/what-you-pay)                                                                                                                                                                                           |
 | Self-Employed National Insurance (Class 4)     | [https://www.gov.uk/self-employed-national-insurance-rates](https://www.gov.uk/self-employed-national-insurance-rates)                                                                                                                                                                                             |
@@ -287,6 +292,7 @@ All fields are optional.
 | `vat_flat_rate`            | float or null       | Flat-rate % as decimal (e.g. `0.165` = 16.5% limited cost trader since 1 Apr 2017 per [VAT Notice 733 ¶4.4](https://www.gov.uk/guidance/flat-rate-scheme-for-small-businesses-vat-notice-733--2); sector rates 4%–14.5% otherwise). Only when `vat_scheme: flat_rate`; `true`/`null` = default 16.5%. |
 | `business_expenses`        | int, bool, or null  | Annual allowable business expenses (Sole Trader only, ≥ 0); `true` = £0                          |
 | `personal_pension`         | int, bool, or null  | Annual personal pension contribution (Sole Trader only, ≥ 0, max £60k, tapered to £10k when threshold >£200k and adjusted >£260k); `true` = £0. Reduces Income Tax but not Class 4 NI. |
+| `is_first_year_sole_trader` | bool or null       | `true` = first year as sole trader — when the Self Assessment bill (Income Tax + Class 4 NI) exceeds £1,000, cash needed is 200% (bill + two 50% payments on account per [GOV.UK](https://www.gov.uk/understand-self-assessment-bill/payments-on-account)). `false`/`null` = not first year (cash = bill). Does not affect take-home. |
 | `region`                   | string or null      | `"scotland"` for Scottish Income Tax; `"england"`/`"wales"`/`"northern_ireland"`/`"rest_of_uk"` (or `null`) = rUK rates. Non-Scottish aliases are equivalent to `rest_of_uk`. |
 | `student_loan_plan`        | string or null      | Undergraduate plan: `"plan1"`, `"plan2"`, `"plan4"`, `"plan5"` (or `null` = no loan). All modes — PAYE/Inside IR35 via PAYE, Outside IR35 via Self Assessment on salary+dividends, Sole Trader via Self Assessment on taxable profit + existing. |
 | `postgraduate_loan`        | bool or null        | `true` = Postgraduate Loan (6% above £21,000); stacks on top of `student_loan_plan`. `false`/`null` = none. Independent — valid without an undergraduate plan. |
