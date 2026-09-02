@@ -35,8 +35,12 @@ def calc_student_loan(
     """Student Loan Plan 1/2/4/5 repayment (9% above threshold).
     Source: https://www.gov.uk/repaying-your-student-loan/what-you-pay
 
-    *existing_income* is income already earned this tax year. It reduces
-    the remaining threshold before the current *income* repays.
+    The plan is fixed by where the loan was *funded* and when the course
+    started, not where the borrower now lives: SAAS (Scotland) = plan4,
+    Student Finance NI = plan1, England = plan1/plan2/plan5 by start date,
+    Wales = plan1/plan2. *existing_income* is income already earned this tax
+    year. It reduces the remaining threshold before the current *income*
+    repays.
 
     >>> calc_student_loan(35000, "plan2").repayment
     505
@@ -62,12 +66,13 @@ def calc_postgraduate_loan(
     """Postgraduate Loan (Plan 3) repayment (6% above £21,000; England & Wales only).
     Source: https://www.gov.uk/repaying-your-student-loan/what-you-pay
 
-    Stacks on top of an undergraduate plan repayment. Postgraduate loans for
-    Scotland and Northern Ireland are not Plan 3 — they repay under the Plan 4
-    (Scotland) and Plan 1 (Northern Ireland) systems instead, combined with
-    the undergraduate debt. Lifelong Learning Entitlement and Advanced Learner
-    Loans also have no separate parameters: they repay on Plan 5 (post-Aug
-    2023) or Plan 2 (pre-2023) terms.
+    Stacks on top of an undergraduate plan repayment. Postgraduate loans
+    funded by Scotland and Northern Ireland are not Plan 3 — they repay
+    under the Plan 4 (Scotland) and Plan 1 (Northern Ireland) systems
+    instead (see calc_student_loan), combined with the undergraduate debt.
+    Lifelong Learning Entitlement and Advanced Learner Loans also have no
+    separate parameters: they repay on Plan 5 (post-Aug 2023) or Plan 2
+    (pre-2023) terms.
 
     >>> calc_postgraduate_loan(30000).repayment
     540

@@ -950,9 +950,12 @@ def prompt_student_loan(
     ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``, and postgraduate is a bool
     (the Plan 3 Postgraduate Loan, England & Wales only).
 
-    In config mode absent/null means no loan (no prompt, no repayment).
-    The undergraduate plan and Plan 3 postgraduate loan stack independently —
-    a borrower can hold both at once.
+    The plan is set by where the loan was funded, not where you now live:
+    SAAS (Scotland) = Plan 4, Student Finance NI = Plan 1, England =
+    Plan 1/2/5 by course start date, Wales = Plan 1/2. In config mode
+    absent/null means no loan (no prompt, no repayment). The undergraduate
+    plan and Plan 3 postgraduate loan stack independently — a borrower can
+    hold both at once.
     """
     if config is not None:
         plan = config.get("student_loan_plan")
@@ -965,6 +968,10 @@ def prompt_student_loan(
         return plan, pgl
 
     # Interactive: undergraduate plan
+    print(
+        "Hint: your plan is set by where you were funded — SAAS=Plan 4, "
+        "NI=Plan 1, England=Plan 1/2/5, Wales=Plan 1/2 by course start date."
+    )
     plan: str | None = None
     while True:
         raw = input("Student loan plan [1/2/4/5, ENTER for none]: ").strip().lower()
