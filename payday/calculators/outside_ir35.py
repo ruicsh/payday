@@ -46,6 +46,7 @@ class OutsideIR35Calculator:
         postgraduate_loan: bool = False,
         has_child_benefit: bool = False,
         num_children: int = 1,
+        ni_category: str = "A",
         _aa_recursed: bool = False,
     ) -> SalaryBreakdown:
         """Outside IR35: Revenue → CT → dividends → tax → Student Loan → 20-day.
@@ -220,6 +221,7 @@ class OutsideIR35Calculator:
                     postgraduate_loan=postgraduate_loan,
                     has_child_benefit=has_child_benefit,
                     num_children=num_children,
+                    ni_category=ni_category,
                     _aa_recursed=True,
                 )
             pension = pension_requested
@@ -262,7 +264,7 @@ class OutsideIR35Calculator:
             existing_income=round(existing_income + other_income),
             region=region,
         )
-        ee_ni_result = calc_employee_ni(salary)
+        ee_ni_result = calc_employee_ni(salary, ni_category)
 
         div_tax_result = calc_dividend_tax(
             dividends,
@@ -377,6 +379,8 @@ class OutsideIR35Calculator:
             "salary": salary,
             "net_dividends": net_dividends,
         }
+        if ni_category.upper() != "A":
+            inputs["ni_category"] = ni_category.upper()
         if other_income:
             inputs["other_income"] = other_income
         if aa_result and aa_result.tapered:

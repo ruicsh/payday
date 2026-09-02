@@ -33,6 +33,7 @@ class PAYECalculator:
         has_child_benefit: bool = False,
         num_children: int = 1,
         pension_method: str = DEFAULT_PENSION_METHOD,
+        ni_category: str = "A",
     ) -> SalaryBreakdown:
         """PAYE: Gross → IT + EE NI + Pension + Student Loan → take-home (monthly).
         Income Tax: https://www.gov.uk/income-tax-rates
@@ -131,7 +132,7 @@ class PAYECalculator:
                 region=region,
                 basic_rate_band_extension=band_extension,
             )
-        ni_result = calc_employee_ni(effective_gross)
+        ni_result = calc_employee_ni(effective_gross, ni_category)
 
         sl_result = (
             calc_student_loan(effective_gross, student_loan_plan)
@@ -224,6 +225,8 @@ class PAYECalculator:
         ]
 
         inputs: dict = {"salary": salary}
+        if ni_category.upper() != "A":
+            inputs["ni_category"] = ni_category.upper()
         if other_income:
             inputs["other_income"] = other_income
         if aa_result and aa_result.tapered:

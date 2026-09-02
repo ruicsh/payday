@@ -630,6 +630,87 @@ class TestLoadConfig(unittest.TestCase):
         finally:
             os.unlink(path)
 
+    # ── NI category config tests ──────────────────────────────────────
+
+    def test_ni_category_valid_accepted(self):
+        for cat in ("A", "B", "C", "Z"):
+            data = {"mode": "paye", "ni_category": cat}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                result = load_config(path)
+                assert result is not None
+                self.assertEqual(result["ni_category"], cat)
+            finally:
+                os.unlink(path)
+
+    def test_ni_category_case_insensitive_accepted(self):
+        data = {"mode": "paye", "ni_category": "z"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertEqual(result["ni_category"], "z")
+        finally:
+            os.unlink(path)
+
+    def test_ni_category_null_accepted(self):
+        data = {"mode": "paye", "ni_category": None}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIsNone(result["ni_category"])
+        finally:
+            os.unlink(path)
+
+    def test_ni_category_absent_is_none(self):
+        data = {"mode": "paye"}
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(data, f)
+            path = f.name
+        try:
+            result = load_config(path)
+            assert result is not None
+            self.assertIsNone(result["ni_category"])
+        finally:
+            os.unlink(path)
+
+    def test_ni_category_invalid_rejected(self):
+        for bad in ("X", "AA", "", "1", "J", "H", "M", "V"):
+            data = {"mode": "paye", "ni_category": bad}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                with self.assertRaises(ValueError):
+                    load_config(path)
+            finally:
+                os.unlink(path)
+
+    def test_ni_category_wrong_type_rejected(self):
+        for bad in (1, True, 3.5):
+            data = {"mode": "paye", "ni_category": bad}
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False
+            ) as f:
+                json.dump(data, f)
+                path = f.name
+            try:
+                with self.assertRaises(ValueError):
+                    load_config(path)
+            finally:
+                os.unlink(path)
+
 
 class TestGenerateTemplate(unittest.TestCase):
     def test_generates_valid_json_file(self):

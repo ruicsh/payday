@@ -529,6 +529,7 @@ class TestVATCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept working days
             "y",  # Scotland? y
+            "",  # NI category [A]
             "9100",  # director salary
             "3000",  # company expenses
             "5000",  # director pension

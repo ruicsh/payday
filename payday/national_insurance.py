@@ -1,39 +1,68 @@
 from payday.constants import (
-    NI_PRIMARY_THRESHOLD,
-    NI_UPPER_EARNINGS_LIMIT,
-    NI_MAIN_RATE,
-    NI_UPPER_RATE,
-    NI_SECONDARY_THRESHOLD,
-    NI_EMPLOYER_RATE,
+    NI_CATEGORIES,
     NI_CLASS4_LOWER_PROFITS_LIMIT,
-    NI_CLASS4_UPPER_PROFITS_LIMIT,
     NI_CLASS4_MAIN_RATE,
+    NI_CLASS4_UPPER_PROFITS_LIMIT,
     NI_CLASS4_UPPER_RATE,
+    NI_EMPLOYER_RATE,
+    NI_PRIMARY_THRESHOLD,
+    NI_SECONDARY_THRESHOLD,
+    NI_UPPER_EARNINGS_LIMIT,
 )
 from payday.models import Class4NIResult, EmployeeNIResult, EmployerNIResult
 
 
-def calc_employee_ni(salary: int) -> EmployeeNIResult:
-    """Employee Class 1 NI, Category A (2026/27).
+def _ni_category_params(category: str) -> dict[str, float]:
+    key = category.upper()
+    if key not in NI_CATEGORIES:
+        raise ValueError(
+            f"Unknown NI category '{category}'. "
+            f"Expected one of {', '.join(sorted(NI_CATEGORIES))}"
+        )
+    return NI_CATEGORIES[key]
+
+
+def calc_employee_ni(salary: int, category: str = "A") -> EmployeeNIResult:
+    """Employee Class 1 NI (2026/27).
     Employee NI: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
+    Category letters: https://www.gov.uk/national-insurance-rates-letters
 
-    - 0% on earnings up to £12,570
-    - 8% on £12,571 to £50,270
-    - 2% on earnings above £50,270
+    Category A (standard): 0% to PT, 8% PT-UEL, 2% above UEL
+    Category B (married women/widows): 1.85% PT-UEL, 2% above
+    Category C (over State Pension age): 0% (no employee NI)
+    Category Z (under-21 deferment): 2% above PT
 
-    >>> res = calc_employee_ni(50000)
-    >>> res.total_ni
+    >>> calc_employee_ni(50000).total_ni
     2994
+    >>> calc_employee_ni(50000, "B").total_ni
+    692
+    >>> calc_employee_ni(50000, "C").total_ni
+    0
     """
+    params = _ni_category_params(category)
+    main_rate = float(params["employee_main_rate"])
+    upper_rate = float(params["employee_upper_rate"])
+
     below_pt = min(salary, NI_PRIMARY_THRESHOLD)
 
     main_band = max(0, min(salary, NI_UPPER_EARNINGS_LIMIT) - NI_PRIMARY_THRESHOLD)
-    main_ni = round(main_band * NI_MAIN_RATE)
+    main_ni = round(main_band * main_rate)
 
     upper_band = max(0, salary - NI_UPPER_EARNINGS_LIMIT)
-    upper_ni = round(upper_band * NI_UPPER_RATE)
+    upper_ni = round(upper_band * upper_rate)
 
     total_ni = main_ni + upper_ni
+
+    # Zero-rate categories (e.g. C — over State Pension age) owe no employee
+    # NI: all earnings sit below the chargeable threshold (below_pt = salary)
+    # and every chargeable band is zero.
+    if main_rate == 0.0 and upper_rate == 0.0:
+        below_pt = salary
+        main_band = 0
+        main_ni = 0
+        upper_band = 0
+        upper_ni = 0
+        total_ni = 0
 
     return EmployeeNIResult(
         below_pt=below_pt,
@@ -52,8 +81,7 @@ def calc_employer_ni(gross_salary: int) -> EmployerNIResult:
     - 0% on earnings up to £5,000
     - 15% on earnings above £5,000
 
-    >>> res = calc_employer_ni(50000)
-    >>> res.total_er_ni
+    >>> calc_employer_ni(50000).total_er_ni
     6750
     """
     below_st = min(gross_salary, NI_SECONDARY_THRESHOLD)

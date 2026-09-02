@@ -2,7 +2,11 @@ import sys
 from collections.abc import Callable
 from payday.annual_allowance import find_max_pension_for_threshold
 from payday.config import VALID_MODES
-from payday.constants import MAX_SALARY_SACRIFICE, PAYSTREAM_ADMIN_CHARGE_WEEKLY
+from payday.constants import (
+    MAX_SALARY_SACRIFICE,
+    PAYSTREAM_ADMIN_CHARGE_WEEKLY,
+    VALID_NI_CATEGORIES,
+)
 from payday.hicbc import recommended_ani_cap
 from payday.calculators.optimal_sacrifice import (
     calc_optimal_sacrifice_inside_ir35,
@@ -909,6 +913,34 @@ def prompt_pension_method(config: dict | None = None) -> str:
         print("Error: Enter 'relief_at_source' or 'net_pay'.")
 
 
+def prompt_ni_category(config: dict | None = None) -> str:
+    """Ask for the NI category letter.
+
+    Returns one of ``"A"``/``"B"``/``"C"``/``"Z"`` (default ``"A"``).
+    Case-insensitive.
+
+    In config mode absent/null means Category A (standard).
+    """
+    if config is not None:
+        val = config.get("ni_category")
+        if val is not None:
+            upper = str(val).upper()
+            if upper not in VALID_NI_CATEGORIES:
+                raise ValueError(
+                    f"ni_category: must be one of {', '.join(sorted(VALID_NI_CATEGORIES))}, got '{val}'"
+                )
+            print(f"NI category letter [A/B/C/Z] [A]: {upper}")
+            return upper
+        return "A"
+    while True:
+        raw = input("NI category letter [A/B/C/Z] [A]: ").strip().upper()
+        if not raw or raw == "A":
+            return "A"
+        if raw in VALID_NI_CATEGORIES:
+            return raw
+        print(f"Error: Enter one of {', '.join(sorted(VALID_NI_CATEGORIES))}.")
+
+
 def prompt_student_loan(
     config: dict | None = None,
 ) -> tuple[str | None, bool]:
@@ -1062,6 +1094,7 @@ def run_once(config: dict | None = None) -> None:
         print("  Regular PAYE")
         print("═══════════════════════════════════════")
         region = prompt_region(config)
+        ni_category = prompt_ni_category(config)
         salary = prompt_int(
             "Enter your annual gross salary (£)",
             min_val=0,
@@ -1089,6 +1122,7 @@ def run_once(config: dict | None = None) -> None:
             has_child_benefit=has_child_benefit,
             num_children=num_children,
             pension_method=pension_method,
+            ni_category=ni_category,
         )
         # Safety net: if calculator capped further (e.g. estimate drift), surface it.
         if (
@@ -1126,6 +1160,7 @@ def run_once(config: dict | None = None) -> None:
         )
         is_paystream = prompt_paystream(config)
         region = prompt_region(config)
+        ni_category = prompt_ni_category(config)
         has_child_benefit = prompt_has_child_benefit(config)
         num_children = prompt_num_children(config, has_child_benefit=has_child_benefit)
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
@@ -1172,6 +1207,7 @@ def run_once(config: dict | None = None) -> None:
             has_child_benefit=has_child_benefit,
             num_children=num_children,
             pension_method=pension_method,
+            ni_category=ni_category,
         )
         if (
             breakdown.annual_allowance
@@ -1202,6 +1238,7 @@ def run_once(config: dict | None = None) -> None:
         net_working_days, _ = prompt_working_days(start_month, config)
 
         region = prompt_region(config)
+        ni_category = prompt_ni_category(config)
         director_salary = prompt_int(
             "Director salary (£)",
             default=12_570,
@@ -1256,6 +1293,7 @@ def run_once(config: dict | None = None) -> None:
             postgraduate_loan=postgraduate_loan,
             has_child_benefit=has_child_benefit,
             num_children=num_children,
+            ni_category=ni_category,
         )
         if (
             breakdown.annual_allowance

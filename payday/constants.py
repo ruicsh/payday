@@ -41,6 +41,37 @@ APPRENTICESHIP_LEVY_RATE: float = (
     0.005  # Source: https://www.gov.uk/guidance/pay-apprenticeship-levy
 )
 
+# National Insurance — Category letters (Class 1 employee rates) (2026/27)
+# Source: https://www.gov.uk/national-insurance-rates-letters
+# Source: https://www.gov.uk/government/publications/rates-and-allowances-national-insurance-contributions/rates-and-allowances-national-insurance-contributions
+# Employee main rate applies between PT and UEL; upper rate above UEL.
+# Only letters that change employee take-home are supported. H/M/V carry the
+# standard employee rates (same as A) and their employer zero-rate relief is
+# inapplicable to the tool's employer-NI scenarios (umbrella contractors and
+# Ltd-company directors), so they are not offered.
+NI_EMPLOYEE_MAIN_RATE_B: float = 0.0185  # married women's / widows' reduced rate
+NI_DEFERRED_RATE: float = 0.02  # employee deferment (Z)
+
+NI_CATEGORIES: dict[str, dict[str, float]] = {
+    "A": {
+        "employee_main_rate": NI_MAIN_RATE,
+        "employee_upper_rate": NI_UPPER_RATE,
+    },
+    "B": {
+        "employee_main_rate": NI_EMPLOYEE_MAIN_RATE_B,
+        "employee_upper_rate": NI_UPPER_RATE,
+    },
+    "C": {
+        "employee_main_rate": 0.0,
+        "employee_upper_rate": 0.0,
+    },
+    "Z": {
+        "employee_main_rate": NI_DEFERRED_RATE,
+        "employee_upper_rate": NI_DEFERRED_RATE,
+    },
+}
+VALID_NI_CATEGORIES: frozenset[str] = frozenset(NI_CATEGORIES)
+
 # Corporation Tax (Financial Year 2026)
 # Source: https://www.gov.uk/corporation-tax-rates
 CT_SMALL_PROFITS_RATE: float = 0.19

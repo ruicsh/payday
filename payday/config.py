@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from payday.constants import VALID_NI_CATEGORIES
+
 
 VALID_MODES = {"paye": 1, "inside_ir35": 2, "outside_ir35": 3, "sole_trader": 4}
 VALID_SACRIFICE_KEYWORDS = {"max", "auto"}
@@ -56,6 +58,7 @@ FIELD_TYPES = {
     "has_child_benefit": (bool, type(None)),
     "num_children": (int, bool, type(None)),
     "pension_method": (str, type(None)),
+    "ni_category": (str, type(None)),
 }
 _ALL_FIELDS = [
     "mode",
@@ -91,6 +94,7 @@ _ALL_FIELDS = [
     "has_child_benefit",
     "num_children",
     "pension_method",
+    "ni_category",
 ]
 
 
@@ -218,6 +222,12 @@ def _validate_field(key: str, value: Any) -> None:
         if value not in VALID_PENSION_METHODS:
             raise ValueError(
                 f"'pension_method': must be one of {', '.join(sorted(VALID_PENSION_METHODS))}, got '{value}'"
+            )
+
+    elif key == "ni_category" and value is not None:
+        if not isinstance(value, str) or value.upper() not in VALID_NI_CATEGORIES:
+            raise ValueError(
+                f"'ni_category': must be one of {', '.join(sorted(VALID_NI_CATEGORIES))}, got '{value}'"
             )
 
 

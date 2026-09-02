@@ -49,6 +49,7 @@ class InsideIR35Calculator:
         has_child_benefit: bool = False,
         num_children: int = 1,
         pension_method: str = DEFAULT_PENSION_METHOD,
+        ni_category: str = "A",
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension + Student Loan → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
@@ -77,6 +78,7 @@ class InsideIR35Calculator:
         rate). Only applies to the auto-enrolment workplace pension; salary
         sacrifice is handled separately.
         Pension tax relief: https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief
+        *ni_category* is the NI category letter (``"A"`` default, ``"B"``/``"C"``/``"Z"``).
         """
         if pension_method not in VALID_PENSION_METHODS:
             raise ValueError(
@@ -248,7 +250,7 @@ class InsideIR35Calculator:
                 region=region,
                 basic_rate_band_extension=band_extension,
             )
-        ee_ni_result = calc_employee_ni(effective_gross)
+        ee_ni_result = calc_employee_ni(effective_gross, ni_category)
 
         sl_result = (
             calc_student_loan(effective_gross, student_loan_plan, existing_income)
@@ -436,6 +438,8 @@ class InsideIR35Calculator:
             "margin_weekly": umbrella_margin_weekly,
             "effective_working_days": effective_days,
         }
+        if ni_category.upper() != "A":
+            inputs["ni_category"] = ni_category.upper()
         if other_income:
             inputs["other_income"] = other_income
         if aa_result and aa_result.tapered:

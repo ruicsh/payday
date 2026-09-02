@@ -5,12 +5,46 @@ from payday.cli import (
     prompt_existing_income,
     prompt_float,
     prompt_int,
+    prompt_ni_category,
     prompt_paystream,
     prompt_salary_sacrifice,
     prompt_student_loan,
     prompt_working_days,
     run_once,
 )
+
+
+class TestPromptNICategory(unittest.TestCase):
+    def test_config_absent_defaults_to_a(self):
+        self.assertEqual(prompt_ni_category({}), "A")
+
+    def test_config_present_normalises_upper(self):
+        self.assertEqual(prompt_ni_category({"ni_category": "z"}), "Z")
+
+    def test_config_present_valid(self):
+        for cat in ("A", "B", "C", "Z"):
+            self.assertEqual(prompt_ni_category({"ni_category": cat}), cat)
+
+    @patch("builtins.input", side_effect=["X", "b"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_manual_invalid_then_valid(self, mock_stdout, mock_input):
+        self.assertEqual(prompt_ni_category(), "B")
+        self.assertIn("Error", mock_stdout.getvalue())
+
+    @patch("builtins.input", side_effect=[""])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_manual_empty_defaults_to_a(self, mock_stdout, mock_input):
+        self.assertEqual(prompt_ni_category(), "A")
+
+    @patch("builtins.input", side_effect=["c"])
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_manual_lowercase_c(self, mock_stdout, mock_input):
+        self.assertEqual(prompt_ni_category(), "C")
+
+    def test_config_invalid_raises(self):
+        for bad in ("X", "H", "M", "V"):
+            with self.assertRaises(ValueError):
+                prompt_ni_category({"ni_category": bad})
 
 
 class TestCLI(unittest.TestCase):
@@ -912,6 +946,7 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no
+            "",  # NI category [A]
             "",  # director salary (default £12,570)
             "",  # company expenses (default 0)
             "",  # director pension (default 0)
@@ -954,6 +989,7 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no
+            "",  # NI category [A]
             "",  # director salary (default £12,570)
             "",  # company expenses (default 0)
             "",  # director pension (default 0)
@@ -1165,6 +1201,7 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no
+            "",  # NI category [A]
             "",  # director salary (default £12,570)
             "",  # company expenses (default 0)
             "",  # director pension (default 0)
@@ -1206,6 +1243,7 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no
+            "",  # NI category [A]
             "",  # director salary (default £12,570)
             "",  # company expenses (default 0)
             "20000",  # director pension
@@ -1247,6 +1285,7 @@ class TestCLI(unittest.TestCase):
             "",  # days off (default 25)
             "",  # accept default working days
             "n",  # region Scotland? [y/N] → no
+            "",  # NI category [A]
             "",  # director salary (default £12,570)
             "",  # company expenses (default 0)
             "60000",  # max director pension
