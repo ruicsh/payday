@@ -25,18 +25,18 @@ For permanent employees on a fixed annual salary.
 
 ```
   Annual Gross Salary       £salary
-    └─ Salary Sacrifice      -£N  (optional, monthly)
-  ─────────────────────────────
-  Adjusted Gross Salary     £N
-    ├─ Personal Allowance   -£N
-    ├─ Income Tax           -£N
-    ├─ Employee NI (0/8/2%) -£N
-    ├─ Pension (5% EE)      -£N  (80% net for relief_at_source, 100% for net_pay; skipped if sacrifice)
-    ├─ Student Loan         -£N  (9% above plan threshold, optional)
-    └─ Postgraduate Loan    -£N  (6% above £21k, stacks with Student Loan)
-  ─────────────────────────────
-  Annual Take-Home          £N
-  Monthly Take-Home         £N
+    └─ Salary Sacrifice             -£N  (optional, monthly)
+  ───────────────────────────────────
+  Adjusted Gross Salary             £N
+    ├─ Personal Allowance           -£N
+    ├─ Income Tax                   -£N
+    ├─ Employee NI (0/8/2%)         -£N
+    ├─ Pension (5% EE)              -£N  (80% net for relief_at_source, 100% for net_pay; skipped if sacrifice)
+    ├─ Student Loan                 -£N  (9% above plan threshold, optional)
+    └─ Postgraduate Loan (Plan 3)   -£N  (6% above £21k, stacks with Student Loan)
+  ───────────────────────────────────
+  Annual Take-Home                  £N
+  Monthly Take-Home                 £N
 ```
 
 ### 2. Inside IR35 (Umbrella Company)
@@ -62,21 +62,21 @@ For contractors working through an umbrella company. The umbrella sits between t
 
 ```
   Assignment Rate         £day_rate × days
-    ├─ Salary Sacrifice    -£N  (optional)
-    ├─ Umbrella Margin     -£N
-    ├─ Employer NI (15%)   -£N
-    ├─ Apprenticeship Levy -£N
-    └─ Employer Pension    -£N
-  ────────────────────────────
-  Gross Salary             £N
-    ├─ Income Tax          -£N
-    ├─ Employee NI (0/8/2%)-£N
-    ├─ Pension (5% EE)     -£N  (skipped if sacrifice)
-    ├─ Student Loan        -£N  (9% above plan threshold, optional)
-    └─ Postgraduate Loan   -£N  (6% above £21k, stacks with Student Loan)
-  ────────────────────────────
-  Annual Take-Home         £N
-  20-Day Take-Home         £N
+    ├─ Salary Sacrifice             -£N  (optional)
+    ├─ Umbrella Margin              -£N
+    ├─ Employer NI (15%)            -£N
+    ├─ Apprenticeship Levy          -£N
+    └─ Employer Pension             -£N
+  ───────────────────────────────────
+  Gross Salary                      £N
+    ├─ Income Tax                   -£N
+    ├─ Employee NI (0/8/2%)         -£N
+    ├─ Pension (5% EE)              -£N  (skipped if sacrifice)
+    ├─ Student Loan                 -£N  (9% above plan threshold, optional)
+    └─ Postgraduate Loan (Plan 3)   -£N  (6% above £21k, stacks with Student Loan)
+  ───────────────────────────────────
+  Annual Take-Home                  £N
+  20-Day Take-Home                  £N
 ```
 
 **PayStream (`is_paystream: true`):** salary sacrifice uses a net-pay pot — the sacrifice comes off the assignment before employer costs, so the employer NI saving is passed back to you and shown as an explicit `Employer NI saving (passed back)` line. A weekly admin charge of **£7.00 + 20% VAT (£8.40)** applies while sacrificing. PayStream also allows the sacrifice to be set as a fixed **per-day amount** (`daily_salary_sacrifice` in config, e.g. `"daily_salary_sacrifice": 50` → £50 × net working days); this is accepted only when `is_paystream` is true and cannot be combined with `monthly_salary_sacrifice`. A **generic umbrella** instead reduces gross directly by the sacrifice and retains the employer-cost saving.
@@ -106,29 +106,29 @@ For contractors operating through their own limited company. The company receive
 
 ```
   Company Revenue         £day_rate × days
-    ├─ Director Salary    -£N  (configurable, default £12,570)
-    ├─ Employer NI        -£N
-    │  └─ Employment Allowance  +£N  (opt-in, up to £10,500; see doc)
-    ├─ Flat Rate VAT Surplus +£N  (when vat_registered+flat_rate: 20% VAT minus flat% of VAT-inclusive turnover; taxable per BIM31585)
-    ├─ Company Expenses   -£N  (optional)
-    └─ Director Pension   -£N  (optional, reduces CT)
-  ────────────────────────────
-  Company Profit           £N  (includes VAT surplus; subject to CT)
-    └─ Corporation Tax     -£N  (19% / 25% with Marginal Relief)
-  ────────────────────────────
-  Distributable Profit     £N
-    └─ Retained in Company -£N  (optional; defers dividend tax)
-  ────────────────────────────
-  Distributable Dividends  £N
-    ├─ Income Tax (salary) -£N  (when salary > PA; Scotland supported)
-    ├─ Employee NI (salary)-£N  (when salary > £12,570)
-    ├─ Dividend Tax        -£N  (0% / 10.75% / 35.75% / 39.35%)
-    ├─ Student Loan        -£N  (9% on salary+dividends above plan threshold, optional)
-    └─ Postgraduate Loan   -£N  (6% on salary+dividends above £21k, stacks with Student Loan)
-  ────────────────────────────
-  Take-Home                £N
+    ├─ Director Salary              -£N  (configurable, default £12,570)
+    ├─ Employer NI                  -£N
+    │  └─ Employment Allowance      +£N  (opt-in, up to £10,500; see doc)
+    ├─ Flat Rate VAT Surplus        +£N  (when vat_registered+flat_rate: 20% VAT minus flat% of VAT-inclusive turnover; taxable per BIM31585)
+    ├─ Company Expenses             -£N  (optional)
+    └─ Director Pension             -£N  (optional, reduces CT)
+  ───────────────────────────────────
+  Company Profit                    £N  (includes VAT surplus; subject to CT)
+    └─ Corporation Tax              -£N  (19% / 25% with Marginal Relief)
+  ───────────────────────────────────
+  Distributable Profit              £N
+    └─ Retained in Company          -£N  (optional; defers dividend tax)
+  ───────────────────────────────────
+  Distributable Dividends           £N
+    ├─ Income Tax (salary)          -£N  (when salary > PA; Scotland supported)
+    ├─ Employee NI (salary)         -£N  (when salary > £12,570)
+    ├─ Dividend Tax                 -£N  (0% / 10.75% / 35.75% / 39.35%)
+    ├─ Student Loan                 -£N  (9% on salary+dividends above plan threshold, optional)
+    └─ Postgraduate Loan (Plan 3)   -£N  (6% on salary+dividends above £21k, stacks with Student Loan)
+  ───────────────────────────────────
+  Take-Home                         £N
     (Salary £N | Dividends £N | Retained £N if any)
-  20-Day Take-Home         £N
+  20-Day Take-Home                  £N
 ```
 
 ### 4. Sole Trader (Self-Employed)
@@ -150,21 +150,21 @@ For self-employed sole traders operating as an individual. The business receives
 
 ```
   Turnover              £day_rate × days
-    └─ Business Expenses -£N  (allowable expenses)
-  ────────────────────────────
-  Trading Profit         £N
-    └─ Personal Pension  -£N  (optional, max £60k; relief at source — reduces Income Tax, not Class 4 NI)
-  ────────────────────────────
-  Taxable Profit         £N
-    ├─ Income Tax        -£N  (0% / 20% / 40% / 45%; Scotland 19%/20%/21%/42%/45%/48%)
-    ├─ Class 4 NI        -£N  (0% / 6% / 2% via Self Assessment)
-    ├─ Student Loan      -£N  (9% on taxable profit + existing income/self-employment above plan threshold, optional)
-    └─ Postgraduate Loan -£N  (6% on taxable profit + existing income/self-employment above £21k, stacks with Student Loan)
-  ────────────────────────────
-  Annual Take-Home       £N
-  20-Day Take-Home       £N
-  Year Taxable Income    £N
-  Cash Needed for Self Assessment  £N  (Income Tax + Class 4 NI; 200% when first year and bill > £1,000 due to two 50% payments on account)
+    └─ Business Expenses            -£N  (allowable expenses)
+  ───────────────────────────────────
+  Trading Profit                    £N
+    └─ Personal Pension             -£N  (optional, max £60k; relief at source — reduces Income Tax, not Class 4 NI)
+  ───────────────────────────────────
+  Taxable Profit                    £N
+    ├─ Income Tax                   -£N  (0% / 20% / 40% / 45%; Scotland 19%/20%/21%/42%/45%/48%)
+    ├─ Class 4 NI                   -£N  (0% / 6% / 2% via Self Assessment)
+    ├─ Student Loan                 -£N  (9% on taxable profit + existing income/self-employment above plan threshold, optional)
+    └─ Postgraduate Loan (Plan 3)   -£N  (6% on taxable profit + existing income/self-employment above £21k, stacks with Student Loan)
+  ───────────────────────────────────
+  Annual Take-Home                  £N
+  20-Day Take-Home                  £N
+  Year Taxable Income               £N
+  Cash Needed for Self Assessment   £N  (Income Tax + Class 4 NI; 200% when first year and bill > £1,000 due to two 50% payments on account)
   *Student loan and HICBC are collected via Self Assessment but excluded from the payments-on-account base.*
 ```
 
@@ -312,8 +312,12 @@ All fields are optional.
 | `region`                   | string or null      | `"scotland"` for Scottish Income Tax; `"england"`/`"wales"`/`"northern_ireland"`/`"rest_of_uk"` (or `null`) = rUK rates. Non-Scottish aliases are equivalent to `rest_of_uk`. |
 | `ni_category`              | string or null      | NI category letter: `"A"` (default), `"B"`, `"C"`, `"Z"` (case-insensitive). Applies to PAYE, Inside IR35 and Outside IR35 (Class 1 NI). Not used for Sole Trader (Class 4 NI has no categories). See [NI categories](#national-insurance-categories). |
 | `pension_method`           | string or null      | Workplace pension scheme for PAYE and Inside IR35 auto-enrolment: `"relief_at_source"` (default — e.g. NEST: 80% from net pay, 20% claimed by provider, basic-rate band extended) or `"net_pay"` (deducted before tax; relief at marginal rate). Only applies to auto-enrolment; salary sacrifice is separate. |
-| `student_loan_plan`        | string or null      | Undergraduate plan: `"plan1"`, `"plan2"`, `"plan4"`, `"plan5"` (or `null` = no loan). All modes — PAYE/Inside IR35 via PAYE, Outside IR35 via Self Assessment on salary+dividends, Sole Trader via Self Assessment on taxable profit + existing. |
-| `postgraduate_loan`        | bool or null        | `true` = Postgraduate Loan (6% above £21,000); stacks on top of `student_loan_plan`. `false`/`null` = none. Independent — valid without an undergraduate plan. |
+| `student_loan_plan`        | string or null      | Undergraduate plan: `"plan1"`, `"plan2"`, `"plan4"`, `"plan5"` (or `null` = no loan). All modes — PAYE/Inside IR35 via PAYE, Outside IR35 via Self Assessment on salary+dividends, Sole Trader via Self Assessment on taxable profit + existing. Scotland and NI **postgraduate** loans are not a separate plan: they repay under `"plan4"` (Scotland) and `"plan1"` (NI) at 9%, combined with the undergraduate debt. Lifelong Learning Entitlement (from Jan 2027) and Advanced Learner Loans also use existing plans: `"plan5"` (post-Aug-2023) or `"plan2"` (pre-2023). |
+| `postgraduate_loan`        | bool or null        | `true` = Postgraduate Loan (**Plan 3**, England & Wales only — 6% above £21,000); stacks on top of `student_loan_plan`. `false`/`null` = none. Independent — valid without an undergraduate plan. |
+
+### Student loan plans
+
+The tool models every UK income-contingent repayment product. Undergraduate Plans 1/2/4/5 repay 9% above their thresholds (£26,900 / £29,385 / £33,795 / £25,000). The Postgraduate Loan (**Plan 3**) repays 6% above £21,000 and stacks on top — but it is **England & Wales only**; postgraduate loans for **Scotland** and **Northern Ireland** are not Plan 3 and need no separate parameter — they repay under the Plan 4 (Scotland) and Plan 1 (NI) systems at 9%, combined with the undergraduate debt (select `plan4` / `plan1`). The newer **Lifelong Learning Entitlement (LLE)** loans (courses from Jan 2027) and **Advanced Learner Loans** also carry no new parameters: they repay on **Plan 5** (post-Aug-2023) or Plan 2 (pre-2023) terms (select `plan5` / `plan2`). There is no individual "apprenticeship loan" — apprenticeships are funded via the employer's Apprenticeship Levy (0.5%), already modelled. See [GOV.UK — Repaying your student loan](https://www.gov.uk/repaying-your-student-loan/what-you-pay) and the [Education (Student Loans) (Repayment) (Amendments for Lifelong Learning) Regulations 2026](https://www.legislation.gov.uk/uksi/2026/857/made).
 
 ### Examples
 
@@ -367,7 +371,7 @@ All fields are optional.
 }
 ```
 
-**PAYE with Plan 2 + Postgraduate Loan (stacked):**
+**PAYE with Plan 2 + Plan 3 Postgraduate Loan (stacked):**
 
 ```json
 {

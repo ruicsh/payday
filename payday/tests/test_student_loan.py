@@ -199,7 +199,7 @@ class TestPAYEWithStudentLoan(unittest.TestCase):
         breakdown = PAYECalculator.calculate(50000, postgraduate_loan=True)
         assert breakdown.postgraduate_loan is not None
         self.assertEqual(breakdown.postgraduate_loan.repayment, 1740)
-        self._find_step(breakdown, "Postgraduate Loan")
+        self._find_step(breakdown, "Postgraduate Loan (Plan 3)")
         self.assertIsNone(breakdown.student_loan)
         labels = {s.label for s in breakdown.steps}
         self.assertNotIn("Student Loan", labels)
@@ -216,7 +216,7 @@ class TestPAYEWithStudentLoan(unittest.TestCase):
         no_loan = PAYECalculator.calculate(50000)
         self.assertEqual(no_loan.annual_take_home - breakdown.annual_take_home, total)
         self._find_step(breakdown, "Student Loan")
-        self._find_step(breakdown, "Postgraduate Loan")
+        self._find_step(breakdown, "Postgraduate Loan (Plan 3)")
 
     def test_below_threshold_no_deduction(self):
         breakdown = PAYECalculator.calculate(20000, student_loan_plan="plan2")
@@ -297,7 +297,7 @@ class TestInsideIR35WithStudentLoan(unittest.TestCase):
         assert breakdown.student_loan is not None
         assert breakdown.postgraduate_loan is not None
         self._find_step(breakdown, "Student Loan")
-        self._find_step(breakdown, "Postgraduate Loan")
+        self._find_step(breakdown, "Postgraduate Loan (Plan 3)")
         no_loan = InsideIR35Calculator.calculate(600, 227)
         expected_diff = (
             breakdown.student_loan.repayment + breakdown.postgraduate_loan.repayment
@@ -310,7 +310,7 @@ class TestInsideIR35WithStudentLoan(unittest.TestCase):
         breakdown = InsideIR35Calculator.calculate(600, 227, postgraduate_loan=True)
         assert breakdown.postgraduate_loan is not None
         self.assertIsNone(breakdown.student_loan)
-        self._find_step(breakdown, "Postgraduate Loan")
+        self._find_step(breakdown, "Postgraduate Loan (Plan 3)")
 
 
 class TestOutsideIR35WithStudentLoan(unittest.TestCase):
@@ -343,7 +343,7 @@ class TestOutsideIR35WithStudentLoan(unittest.TestCase):
         breakdown = OutsideIR35Calculator.calculate(600, 227, postgraduate_loan=True)
         assert breakdown.postgraduate_loan is not None
         self.assertIsNone(breakdown.student_loan)
-        self._find_step(breakdown, "Postgraduate Loan")
+        self._find_step(breakdown, "Postgraduate Loan (Plan 3)")
 
     def test_stacked_loans(self):
         no_loan = OutsideIR35Calculator.calculate(600, 227)
@@ -353,7 +353,7 @@ class TestOutsideIR35WithStudentLoan(unittest.TestCase):
         assert stacked.student_loan is not None
         assert stacked.postgraduate_loan is not None
         self._find_step(stacked, "Student Loan")
-        self._find_step(stacked, "Postgraduate Loan")
+        self._find_step(stacked, "Postgraduate Loan (Plan 3)")
         self.assertEqual(
             no_loan.annual_take_home - stacked.annual_take_home,
             stacked.student_loan.repayment + stacked.postgraduate_loan.repayment,

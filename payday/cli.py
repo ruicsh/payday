@@ -947,11 +947,12 @@ def prompt_student_loan(
     """Prompt for student loan plan and postgraduate loan.
 
     Returns (student_loan_plan, postgraduate_loan) where plan is one of
-    ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``, and postgraduate is a bool.
+    ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``, and postgraduate is a bool
+    (the Plan 3 Postgraduate Loan, England & Wales only).
 
     In config mode absent/null means no loan (no prompt, no repayment).
-    The undergraduate plan and postgraduate loan stack independently — a
-    borrower can hold both at once.
+    The undergraduate plan and Plan 3 postgraduate loan stack independently —
+    a borrower can hold both at once.
     """
     if config is not None:
         plan = config.get("student_loan_plan")
@@ -960,7 +961,7 @@ def prompt_student_loan(
             print(f"Student loan plan: {plan}")
         else:
             print("Student loan plan: none")
-        print(f"Postgraduate loan: {'yes' if pgl else 'no'}")
+        print(f"Postgraduate Loan (Plan 3): {'yes' if pgl else 'no'}")
         return plan, pgl
 
     # Interactive: undergraduate plan
@@ -977,7 +978,9 @@ def prompt_student_loan(
             break
         print("Error: Enter 1, 2, 4, 5, or press ENTER for none.")
 
-    pgl_answer = input("Do you have a Postgraduate Loan? [y/N]: ").strip().lower()
+    pgl_answer = (
+        input("Do you have a Postgraduate Loan (Plan 3)? [y/N]: ").strip().lower()
+    )
     has_pgl = pgl_answer == "y"
     return plan, has_pgl
 

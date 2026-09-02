@@ -59,10 +59,15 @@ def calc_postgraduate_loan(
     income: int | float,
     existing_income: float = 0,
 ) -> StudentLoanResult:
-    """Postgraduate Loan repayment (6% above £21,000).
+    """Postgraduate Loan (Plan 3) repayment (6% above £21,000; England & Wales only).
     Source: https://www.gov.uk/repaying-your-student-loan/what-you-pay
 
-    Stacks on top of an undergraduate plan repayment.
+    Stacks on top of an undergraduate plan repayment. Postgraduate loans for
+    Scotland and Northern Ireland are not Plan 3 — they repay under the Plan 4
+    (Scotland) and Plan 1 (Northern Ireland) systems instead, combined with
+    the undergraduate debt. Lifelong Learning Entitlement and Advanced Learner
+    Loans also have no separate parameters: they repay on Plan 5 (post-Aug
+    2023) or Plan 2 (pre-2023) terms.
 
     >>> calc_postgraduate_loan(30000).repayment
     540

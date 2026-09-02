@@ -1435,6 +1435,8 @@ class TestPromptStudentLoan(unittest.TestCase):
         self.assertIsNone(plan)
         self.assertFalse(pgl)
         mock_input.assert_not_called()
+        self.assertIn("Student loan plan: none", mock_stdout.getvalue())
+        self.assertIn("Postgraduate Loan (Plan 3): no", mock_stdout.getvalue())
 
     @patch("builtins.input")
     @patch("sys.stdout", new_callable=StringIO)
@@ -1445,6 +1447,8 @@ class TestPromptStudentLoan(unittest.TestCase):
         self.assertEqual(plan, "plan1")
         self.assertTrue(pgl)
         mock_input.assert_not_called()
+        self.assertIn("Student loan plan: plan1", mock_stdout.getvalue())
+        self.assertIn("Postgraduate Loan (Plan 3): yes", mock_stdout.getvalue())
 
     @patch("builtins.input")
     @patch("sys.stdout", new_callable=StringIO)

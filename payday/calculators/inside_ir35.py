@@ -70,7 +70,8 @@ class InsideIR35Calculator:
         affects the per-period breakdown line.
         *region* is ``"scotland"`` for Scottish rates, anything else for rUK.
         *student_loan_plan* is ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``.
-        *postgraduate_loan* stacks a 6% Postgraduate Loan repayment on top.
+        *postgraduate_loan* stacks a 6% Postgraduate Loan (Plan 3) repayment on top
+        (England & Wales only).
         *pension_method* is ``"relief_at_source"`` (default — the most common
         workplace scheme, e.g. NEST; member pays 80% from net pay, provider
         claims 20% basic-rate relief and the basic-rate band is extended) or
@@ -409,7 +410,9 @@ class InsideIR35Calculator:
         if sl_result:
             steps.append(StepLine("Student Loan", -sl_result.repayment, indent=1))
         if pgl_result:
-            steps.append(StepLine("Postgraduate Loan", -pgl_result.repayment, indent=1))
+            steps.append(
+                StepLine("Postgraduate Loan (Plan 3)", -pgl_result.repayment, indent=1)
+            )
 
         if aa_result and aa_result.tapered:
             steps.append(

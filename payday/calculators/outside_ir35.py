@@ -96,7 +96,8 @@ class OutsideIR35Calculator:
         *existing_dividends* is dividends already received this tax year.
         *effective_days* if provided, overrides the pro-rated working_days count.
         *student_loan_plan* is ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``.
-        *postgraduate_loan* stacks a 6% Postgraduate Loan repayment on top.
+        *postgraduate_loan* stacks a 6% Postgraduate Loan (Plan 3) repayment on top
+        (England & Wales only).
         Outside IR35 repayments are modelled as Self Assessment on total
         personal income (salary + dividends); the repayment base includes
         existing income/dividends already earned this tax year.
@@ -350,7 +351,9 @@ class OutsideIR35Calculator:
         if sl_result:
             steps.append(StepLine("Student Loan", -sl_result.repayment, indent=1))
         if pgl_result:
-            steps.append(StepLine("Postgraduate Loan", -pgl_result.repayment, indent=1))
+            steps.append(
+                StepLine("Postgraduate Loan (Plan 3)", -pgl_result.repayment, indent=1)
+            )
         if aa_result and aa_result.tapered:
             steps.append(
                 StepLine(

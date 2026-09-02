@@ -64,7 +64,8 @@ class SoleTraderCalculator:
         *effective_days* if provided, overrides the pro-rated working_days count.
         *region* is ``"scotland"`` for Scottish rates, anything else for rUK.
         *student_loan_plan* is ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``.
-        *postgraduate_loan* stacks a 6% Postgraduate Loan repayment on top.
+        *postgraduate_loan* stacks a 6% Postgraduate Loan (Plan 3) repayment on top
+        (England & Wales only).
         Sole-trader student-loan repayments are via Self Assessment on total
         income (trading profit + existing income + existing self-employment).
         Class 2 NI is treated as paid above £7,105 (no compulsory charge
@@ -199,7 +200,9 @@ class SoleTraderCalculator:
         if sl_result:
             steps.append(StepLine("Student Loan", -sl_result.repayment, indent=1))
         if pgl_result:
-            steps.append(StepLine("Postgraduate Loan", -pgl_result.repayment, indent=1))
+            steps.append(
+                StepLine("Postgraduate Loan (Plan 3)", -pgl_result.repayment, indent=1)
+            )
         if aa_result and aa_result.tapered:
             steps.append(
                 StepLine(
