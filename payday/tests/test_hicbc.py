@@ -167,12 +167,13 @@ class TestPAYEHICBC(unittest.TestCase):
         self.assertTrue(any("HICBC 0%" in s.label for s in b.steps))
 
     def test_75k_75_percent_clawback(self):
-        # Issue example: £75k ANI with child benefit → 75% clawback
+        # £75k salary with child benefit → ANI 72,798 after RAS pension
+        # (G=2,202) → floor((72798-60000)/200)=63 → 63% clawback
         b = PAYECalculator.calculate(75_000, has_child_benefit=True)
         assert b.hicbc is not None
-        self.assertEqual(b.hicbc.charge_rate, 0.75)
-        self.assertEqual(b.hicbc.charge, int(child_benefit_annual(1) * 0.75))
-        self.assertTrue(any("75%" in s.label for s in b.steps))
+        self.assertEqual(b.hicbc.charge_rate, 0.63)
+        self.assertEqual(b.hicbc.charge, int(child_benefit_annual(1) * 0.63))
+        self.assertTrue(any("63%" in s.label for s in b.steps))
         self.assertIn("has_child_benefit", b.inputs)
         self.assertIn("hicbc_charge", b.inputs)
 
@@ -189,17 +190,21 @@ class TestPAYEHICBC(unittest.TestCase):
         self.assertEqual(b_after.hicbc.charge, 0)
         saved_it = b_before.income_tax.total_tax - b_after.income_tax.total_tax
         saved_hicbc = b_before.hicbc.charge - b_after.hicbc.charge
-        self.assertEqual(saved_it, 6000)
-        self.assertEqual(saved_hicbc, int(child_benefit_annual(1) * 0.75))
+        # With RAS pension G=2,202, before ANI 72,798 (63% charge) vs
+        # after sacrifice ANI 60,000 (0%). Saved IT now includes RAS band
+        # extension, so 5,559 not 6,000.
+        self.assertEqual(saved_it, 5559)
+        self.assertEqual(saved_hicbc, int(child_benefit_annual(1) * 0.63))
 
     def test_60k_other_income_pushes_into_hicbc(self):
-        # Salary 55k + 10k other = 65k ANI → 25% charge even though salary < 60k
+        # Salary 55k + 10k other = 65k gross; ANI 62,798 after RAS pension
+        # (G=2,202) → floor((62798-60000)/200)=13 → 13% charge
         b = PAYECalculator.calculate(
             55_000, other_income=10_000, has_child_benefit=True
         )
         assert b.hicbc is not None
-        self.assertEqual(b.hicbc.ani, 65_000)
-        self.assertEqual(b.hicbc.charge_rate, 0.25)
+        self.assertEqual(b.hicbc.ani, 62_798)
+        self.assertEqual(b.hicbc.charge_rate, 0.13)
 
     def test_100_percent_above_80k(self):
         b = PAYECalculator.calculate(85_000, has_child_benefit=True)
@@ -215,9 +220,10 @@ class TestPAYEHICBC(unittest.TestCase):
         self.assertEqual(b.hicbc.charge, 0)
 
     def test_floor_at_60300_is_one_percent(self):
+        # 60,300 with RAS pension G=2,202 → ANI 58,098 (<60k) → 0%
         b = PAYECalculator.calculate(60_300, has_child_benefit=True)
         assert b.hicbc is not None
-        self.assertEqual(b.hicbc.charge_rate, 0.01)
+        self.assertEqual(b.hicbc.charge_rate, 0.0)
 
     def test_num_children_scales_benefit(self):
         b1 = PAYECalculator.calculate(75_000, has_child_benefit=True, num_children=1)
@@ -226,7 +232,8 @@ class TestPAYEHICBC(unittest.TestCase):
         assert b3.hicbc is not None
         self.assertEqual(b1.hicbc.annual_benefit, child_benefit_annual(1))
         self.assertEqual(b3.hicbc.annual_benefit, child_benefit_annual(3))
-        self.assertEqual(b3.hicbc.charge, int(child_benefit_annual(3) * 0.75))
+        # 75k → ANI 72,798 → 63% charge after RAS pension
+        self.assertEqual(b3.hicbc.charge, int(child_benefit_annual(3) * 0.63))
 
 
 class TestInsideIR35HICBC(unittest.TestCase):

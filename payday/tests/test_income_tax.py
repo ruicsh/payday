@@ -215,6 +215,68 @@ class TestIncomeTax(unittest.TestCase):
         self.assertEqual(res.advanced_band, 0)
         self.assertEqual(res.top_band, 0)
 
+    # ── relief-at-source band extension ──────────────────────────────
+
+    def test_ruk_band_extension_higher_rate(self):
+        # 80k, PA 12570, G=2,202 extends basic band 37,700→39,902
+        # No ext: basic 37,700 + higher 29,730 -> tax 19,432
+        # With ext: basic 39,902 + higher 27,528 -> tax 18,991 (diff 441)
+        no_ext = calc_income_tax(80000, 12570, basic_rate_band_extension=0)
+        with_ext = calc_income_tax(80000, 12570, basic_rate_band_extension=2202)
+        self.assertEqual(no_ext.total_tax, 19432)
+        self.assertEqual(with_ext.total_tax, 18991)
+        self.assertEqual(with_ext.basic_band, 39902)
+        self.assertEqual(with_ext.higher_band, 27528)
+
+    def test_ruk_band_extension_basic_rate_no_effect(self):
+        # 50k within basic even after extension -> same tax
+        res = calc_income_tax(50000, 12570, basic_rate_band_extension=2188)
+        self.assertEqual(res.total_tax, 7486)
+        self.assertEqual(res.higher_band, 0)
+
+    def test_ruk_band_extension_with_existing_income(self):
+        # New 40k on top of 50k existing: remaining basic shrinks
+        # Without ext remaining basic 270; with ext 2472 -> tax lower
+        no_ext = calc_income_tax(40000, 12570, existing_income=50000)
+        with_ext = calc_income_tax(
+            40000, 12570, existing_income=50000, basic_rate_band_extension=2202
+        )
+        self.assertEqual(no_ext.basic_band, 270)
+        self.assertEqual(with_ext.basic_band, 2472)
+        self.assertLess(with_ext.total_tax, no_ext.total_tax)
+
+    def test_scotland_band_extension_intermediate(self):
+        # 50k Scotland G=2,188 extends intermediate 31,092→33,280
+        # No ext 8,983 -> with ext 8,523 (diff 460 at 21%)
+        no_ext = calc_income_tax(50000, 12570, region="scotland")
+        with_ext = calc_income_tax(
+            50000, 12570, region="scotland", basic_rate_band_extension=2188
+        )
+        self.assertEqual(no_ext.total_tax, 8983)
+        self.assertEqual(with_ext.total_tax, 8523)
+        self.assertEqual(with_ext.intermediate_band, 16324)
+        self.assertEqual(with_ext.higher_band, 4150)
+
+    def test_scotland_band_extension_higher_and_advanced_shift(self):
+        # 80k Scotland G=2,202: intermediate +2202, higher unchanged,
+        # advanced shrinks (5000 -> 2798) as thresholds shift
+        with_ext = calc_income_tax(
+            80000, 12570, region="scotland", basic_rate_band_extension=2202
+        )
+        self.assertEqual(with_ext.advanced_band, 2798)
+        self.assertEqual(with_ext.total_tax, 21204)
+
+    def test_band_extension_zero_is_default(self):
+        # Explicit 0 must equal default (no arg)
+        default = calc_income_tax(80000, 12570)
+        explicit = calc_income_tax(80000, 12570, basic_rate_band_extension=0)
+        self.assertEqual(default.total_tax, explicit.total_tax)
+        scot_default = calc_income_tax(80000, 12570, region="scotland")
+        scot_explicit = calc_income_tax(
+            80000, 12570, region="scotland", basic_rate_band_extension=0
+        )
+        self.assertEqual(scot_default.total_tax, scot_explicit.total_tax)
+
 
 class TestAdjustedNetIncome(unittest.TestCase):
     def test_all_defaults(self):

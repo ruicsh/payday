@@ -64,6 +64,13 @@ PENSION_QUALIFYING_UPPER_LIMIT: int = 50_270
 PENSION_EMPLOYEE_RATE: float = 0.05
 PENSION_EMPLOYER_RATE: float = 0.03
 
+# Pension — Relief at Source
+# Source: https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief
+# Workplace schemes using relief at source (e.g. NEST) deduct the member
+# contribution from net pay. The member pays 80% from net pay; the provider
+# claims 20% basic-rate relief from HMRC and credits it to the pot.
+RELIEF_AT_SOURCE_NET_RATE: float = 0.80
+
 # Pension Annual Allowance (2026/27)
 # Source: https://www.gov.uk/tax-on-your-private-pension/annual-allowance
 ANNUAL_ALLOWANCE: int = 60_000

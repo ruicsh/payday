@@ -19,6 +19,7 @@ For permanent employees on a fixed annual salary.
 | Receives Child Benefit     | No        | Whether you (or your partner) receive Child Benefit — when `true` HICBC claws back Child Benefit at £60k–£80k ANI; auto-calc targets £60k ANI (saving ~47% for 1 child, ~56% for 3) instead of £100k |
 | Number of children         | 1         | Number of children receiving Child Benefit (≥ 1); only used when Child Benefit is claimed — scales the annual benefit (£1,354 for 1, £2,251 for 2, £3,148 for 3) |
 | Salary sacrifice (monthly) | auto-calc | Reduces taxable income (capped at £60k/yr, tapered to £10k when threshold >£200k and adjusted >£260k); auto-calc targets £100k ANI (or £60k when Child Benefit is claimed)    |
+| Workplace pension scheme   | `relief_at_source` | `relief_at_source` (default — e.g. NEST: member pays 80% from net pay, provider claims 20% basic-rate relief and basic-rate band is extended by gross) or `net_pay` (contribution deducted before tax; relief at marginal rate). Only applies to auto-enrolment workplace pension; salary sacrifice is separate. |
 
 **Flow:**
 
@@ -30,7 +31,7 @@ For permanent employees on a fixed annual salary.
     ├─ Personal Allowance   -£N
     ├─ Income Tax           -£N
     ├─ Employee NI (0/8/2%) -£N
-    ├─ Pension (5% EE)      -£N  (skipped if sacrifice)
+    ├─ Pension (5% EE)      -£N  (80% net for relief_at_source, 100% for net_pay; skipped if sacrifice)
     ├─ Student Loan         -£N  (9% above plan threshold, optional)
     └─ Postgraduate Loan    -£N  (6% above £21k, stacks with Student Loan)
   ─────────────────────────────
@@ -55,6 +56,7 @@ For contractors working through an umbrella company. The umbrella sits between t
 | Receives Child Benefit     | No                    | Whether you (or your partner) receive Child Benefit — when `true` HICBC claws back Child Benefit at £60k–£80k ANI; auto-calc targets £60k ANI instead of £100k |
 | Number of children         | 1                     | Number of children receiving Child Benefit (≥ 1); only used when Child Benefit is claimed — scales the annual benefit (£1,354 for 1, £2,251 for 2, £3,148 for 3) |
 | Salary sacrifice (monthly) | auto-calc             | Reduces taxable income (capped at £60k/yr, tapered to £10k when threshold >£200k and adjusted >£260k); auto-calc targets £100k ANI (or £60k when Child Benefit is claimed). PayStream also supports a per-day sacrifice instead (see below). |
+| Workplace pension scheme   | `relief_at_source` | `relief_at_source` (default — e.g. NEST: member pays 80% from net pay, provider claims 20% and basic-rate band is extended) or `net_pay` (contribution deducted before tax; relief at marginal rate). Only applies to auto-enrolment workplace pension; salary sacrifice is separate. |
 
 **Flow:**
 
@@ -294,6 +296,7 @@ All fields are optional.
 | `personal_pension`         | int, bool, or null  | Annual personal pension contribution (Sole Trader only, ≥ 0, max £60k, tapered to £10k when threshold >£200k and adjusted >£260k); `true` = £0. Reduces Income Tax but not Class 4 NI. |
 | `is_first_year_sole_trader` | bool or null       | `true` = first year as sole trader — when the Self Assessment bill (Income Tax + Class 4 NI) exceeds £1,000, cash needed is 200% (bill + two 50% payments on account per [GOV.UK](https://www.gov.uk/understand-self-assessment-bill/payments-on-account)). `false`/`null` = not first year (cash = bill). Does not affect take-home. |
 | `region`                   | string or null      | `"scotland"` for Scottish Income Tax; `"england"`/`"wales"`/`"northern_ireland"`/`"rest_of_uk"` (or `null`) = rUK rates. Non-Scottish aliases are equivalent to `rest_of_uk`. |
+| `pension_method`           | string or null      | Workplace pension scheme for PAYE and Inside IR35 auto-enrolment: `"relief_at_source"` (default — e.g. NEST: 80% from net pay, 20% claimed by provider, basic-rate band extended) or `"net_pay"` (deducted before tax; relief at marginal rate). Only applies to auto-enrolment; salary sacrifice is separate. |
 | `student_loan_plan`        | string or null      | Undergraduate plan: `"plan1"`, `"plan2"`, `"plan4"`, `"plan5"` (or `null` = no loan). All modes — PAYE/Inside IR35 via PAYE, Outside IR35 via Self Assessment on salary+dividends, Sole Trader via Self Assessment on taxable profit + existing. |
 | `postgraduate_loan`        | bool or null        | `true` = Postgraduate Loan (6% above £21,000); stacks on top of `student_loan_plan`. `false`/`null` = none. Independent — valid without an undergraduate plan. |
 

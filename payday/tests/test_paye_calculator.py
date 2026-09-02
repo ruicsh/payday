@@ -38,13 +38,15 @@ class TestPAYECalculator(unittest.TestCase):
         )
 
     def test_calculate_tapered_pa(self):
-        # £125,140 salary - PA should be 0 and label should be tapered
+        # £125,140 salary — ANI is reduced by the relief-at-source pension
+        # (G=2,202 for 125,140), so PA is 1101, not 0.
         breakdown = PAYECalculator.calculate(125140)
 
         self.assertEqual(
-            self._find_step(breakdown, "Personal Allowance (tapered)").amount, 0
+            self._find_step(breakdown, "Personal Allowance (tapered)").amount, -1101
         )
-        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 125140)
+        # Taxable = salary − remaining PA (RAS keeps full salary taxable)
+        self.assertEqual(self._find_step(breakdown, "Taxable Income").amount, 124039)
 
     def test_calculate_pension_trigger(self):
         # £30,000 salary - above trigger (£10,000)
@@ -117,8 +119,9 @@ class TestPAYECalculator(unittest.TestCase):
         ruk = PAYECalculator.calculate(50000, region="rest_of_uk")
         assert scot.income_tax is not None
         assert ruk.income_tax is not None
-        # Known answers: 50k Scotland 8983, rUK 7486
-        self.assertEqual(scot.income_tax.total_tax, 8983)
+        # 50k: G=2,188 auto-enrolment. RAS extends the basic band (rUK still
+        # within basic → 7486 unchanged; Scotland intermediate extends → 8523)
+        self.assertEqual(scot.income_tax.total_tax, 8523)
         self.assertEqual(ruk.income_tax.total_tax, 7486)
         self.assertEqual(scot.income_tax.region, "scotland")
         self.assertEqual(ruk.income_tax.region, "rest_of_uk")
@@ -134,6 +137,76 @@ class TestPAYECalculator(unittest.TestCase):
             self.assertNotEqual(ruk.inputs.get("region"), "scotland")
             assert ruk.income_tax is not None
             self.assertEqual(ruk.income_tax.region, "rest_of_uk")
+
+    # ── pension_method (relief at source vs net pay) ─────────────────
+
+    def test_pension_method_default_is_relief_at_source(self):
+        default = PAYECalculator.calculate(50000)
+        ras = PAYECalculator.calculate(50000, pension_method="relief_at_source")
+        assert default.income_tax is not None
+        assert ras.income_tax is not None
+        self.assertEqual(default.annual_take_home, ras.annual_take_home)
+        self.assertEqual(default.income_tax.total_tax, ras.income_tax.total_tax)
+        self.assertNotIn("pension_method", default.inputs)
+
+    def test_pension_method_net_pay_stored_in_inputs(self):
+        net = PAYECalculator.calculate(50000, pension_method="net_pay")
+        self.assertEqual(net.inputs.get("pension_method"), "net_pay")
+
+    def test_pension_method_invalid_raises(self):
+        with self.assertRaises(ValueError):
+            PAYECalculator.calculate(50000, pension_method="bogus")
+
+    def test_pension_method_deduction_and_taxable(self):
+        # 50k: G=2,188, net=1,750. Net-pay deducts full G, RAS deducts 80%.
+        # Net-pay taxable = 47,812; RAS taxable = 50,000 with band extension.
+        net = PAYECalculator.calculate(50000, pension_method="net_pay")
+        ras = PAYECalculator.calculate(50000, pension_method="relief_at_source")
+        assert net.income_tax is not None
+        assert ras.income_tax is not None
+        self.assertEqual(net.income_tax.taxable_income, 35242)
+        self.assertEqual(ras.income_tax.taxable_income, 37430)
+        self.assertEqual(self._find_step(net, "Pension Contribution").amount, -2188)
+        self.assertEqual(self._find_step(ras, "Pension Contribution").amount, -1750)
+
+    def test_pension_method_basic_rate_take_home_equal(self):
+        # At basic rate both methods give same take-home (20% relief either way)
+        net = PAYECalculator.calculate(50000, pension_method="net_pay")
+        ras = PAYECalculator.calculate(50000, pension_method="relief_at_source")
+        self.assertEqual(net.annual_take_home, ras.annual_take_home)
+
+    def test_pension_method_higher_rate_take_home_equal_ruk(self):
+        # At higher rate rUK: net-pay saves 40% on G vs RAS 20% provider + 20% extension
+        net = PAYECalculator.calculate(80000, pension_method="net_pay")
+        ras = PAYECalculator.calculate(80000, pension_method="relief_at_source")
+        self.assertEqual(net.annual_take_home, ras.annual_take_home)
+
+    def test_pension_method_sacrifice_ignores_method(self):
+        # With sacrifice workplace pension is disabled regardless of method
+        net = PAYECalculator.calculate(
+            50000, salary_sacrifice=5000, pension_method="net_pay"
+        )
+        ras = PAYECalculator.calculate(
+            50000, salary_sacrifice=5000, pension_method="relief_at_source"
+        )
+        assert net.pension is not None
+        assert ras.pension is not None
+        self.assertEqual(net.pension.employee_contribution, 0)
+        self.assertEqual(ras.pension.employee_contribution, 0)
+        self.assertEqual(net.annual_take_home, ras.annual_take_home)
+
+    def test_annual_allowance_threshold_subtracts_pension(self):
+        # AA threshold = total income − gross employee contribution (both methods)
+        # For 300k: qualifying capped at 44,030 → G=2,202 → threshold 297,798
+        b_ras = PAYECalculator.calculate(300000, pension_method="relief_at_source")
+        b_net = PAYECalculator.calculate(300000, pension_method="net_pay")
+        assert b_ras.annual_allowance is not None
+        assert b_net.annual_allowance is not None
+        # Both methods share the same threshold/adjusted (display when tapered)
+        self.assertEqual(
+            b_ras.annual_allowance.threshold_income,
+            b_net.annual_allowance.threshold_income,
+        )
 
 
 if __name__ == "__main__":

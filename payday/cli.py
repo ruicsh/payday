@@ -867,6 +867,48 @@ def prompt_region(config: dict | None = None) -> str:
     return "scotland" if answer == "y" else "rest_of_uk"
 
 
+def prompt_pension_method(config: dict | None = None) -> str:
+    """Ask for the workplace pension arrangement type.
+
+    Returns ``"relief_at_source"`` (default — member pays 80% from net pay,
+    provider claims 20% basic-rate relief and the basic-rate band is extended)
+    or ``"net_pay"`` (contribution deducted before tax; relief at marginal
+    rate). Only applies to the auto-enrolment workplace pension.
+
+    When *config* is provided and ``pension_method`` is absent (``None``),
+    defaults to ``relief_at_source`` without prompting.
+
+    Pension tax relief: https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief
+    """
+    from payday.config import DEFAULT_PENSION_METHOD, VALID_PENSION_METHODS
+
+    if config is not None:
+        val = config.get("pension_method")
+        if val is not None:
+            if val not in VALID_PENSION_METHODS:
+                raise ValueError(
+                    f"pension_method: must be one of {', '.join(sorted(VALID_PENSION_METHODS))}, got '{val}'"
+                )
+            print(
+                f"Workplace pension scheme [relief_at_source/net_pay] [{DEFAULT_PENSION_METHOD}]: {val}"
+            )
+            return val
+        return DEFAULT_PENSION_METHOD
+    while True:
+        raw = (
+            input(
+                f"Workplace pension scheme [relief_at_source/net_pay] [{DEFAULT_PENSION_METHOD}]: "
+            )
+            .strip()
+            .lower()
+        )
+        if not raw or raw == "relief_at_source" or raw in ("ras", "relief"):
+            return DEFAULT_PENSION_METHOD
+        if raw in ("net_pay", "netpay", "net"):
+            return "net_pay"
+        print("Error: Enter 'relief_at_source' or 'net_pay'.")
+
+
 def prompt_student_loan(
     config: dict | None = None,
 ) -> tuple[str | None, bool]:
@@ -1035,6 +1077,7 @@ def run_once(config: dict | None = None) -> None:
             has_child_benefit=has_child_benefit,
             config=config,
         )
+        pension_method = prompt_pension_method(config)
         student_loan_plan, postgraduate_loan = prompt_student_loan(config)
         breakdown = PAYECalculator.calculate(
             salary,
@@ -1045,6 +1088,7 @@ def run_once(config: dict | None = None) -> None:
             postgraduate_loan=postgraduate_loan,
             has_child_benefit=has_child_benefit,
             num_children=num_children,
+            pension_method=pension_method,
         )
         # Safety net: if calculator capped further (e.g. estimate drift), surface it.
         if (
@@ -1095,6 +1139,7 @@ def run_once(config: dict | None = None) -> None:
             round(PAYSTREAM_ADMIN_CHARGE_WEEKLY * weeks) if is_paystream else 0
         )
 
+        pension_method = prompt_pension_method(config)
         sacrifice_choice = prompt_salary_sacrifice(
             annual_assignment,
             mode="inside_ir35",
@@ -1126,6 +1171,7 @@ def run_once(config: dict | None = None) -> None:
             postgraduate_loan=postgraduate_loan,
             has_child_benefit=has_child_benefit,
             num_children=num_children,
+            pension_method=pension_method,
         )
         if (
             breakdown.annual_allowance

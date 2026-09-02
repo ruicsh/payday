@@ -143,6 +143,7 @@ _SCOT_ADVANCED_UPPER = _SCOT_HIGHER_UPPER + _SCOT_ADVANCED_WIDTH  # 112,570
 
 def _tax_components_scotland(
     taxable: float,
+    basic_rate_band_extension: int = 0,
 ) -> tuple[float, float, float, float, float, float]:
     """Scottish 6-band breakdown for a taxable income amount.
     Source: https://www.gov.uk/scottish-income-tax
@@ -155,15 +156,31 @@ def _tax_components_scotland(
       Advanced 45% : 62,431–112,570
       Top 48%      : >112,570
 
+    *basic_rate_band_extension* is the grossed-up relief-at-source
+    pension that extends the basic-rate band (e.g. a workplace scheme
+    using relief at source — https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief).
+    For Scotland this is modelled as extending the intermediate (21%)
+    band and shifting the higher/advanced/top thresholds up by the
+    same amount — a documented approximation (rUK is precise).
+
     Returns only band widths — the caller computes tax on the
     *difference* band (combined − existing) to avoid double rounding.
     """
+    ext = basic_rate_band_extension
     starter = min(taxable, _SCOT_STARTER_UPPER)
     basic = max(0, min(taxable, _SCOT_BASIC_UPPER) - _SCOT_STARTER_UPPER)
-    intermediate = max(0, min(taxable, _SCOT_INTERMEDIATE_UPPER) - _SCOT_BASIC_UPPER)
-    higher = max(0, min(taxable, _SCOT_HIGHER_UPPER) - _SCOT_INTERMEDIATE_UPPER)
-    advanced = max(0, min(taxable, _SCOT_ADVANCED_UPPER) - _SCOT_HIGHER_UPPER)
-    top = max(0, taxable - _SCOT_ADVANCED_UPPER)
+    intermediate = max(
+        0, min(taxable, _SCOT_INTERMEDIATE_UPPER + ext) - _SCOT_BASIC_UPPER
+    )
+    higher = max(
+        0,
+        min(taxable, _SCOT_HIGHER_UPPER + ext) - (_SCOT_INTERMEDIATE_UPPER + ext),
+    )
+    advanced = max(
+        0,
+        min(taxable, _SCOT_ADVANCED_UPPER + ext) - (_SCOT_HIGHER_UPPER + ext),
+    )
+    top = max(0, taxable - (_SCOT_ADVANCED_UPPER + ext))
     return starter, basic, intermediate, higher, advanced, top
 
 
@@ -172,6 +189,7 @@ def calc_income_tax(
     personal_allowance: int,
     existing_income: float = 0,
     region: str | None = None,
+    basic_rate_band_extension: int = 0,
 ) -> IncomeTaxResult:
     """Compute full IncomeTaxResult for a given salary and PA.
     Income Tax: https://www.gov.uk/income-tax-rates
@@ -183,6 +201,13 @@ def calc_income_tax(
     *region* is ``"scotland"`` for Scottish rates, anything else (or None)
     for rest-of-UK (England/Wales/NI). Aliases ``england``/``wales``/
     ``northern_ireland`` normalise to rest_of_uk.
+    *basic_rate_band_extension* is the gross relief-at-source pension
+    amount by which the basic-rate band is extended (``0`` for net-pay
+    / no relief-at-source; e.g. a workplace scheme using relief at
+    source — https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief).
+    For rUK it extends the 20% band (threshold 50,270 → 50,270+E);
+    for Scotland it extends the intermediate (21%) band as a documented
+    approximation and shifts higher/advanced/top thresholds.
 
     rUK Bands (2026/27):
       - 0%: £0 to personal_allowance
@@ -210,8 +235,12 @@ def calc_income_tax(
     existing_taxable = max(0, existing_income - personal_allowance)
 
     if is_scotland:
-        sc, bc, ic, hc, ac, tc = _tax_components_scotland(total_taxable)
-        se, be, ie, he, ae, te = _tax_components_scotland(existing_taxable)
+        sc, bc, ic, hc, ac, tc = _tax_components_scotland(
+            total_taxable, basic_rate_band_extension
+        )
+        se, be, ie, he, ae, te = _tax_components_scotland(
+            existing_taxable, basic_rate_band_extension
+        )
 
         starter_band = sc - se
         basic_band = bc - be
@@ -240,7 +269,9 @@ def calc_income_tax(
         additional_band = 0
         additional_tax = 0
     else:
-        basic_band_width = BASIC_RATE_BAND_LIMIT - PERSONAL_ALLOWANCE  # 37,700
+        basic_band_width = (
+            BASIC_RATE_BAND_LIMIT - PERSONAL_ALLOWANCE + basic_rate_band_extension
+        )  # 37,700 + extension
         higher_band_limit = HIGHER_RATE_BAND_LIMIT  # 125,140
 
         bc, hc, ac, *_ = _tax_components(

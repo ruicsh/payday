@@ -84,12 +84,13 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertEqual(self._find_step(breakdown, "Gross Salary").amount, 102363)
 
         # New steps: PA and Taxable Income
-        # PA for 102363: 12570 - int((102363-100000)/2) = 12570 - 1181 = 11389
+        # PA for 102363 with RAS pension (G=2,202): ANI 100161 →
+        # 12570 - int((100161-100000)/2) = 12570 - 80 = 12490
         self.assertEqual(
-            self._find_step(breakdown, "Personal Allowance (tapered)").amount, -11389
+            self._find_step(breakdown, "Personal Allowance (tapered)").amount, -12490
         )
         self.assertEqual(
-            self._find_step(breakdown, "Taxable Income").amount, 102363 - 11389
+            self._find_step(breakdown, "Taxable Income").amount, 102363 - 12490
         )
 
         # Verify take-home and sub-results are present
@@ -547,14 +548,25 @@ class TestInsideIR35Calculator(unittest.TestCase):
         self.assertEqual(ruk.income_tax.region, "rest_of_uk")
         # Scotland tax diverges from rUK (for this gross/tapered-PA case it's higher)
         self.assertNotEqual(scot.income_tax.total_tax, ruk.income_tax.total_tax)
-        # Verify against direct calc_income_tax on the same gross/PA
-        from payday.income_tax import calc_personal_allowance, calc_income_tax
+        # Verify against direct calc_income_tax on the same gross/PA with RAS
+        from payday.income_tax import (
+            calc_adjusted_net_income,
+            calc_personal_allowance,
+            calc_income_tax,
+        )
+        from payday.pension import calc_pension
 
-        gross = self._find_step(ruk, "Gross Salary").amount
-        pa, _ = calc_personal_allowance(gross)
+        gross = int(self._find_step(ruk, "Gross Salary").amount)
+        g = calc_pension(gross).employee_contribution
+        ani = calc_adjusted_net_income(
+            employment_income=gross, relief_at_source_pension=round(g * 0.80)
+        )
+        pa, _ = calc_personal_allowance(ani)
         self.assertEqual(
             scot.income_tax.total_tax,
-            calc_income_tax(gross, pa, region="scotland").total_tax,
+            calc_income_tax(
+                gross, pa, region="scotland", basic_rate_band_extension=g
+            ).total_tax,
         )
         self.assertEqual(scot.inputs.get("region"), "scotland")
 
@@ -566,6 +578,56 @@ class TestInsideIR35Calculator(unittest.TestCase):
             self.assertNotEqual(ruk.inputs.get("region"), "scotland")
             assert ruk.income_tax is not None
             self.assertEqual(ruk.income_tax.region, "rest_of_uk")
+
+    # ── pension_method (relief at source vs net pay) ─────────────────
+
+    def test_pension_method_default_is_relief_at_source(self):
+        default = InsideIR35Calculator.calculate(500, 240, 25)
+        ras = InsideIR35Calculator.calculate(
+            500, 240, 25, pension_method="relief_at_source"
+        )
+        self.assertEqual(default.annual_take_home, ras.annual_take_home)
+        self.assertNotIn("pension_method", default.inputs)
+
+    def test_pension_method_net_pay_stored(self):
+        net = InsideIR35Calculator.calculate(500, 240, 25, pension_method="net_pay")
+        self.assertEqual(net.inputs.get("pension_method"), "net_pay")
+
+    def test_pension_method_invalid_raises(self):
+        with self.assertRaises(ValueError):
+            InsideIR35Calculator.calculate(500, 240, 25, pension_method="bogus")
+
+    def test_pension_method_deduction_and_take_home(self):
+        # G for 500*240 gross 102,363 is 2,202; net 1,762
+        net = InsideIR35Calculator.calculate(500, 240, 25, pension_method="net_pay")
+        ras = InsideIR35Calculator.calculate(
+            500, 240, 25, pension_method="relief_at_source"
+        )
+        self.assertEqual(
+            next(s.amount for s in net.steps if s.label == "Pension Contribution"),
+            -2202,
+        )
+        self.assertEqual(
+            next(s.amount for s in ras.steps if s.label == "Pension Contribution"),
+            -1762,
+        )
+        # Regression: pension must affect take-home (fixed bug)
+        self.assertLess(net.annual_take_home, net.inputs["day_rate"] * 240)
+        # Both methods give same rUK take-home (40% band equivalence)
+        self.assertEqual(net.annual_take_home, ras.annual_take_home)
+
+    def test_pension_method_take_home_includes_pension(self):
+        # Explicit regression for the latent bug where Inside IR35 take-home
+        # omitted the pension contribution.
+        ras = InsideIR35Calculator.calculate(
+            500, 240, 25, pension_method="relief_at_source"
+        )
+        assert ras.income_tax is not None
+        assert ras.employee_ni is not None
+        gross = next(s.amount for s in ras.steps if s.label == "Gross Salary")
+        expected = gross - ras.income_tax.total_tax - ras.employee_ni.total_ni - 1762
+        # student loan none in this case
+        self.assertEqual(ras.annual_take_home, expected)
 
 
 if __name__ == "__main__":

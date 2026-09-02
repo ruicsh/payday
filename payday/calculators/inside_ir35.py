@@ -1,8 +1,10 @@
 from payday.annual_allowance import (
+    calc_adjusted_income,
     calc_annual_allowance,
     find_max_pension_for_funcs,
     find_max_pension_for_threshold,
 )
+from payday.config import DEFAULT_PENSION_METHOD, VALID_PENSION_METHODS
 from payday.constants import (
     APPRENTICESHIP_LEVY_RATE,
     NI_EMPLOYER_RATE,
@@ -16,7 +18,12 @@ from payday.income_tax import (
     calc_income_tax,
 )
 from payday.national_insurance import calc_employee_ni, calc_employer_ni
-from payday.pension import calc_pension
+from payday.pension import (
+    calc_pension,
+    employee_net_contribution,
+    pension_tax_params,
+    ras_net_contribution,
+)
 from payday.student_loan import calc_postgraduate_loan, calc_student_loan
 from payday.models import SalaryBreakdown, StepLine, PensionResult
 from payday.tax_year import pro_rate_contract
@@ -41,6 +48,7 @@ class InsideIR35Calculator:
         postgraduate_loan: bool = False,
         has_child_benefit: bool = False,
         num_children: int = 1,
+        pension_method: str = DEFAULT_PENSION_METHOD,
     ) -> SalaryBreakdown:
         """Inside IR35: Assignment → Er costs → gross → IT + EE NI + Pension + Student Loan → 20-day.
         IR35 context: https://www.gov.uk/guidance/understanding-off-payroll-working-ir35
@@ -62,7 +70,18 @@ class InsideIR35Calculator:
         *region* is ``"scotland"`` for Scottish rates, anything else for rUK.
         *student_loan_plan* is ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``.
         *postgraduate_loan* stacks a 6% Postgraduate Loan repayment on top.
+        *pension_method* is ``"relief_at_source"`` (default — the most common
+        workplace scheme, e.g. NEST; member pays 80% from net pay, provider
+        claims 20% basic-rate relief and the basic-rate band is extended) or
+        ``"net_pay"`` (contribution deducted before tax; relief at marginal
+        rate). Only applies to the auto-enrolment workplace pension; salary
+        sacrifice is handled separately.
+        Pension tax relief: https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief
         """
+        if pension_method not in VALID_PENSION_METHODS:
+            raise ValueError(
+                f"pension_method must be one of {sorted(VALID_PENSION_METHODS)}, got '{pension_method}'"
+            )
         if working_days <= 0:
             raise ValueError("working_days must be > 0")
 
@@ -177,20 +196,58 @@ class InsideIR35Calculator:
                 employer_contribution=er_pension.employer_contribution,
             )
 
-        # ANI includes all income for correct PA tapering; dividends don't consume rate bands.
-        # Other income is treated as additional taxable income for ANI/PA purposes.
-        ani = calc_adjusted_net_income(
-            employment_income=round(effective_gross + existing_income + other_income),
-            dividend_income=existing_dividends,
-        )
-        pa, tapered = calc_personal_allowance(ani)
-        total_existing_for_pa = round(existing_income + other_income)
-        it_result = calc_income_tax(
-            effective_gross,
-            pa,
-            existing_income=total_existing_for_pa,
-            region=region,
-        )
+        # Pension deduction for take-home (net for RAS, full for net_pay)
+        pension_deduction = 0
+        if not salary_sacrifice:
+            pension_deduction = employee_net_contribution(
+                pension_result.employee_contribution, pension_method
+            )
+
+        # ANI / PA / Income Tax — method-aware
+        if salary_sacrifice:
+            ani = calc_adjusted_net_income(
+                employment_income=round(
+                    effective_gross + existing_income + other_income
+                ),
+                dividend_income=existing_dividends,
+            )
+            pa, tapered = calc_personal_allowance(ani)
+            total_existing_for_pa = round(existing_income + other_income)
+            it_result = calc_income_tax(
+                effective_gross,
+                pa,
+                existing_income=total_existing_for_pa,
+                region=region,
+            )
+        else:
+            _gross_employee = pension_result.employee_contribution
+            taxable_gross, band_extension = pension_tax_params(
+                effective_gross, _gross_employee, pension_method
+            )
+            if pension_method == "net_pay":
+                ani = calc_adjusted_net_income(
+                    employment_income=round(
+                        taxable_gross + existing_income + other_income
+                    ),
+                    dividend_income=existing_dividends,
+                )
+            else:  # relief_at_source — full gross taxed, ANI reduced
+                ani = calc_adjusted_net_income(
+                    employment_income=round(
+                        effective_gross + existing_income + other_income
+                    ),
+                    dividend_income=existing_dividends,
+                    relief_at_source_pension=ras_net_contribution(_gross_employee),
+                )
+            pa, tapered = calc_personal_allowance(ani)
+            total_existing_for_pa = round(existing_income + other_income)
+            it_result = calc_income_tax(
+                taxable_gross,
+                pa,
+                existing_income=total_existing_for_pa,
+                region=region,
+                basic_rate_band_extension=band_extension,
+            )
         ee_ni_result = calc_employee_ni(effective_gross)
 
         sl_result = (
@@ -216,21 +273,31 @@ class InsideIR35Calculator:
                 + existing_income
                 + existing_dividends
             )
-            adjusted_income = round(threshold_income + salary_sacrifice)
+            adjusted_income = calc_adjusted_income(threshold_income, salary_sacrifice)
             aa_result = calc_annual_allowance(threshold_income, adjusted_income)
         else:
+            # Threshold = total income − gross employee contribution (both methods:
+            # net-pay reduces pay; RAS subtracts grossed-up — both equal gross).
             threshold_income = round(
-                effective_gross + other_income + existing_income + existing_dividends
+                effective_gross
+                - pension_result.employee_contribution
+                + other_income
+                + existing_income
+                + existing_dividends
             )
             pension_input = (
                 pension_result.employee_contribution
                 + pension_result.employer_contribution
             )
-            adjusted_income = round(threshold_income + pension_input)
+            adjusted_income = calc_adjusted_income(threshold_income, pension_input)
             aa_result = calc_annual_allowance(threshold_income, adjusted_income)
 
         annual_take_home = (
-            effective_gross - it_result.total_tax - ee_ni_result.total_ni - sl_total
+            effective_gross
+            - it_result.total_tax
+            - ee_ni_result.total_ni
+            - pension_deduction
+            - sl_total
         )
 
         year_taxable_income = round(
@@ -332,7 +399,7 @@ class InsideIR35Calculator:
             steps.append(
                 StepLine(
                     "Pension Contribution",
-                    -pension_result.employee_contribution,
+                    -pension_deduction,
                     indent=1,
                 )
             )
@@ -389,6 +456,8 @@ class InsideIR35Calculator:
             inputs["is_paystream"] = True
         if admin_charge:
             inputs["admin_charge"] = admin_charge
+        if pension_method == "net_pay":
+            inputs["pension_method"] = "net_pay"
         if salary_sacrifice:
             inputs["salary_sacrifice"] = salary_sacrifice
             if is_paystream:

@@ -1,14 +1,21 @@
 from payday.annual_allowance import (
+    calc_adjusted_income,
     calc_annual_allowance,
     find_max_pension_for_threshold,
 )
+from payday.config import DEFAULT_PENSION_METHOD, VALID_PENSION_METHODS
 from payday.income_tax import (
     calc_adjusted_net_income,
     calc_personal_allowance,
     calc_income_tax,
 )
 from payday.national_insurance import calc_employee_ni
-from payday.pension import calc_pension
+from payday.pension import (
+    calc_pension,
+    employee_net_contribution,
+    pension_tax_params,
+    ras_net_contribution,
+)
 from payday.student_loan import calc_postgraduate_loan, calc_student_loan
 from payday.hicbc import apply_hicbc_inputs, hicbc_result_and_steps
 from payday.models import PensionResult, SalaryBreakdown, StepLine
@@ -25,6 +32,7 @@ class PAYECalculator:
         postgraduate_loan: bool = False,
         has_child_benefit: bool = False,
         num_children: int = 1,
+        pension_method: str = DEFAULT_PENSION_METHOD,
     ) -> SalaryBreakdown:
         """PAYE: Gross → IT + EE NI + Pension + Student Loan → take-home (monthly).
         Income Tax: https://www.gov.uk/income-tax-rates
@@ -41,45 +49,89 @@ class PAYECalculator:
         *region* is ``"scotland"`` for Scottish rates, anything else for rUK.
         *student_loan_plan* is ``"plan1"/"plan2"/"plan4"/"plan5"`` or ``None``.
         *postgraduate_loan* stacks a 6% Postgraduate Loan repayment on top.
+        *pension_method* is ``"relief_at_source"`` (default — the most common
+        workplace scheme, e.g. NEST; member pays 80% from net pay, provider
+        claims 20% basic-rate relief and the basic-rate band is extended) or
+        ``"net_pay"`` (contribution deducted before tax; relief at marginal
+        rate). Only applies to the auto-enrolment workplace pension; salary
+        sacrifice is handled separately.
+        Pension tax relief: https://www.gov.uk/tax-on-your-private-pension/pension-tax-relief
         """
+        if pension_method not in VALID_PENSION_METHODS:
+            raise ValueError(
+                f"pension_method must be one of {sorted(VALID_PENSION_METHODS)}, got '{pension_method}'"
+            )
         # Annual Allowance taper — cap salary sacrifice when threshold/
         # adjusted income triggers the taper. Per-mode isolation: threshold
         # is salary + other_income (add-back cancels), adjusted = threshold
         # + sacrifice. See annual_allowance.py for HMRC definitions.
         aa_result = None
+        # Pre-compute auto-enrolment pension for AA when no sacrifice
+        _auto_pension = calc_pension(salary)
+        _auto_employee = _auto_pension.employee_contribution
+        _auto_employer = _auto_pension.employer_contribution
         if salary_sacrifice:
             threshold_income = round(salary + other_income)
             max_allowed = find_max_pension_for_threshold(threshold_income)
             if salary_sacrifice > max_allowed:
                 salary_sacrifice = max_allowed
-            adjusted_income = threshold_income + salary_sacrifice
+            adjusted_income = calc_adjusted_income(threshold_income, salary_sacrifice)
             aa_result = calc_annual_allowance(threshold_income, adjusted_income)
         else:
             # No sacrifice: still compute AA for display when tapered (auto-enrolment).
-            threshold_income = round(salary + other_income)
-            # Pension input for AA when no sacrifice is the auto-enrolment amount.
-            _tmp_pension = calc_pension(salary)
-            pension_input = (
-                _tmp_pension.employee_contribution + _tmp_pension.employer_contribution
-            )
-            adjusted_income = threshold_income + pension_input
+            # For AA, threshold = total income − gross employee contribution
+            # (net-pay reduces taxable pay; RAS subtracts grossed-up — both = G)
+            # and adjusted = threshold + total pension input (Er + G).
+            threshold_income = round(salary - _auto_employee + other_income)
+            pension_input = _auto_employee + _auto_employer
+            adjusted_income = calc_adjusted_income(threshold_income, pension_input)
             aa_result = calc_annual_allowance(threshold_income, adjusted_income)
             # Auto-enrolment is only ~£3.5k so it never exceeds AA; no capping needed.
 
         effective_gross = salary - salary_sacrifice
 
-        ani = calc_adjusted_net_income(
-            employment_income=round(effective_gross + other_income),
-        )
-        pa, tapered = calc_personal_allowance(ani)
-        it_result = calc_income_tax(
-            effective_gross, pa, existing_income=round(other_income), region=region
-        )
-        ni_result = calc_employee_ni(effective_gross)
+        # Pension + ANI for the non-sacrifice branch (method-aware)
         if salary_sacrifice:
             pension_result = PensionResult(False, 0, 0, 0)
+            # No workplace pension when sacrificing; method irrelevant
+            taxable_gross = effective_gross
+            band_extension = 0
+            ani = calc_adjusted_net_income(
+                employment_income=round(effective_gross + other_income),
+            )
         else:
             pension_result = calc_pension(effective_gross)
+            _gross_employee = pension_result.employee_contribution
+            taxable_gross, band_extension = pension_tax_params(
+                effective_gross, _gross_employee, pension_method
+            )
+            if pension_method == "net_pay":
+                ani = calc_adjusted_net_income(
+                    employment_income=round(taxable_gross + other_income),
+                )
+            else:  # relief_at_source
+                net_ras = ras_net_contribution(_gross_employee)
+                ani = calc_adjusted_net_income(
+                    employment_income=round(effective_gross + other_income),
+                    relief_at_source_pension=net_ras,
+                )
+        pa, tapered = calc_personal_allowance(ani)
+        if salary_sacrifice:
+            it_result = calc_income_tax(
+                effective_gross,
+                pa,
+                existing_income=round(other_income),
+                region=region,
+            )
+        else:
+            it_result = calc_income_tax(
+                taxable_gross,
+                pa,
+                existing_income=round(other_income),
+                region=region,
+                basic_rate_band_extension=band_extension,
+            )
+        ni_result = calc_employee_ni(effective_gross)
 
         sl_result = (
             calc_student_loan(effective_gross, student_loan_plan)
@@ -93,11 +145,19 @@ class PAYECalculator:
             pgl_result.repayment if pgl_result else 0
         )
 
+        # Take-home deducts the member amount (net for RAS, full for net_pay)
+        pension_deduction = (
+            0
+            if salary_sacrifice
+            else employee_net_contribution(
+                pension_result.employee_contribution, pension_method
+            )
+        )
         annual_take_home = (
             effective_gross
             - it_result.total_tax
             - ni_result.total_ni
-            - pension_result.employee_contribution
+            - pension_deduction
             - sl_total
         )
         monthly_take_home = annual_take_home // 12
@@ -128,7 +188,7 @@ class PAYECalculator:
             steps.append(
                 StepLine(
                     "Pension Contribution",
-                    -pension_result.employee_contribution,
+                    -pension_deduction,
                     indent=1,
                 )
             )
@@ -172,6 +232,8 @@ class PAYECalculator:
             inputs["adjusted_income"] = aa_result.adjusted_income
         if region == "scotland":
             inputs["region"] = "scotland"
+        if pension_method == "net_pay":
+            inputs["pension_method"] = "net_pay"
         if salary_sacrifice:
             inputs["salary_sacrifice"] = salary_sacrifice
         if student_loan_plan:

@@ -8,6 +8,8 @@ VALID_SACRIFICE_KEYWORDS = {"max", "auto"}
 VALID_REGIONS = {"scotland", "england", "wales", "northern_ireland", "rest_of_uk"}
 VALID_STUDENT_LOAN_PLANS = {"plan1", "plan2", "plan4", "plan5"}
 VALID_VAT_SCHEMES = {"standard", "flat_rate", "none"}
+VALID_PENSION_METHODS = {"net_pay", "relief_at_source"}
+DEFAULT_PENSION_METHOD = "relief_at_source"
 # Boolean fields accept both true and false as legitimate values.
 BOOLEAN_FIELDS = {
     "salary_sacrifice_enabled",
@@ -53,6 +55,7 @@ FIELD_TYPES = {
     "postgraduate_loan": (bool, type(None)),
     "has_child_benefit": (bool, type(None)),
     "num_children": (int, bool, type(None)),
+    "pension_method": (str, type(None)),
 }
 _ALL_FIELDS = [
     "mode",
@@ -87,6 +90,7 @@ _ALL_FIELDS = [
     "postgraduate_loan",
     "has_child_benefit",
     "num_children",
+    "pension_method",
 ]
 
 
@@ -208,6 +212,12 @@ def _validate_field(key: str, value: Any) -> None:
         elif not (0 < float(value) < 1):
             raise ValueError(
                 f"'vat_flat_rate': must be between 0 and 1 (e.g. 0.165 for 16.5%), got {value}"
+            )
+
+    elif key == "pension_method" and value is not None:
+        if value not in VALID_PENSION_METHODS:
+            raise ValueError(
+                f"'pension_method': must be one of {', '.join(sorted(VALID_PENSION_METHODS))}, got '{value}'"
             )
 
 
