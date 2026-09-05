@@ -12,4 +12,4 @@ jobs:
       - uses: ruicsh/backup-action@main
         with:
           bitbucket_token: ${{ secrets.BITBUCKET_TOKEN }}
-          target_repo: ruicsh/payday
+          target_repo: ruicsh/payday.py
