@@ -2,6 +2,7 @@ REQUIREMENTS.md
 SPEC.md
 tasks/
 __pycache__/
+*.egg-info/
 payday.json
 contracts/
 contracts/*
